@@ -1,0 +1,24 @@
+[package]
+name = "minecraft-week"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.102"
+bon = "3.9.2"
+bytemuck = "1.25.0"
+env_logger = "0.11.10"
+glam = { version = "0.33.1", features = ["bytemuck"] }
+image = "0.25.10"
+log = "0.4.32"
+pollster = "0.4.0"
+wgpu = "29.0.3"
+winit = "0.30.13"
+
+[profile.dev.package."*"]
+opt-level = 1
+
+[profile.dev]
+incremental = true
+codegen-units = 16
+
