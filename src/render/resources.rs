@@ -35,34 +35,23 @@ impl GfxBindingLayout {
 }
 
 #[derive(Debug)]
-pub enum GfxBindingData<'d> {
-    Uniform(&'d GfxUniform),
-    Texture(&'d GfxTexture),
-    Sampler(&'d wgpu::Sampler),
-}
-
-impl<'d> GfxBindingData<'d> {
-    pub fn get_bind_group(&self, index: u32) -> wgpu::BindGroupEntry<'d> {
-        wgpu::BindGroupEntry {
-            binding: index,
-            resource: match self {
-                | GfxBindingData::Uniform(gfx_uniform) => {
-                    wgpu::BindingResource::Buffer(gfx_uniform.buffer.as_entire_buffer_binding())
-                }
-                | GfxBindingData::Texture(gfx_texture) => {
-                    wgpu::BindingResource::TextureView(&gfx_texture.view)
-                }
-                | GfxBindingData::Sampler(sampler) => wgpu::BindingResource::Sampler(sampler),
-            },
-        }
-    }
-}
-
-#[derive(Debug)]
 pub enum GfxResource {
     Uniform(GfxUniform),
     Texture(GfxTexture),
     Sampler(wgpu::Sampler),
+}
+
+impl GfxResource {
+    pub fn get_bind_group<'d>(&'d self, index: u32) -> wgpu::BindGroupEntry<'d> {
+        wgpu::BindGroupEntry {
+            binding: index,
+            resource: match self {
+                | GfxResource::Uniform(gfx_uniform) => gfx_uniform.buffer.as_entire_binding(),
+                | GfxResource::Texture(gfx_texture) => wgpu::BindingResource::TextureView(&gfx_texture.view),
+                | GfxResource::Sampler(sampler) => wgpu::BindingResource::Sampler(sampler),
+            },
+        }
+    }
 }
 
 #[derive(bon::Builder, Debug)]
