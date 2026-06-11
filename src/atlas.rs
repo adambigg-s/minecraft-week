@@ -62,8 +62,6 @@ impl TextureAtlas {
             }
         }
 
-        
-
         Ok(Self {
             tile_size: tile_sizes as u32,
             image: atlas_image,
