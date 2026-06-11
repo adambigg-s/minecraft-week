@@ -10,10 +10,12 @@ struct VertexOut {
     @location(1) tex: vec2<f32>,
 };
 
+@group(0) @binding(0) var<uniform> view_proj: mat4x4<f32>;
+
 @vertex 
 fn vs_main(in: VertexIn) -> VertexOut {
     var out: VertexOut;
-    out.pos = vec4<f32>(in.pos, 1.0);
+    out.pos = view_proj * vec4<f32>(in.pos, 1.0);
     out.col = in.col;
     out.tex = in.tex;
     return out;

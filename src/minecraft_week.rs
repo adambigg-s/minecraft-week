@@ -1,11 +1,14 @@
 use crate::{
     application::{self, input},
+    engine::{camera, transform},
     pipelines,
-    render::{self, mesh},
+    render::{self, GfxCamera, resources, util},
 };
 
 #[derive(bon::Builder, Debug)]
-pub struct MinecraftWeek {}
+pub struct MinecraftWeek {
+    camera: camera::Camera,
+}
 
 impl application::Application for MinecraftWeek {
     fn config() -> application::Config {
@@ -22,13 +25,30 @@ impl application::Application for MinecraftWeek {
     ) -> anyhow::Result<Self> {
         let (context, render) = (gfx_context, gfx_render);
 
+        render.register_bind_group_layout(
+            context,
+            "global_layout",
+            &[resources::GfxBindingLayout::Uniform],
+        )?;
+
+        render.register_pipeline::<pipelines::Rainbow>(context, "rainbow_pipe", &["global_layout"]);
+
         render.register_mesh(
             "triangle_mesh",
-            mesh::GfxMesh::new(context, pipelines::TRI_VERTICES, pipelines::TRI_INDICES),
+            util::mesh(context, pipelines::TRI_VERTICES, pipelines::TRI_INDICES),
         );
-        render.register_pipeline::<pipelines::Rainbow>(context, "rainbow_pipe", &[]);
+        render.register_resource("camera_uni", util::uniform::<glam::Mat4>(context, "Camera"));
+        render.register_bind_group(context, "global_bg", "global_layout", &["camera_uni"])?;
 
-        Ok(Self {})
+        let camera = camera::Camera {
+            inner: transform::Transform::from_position([0.0, 0.0, 1.0].into()),
+            ar: context.config.width as f32 / context.config.height as f32,
+            fov: 67.0,
+            znear: 0.05,
+            zfear: 100.0,
+        };
+
+        Ok(Self { camera })
     }
 
     fn physics_frame(
@@ -39,9 +59,40 @@ impl application::Application for MinecraftWeek {
     ) {
         let (context, render) = (gfx_context, gfx_render);
 
+        self.camera.ar = context.config.width as f32 / context.config.height as f32;
+
         if input.consume_key_press("escape") {
-            input.request_quit = true;
+            input.request_quit = !input.request_quit;
         }
+        if input.consume_key_release("keyq") {
+            input.request_grab = !input.request_grab;
+        }
+
+        let [mut dx, mut dy, mut dz] = [0.0; 3];
+        if input.get_key_pres("keyw") {
+            dz += 1.0;
+        }
+        if input.get_key_pres("keys") {
+            dz -= 1.0;
+        }
+        if input.get_key_pres("keyd") {
+            dx += 1.0;
+        }
+        if input.get_key_pres("keya") {
+            dx -= 1.0;
+        }
+        if input.get_key_pres("space") {
+            dy += 1.0;
+        }
+        if input.get_key_pres("shiftleft") {
+            dy -= 1.0;
+        }
+        [dx, dy, dz] = (glam::vec3(dx, dy, dz).normalize_or_zero() * 0.01).to_array();
+        self.camera.update_position(dx, dy, dz);
+
+        let [mut dy, mut dx] = input.consume_mouse_delta().into();
+        [dy, dx] = (glam::vec2(dy, dx) * 0.001).to_array();
+        self.camera.update_rotation(-dx, -dy, 0.0);
     }
 
     fn gfx_frame(
@@ -52,10 +103,14 @@ impl application::Application for MinecraftWeek {
     ) {
         let (context, render) = (gfx_context, gfx_render);
 
+        if let Some(resources::GfxResource::Uniform(cam)) = render.resources.get("camera_uni") {
+            cam.write(context, &self.camera.view_proj());
+        }
+
         render.queue(render::GfxDrawCall {
             mesh: "triangle_mesh".into(),
             pipe: "rainbow_pipe".into(),
-            bind_groups: vec![],
+            bind_groups: vec!["global_bg".into()],
         });
     }
 }

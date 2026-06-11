@@ -1,5 +1,6 @@
 pub mod mesh;
 pub mod resources;
+pub mod util;
 
 use std::{collections, sync};
 
@@ -141,7 +142,7 @@ impl GfxRenderer {
         context: &GfxContext,
         name: &str,
         layout_name: &str,
-        bindings: &[resources::GfxBindingData],
+        binding_names: &[&str],
     ) -> anyhow::Result<()> {
         let Some(layout) = self.bind_group_layouts.get(layout_name)
         else {
@@ -149,10 +150,22 @@ impl GfxRenderer {
             anyhow::bail!("Avaliable layouts: {:?}", self.bind_group_layouts);
         };
 
-        let entries = bindings
+        let entries = binding_names
             .iter()
             .enumerate()
-            .map(|(index, binding)| binding.get_bind_group(index as u32))
+            .map(|(index, &binding)| {
+                let res = self.resources.get(binding).unwrap();
+                let as_other = match res {
+                    | resources::GfxResource::Uniform(gfx_uniform) => {
+                        resources::GfxBindingData::Uniform(gfx_uniform)
+                    }
+                    | resources::GfxResource::Texture(gfx_texture) => {
+                        resources::GfxBindingData::Texture(gfx_texture)
+                    }
+                    | resources::GfxResource::Sampler(sampler) => resources::GfxBindingData::Sampler(sampler),
+                };
+                as_other.get_bind_group(index as u32)
+            })
             .collect::<Vec<wgpu::BindGroupEntry>>();
 
         let bind_group = context.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -164,6 +177,35 @@ impl GfxRenderer {
         self.bind_groups.insert(name.into(), bind_group);
         Ok(())
     }
+
+    // pub fn register_bind_group(
+    //     &mut self,
+    //     context: &GfxContext,
+    //     name: &str,
+    //     layout_name: &str,
+    //     bindings: &[resources::GfxBindingData],
+    // ) -> anyhow::Result<()> {
+    //     let Some(layout) = self.bind_group_layouts.get(layout_name)
+    //     else {
+    //         log::error!("Layout must be registered first: {}", layout_name);
+    //         anyhow::bail!("Avaliable layouts: {:?}", self.bind_group_layouts);
+    //     };
+
+    //     let entries = bindings
+    //         .iter()
+    //         .enumerate()
+    //         .map(|(index, binding)| binding.get_bind_group(index as u32))
+    //         .collect::<Vec<wgpu::BindGroupEntry>>();
+
+    //     let bind_group = context.device.create_bind_group(&wgpu::BindGroupDescriptor {
+    //         label: Some(&format!("{} bind group", name)),
+    //         layout,
+    //         entries: &entries,
+    //     });
+
+    //     self.bind_groups.insert(name.into(), bind_group);
+    //     Ok(())
+    // }
 
     pub fn register_pipeline<Pipe>(&mut self, context: &GfxContext, name: &str, layout_names: &[&str])
     where
@@ -225,9 +267,7 @@ impl GfxRenderer {
                     continue;
                 };
 
-                if let (Some(rc), Some(bg)) = (rc.bind_groups.get(index), call.bind_groups.get(index))
-                    && rc != bg
-                {
+                if rc.bind_groups != call.bind_groups {
                     render_pass.set_bind_group(index as u32, bind_group, &[]);
                 }
             }
