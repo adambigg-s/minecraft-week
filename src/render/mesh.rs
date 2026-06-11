@@ -10,23 +10,18 @@ pub struct GfxMesh {
 }
 
 impl GfxMesh {
-    pub fn new<Vertex, Index>(
-        context: &render::GfxContext,
-        vertices: &[Vertex],
-        indices: &[Index],
-        label: &str,
-    ) -> Self
+    pub fn new<Vertex, Index>(context: &render::GfxContext, vertices: &[Vertex], indices: &[Index]) -> Self
     where
         Vertex: render::GfxVertex,
         Index: Into<u16> + Copy,
     {
         let vertex = context.device.create_buffer_init(&util::BufferInitDescriptor {
-            label: Some(&format!("{} vertex buffer", label)),
+            label: Some("Vertex buffer"),
             contents: bytemuck::cast_slice(vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
         let index = context.device.create_buffer_init(&util::BufferInitDescriptor {
-            label: Some(&format!("{} index buffer", label)),
+            label: Some("Index buffer"),
             contents: bytemuck::cast_slice(&indices.iter().map(|&index| index.into()).collect::<Vec<u16>>()),
             usage: wgpu::BufferUsages::INDEX,
         });

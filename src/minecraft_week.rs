@@ -1,6 +1,7 @@
 use crate::{
     application::{self, input},
-    render,
+    pipelines,
+    render::{self, mesh},
 };
 
 #[derive(bon::Builder, Debug)]
@@ -19,6 +20,14 @@ impl application::Application for MinecraftWeek {
         gfx_context: &mut render::GfxContext,
         gfx_render: &mut render::GfxRenderer,
     ) -> anyhow::Result<Self> {
+        let (context, render) = (gfx_context, gfx_render);
+
+        render.register_mesh(
+            "triangle_mesh",
+            mesh::GfxMesh::new(context, pipelines::TRI_VERTICES, pipelines::TRI_INDICES),
+        );
+        render.register_pipeline::<pipelines::Rainbow>(context, "rainbow_pipe", &[]);
+
         Ok(Self {})
     }
 
@@ -28,6 +37,8 @@ impl application::Application for MinecraftWeek {
         gfx_context: &render::GfxContext,
         gfx_render: &render::GfxRenderer,
     ) {
+        let (context, render) = (gfx_context, gfx_render);
+
         if input.consume_key_press("escape") {
             input.request_quit = true;
         }
@@ -39,5 +50,12 @@ impl application::Application for MinecraftWeek {
         gfx_context: &mut render::GfxContext,
         gfx_render: &mut render::GfxRenderer,
     ) {
+        let (context, render) = (gfx_context, gfx_render);
+
+        render.queue(render::GfxDrawCall {
+            mesh: "triangle_mesh".into(),
+            pipe: "rainbow_pipe".into(),
+            bind_groups: vec![],
+        });
     }
 }

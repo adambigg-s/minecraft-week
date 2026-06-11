@@ -21,10 +21,7 @@ pub trait GfxTransform {
 }
 
 pub trait GfxPipeline {
-    fn pipeline(
-        gfx_context: &GfxContext,
-        gfx_layouts: &[Option<&wgpu::BindGroupLayout>],
-    ) -> wgpu::RenderPipeline;
+    fn pipeline(context: &GfxContext, layouts: &[Option<&wgpu::BindGroupLayout>]) -> wgpu::RenderPipeline;
 }
 
 #[derive(bon::Builder, Debug)]
