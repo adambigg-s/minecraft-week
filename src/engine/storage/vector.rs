@@ -37,6 +37,7 @@ where
 }
 
 impl<const N: usize> Vector<f64, N> {
+    #[inline(always)]
     pub fn norm(&self) -> f64 {
         let mut accum = 0.0;
         (0..N).for_each(|i| accum += self.items[i] * self.items[i]);

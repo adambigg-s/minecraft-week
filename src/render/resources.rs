@@ -9,11 +9,53 @@ pub enum GfxBindingLayout {
     Sampler,
 }
 
+impl GfxBindingLayout {
+    pub fn get_bind_group_layout(&self, index: u32) -> wgpu::BindGroupLayoutEntry {
+        wgpu::BindGroupLayoutEntry {
+            binding: index,
+            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+            ty: match self {
+                | GfxBindingLayout::Uniform => wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                | GfxBindingLayout::Texture => wgpu::BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    multisampled: false,
+                },
+                | GfxBindingLayout::Sampler => {
+                    wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering)
+                }
+            },
+            count: None,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum GfxBindingData<'d> {
     Uniform(&'d GfxUniform),
     Texture(&'d GfxTexture),
     Sampler(&'d wgpu::Sampler),
+}
+
+impl<'d> GfxBindingData<'d> {
+    pub fn get_bind_group(&self, index: u32) -> wgpu::BindGroupEntry<'d> {
+        wgpu::BindGroupEntry {
+            binding: index,
+            resource: match self {
+                | GfxBindingData::Uniform(gfx_uniform) => {
+                    wgpu::BindingResource::Buffer(gfx_uniform.buffer.as_entire_buffer_binding())
+                }
+                | GfxBindingData::Texture(gfx_texture) => {
+                    wgpu::BindingResource::TextureView(&gfx_texture.view)
+                }
+                | GfxBindingData::Sampler(sampler) => wgpu::BindingResource::Sampler(sampler),
+            },
+        }
+    }
 }
 
 #[derive(Debug)]
