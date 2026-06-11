@@ -1,7 +1,7 @@
 use crate::{
     application::{self, input},
     engine::{camera, transform},
-    pipelines,
+    mesher, pipelines,
     render::{self, GfxCamera, resources, util},
 };
 
@@ -28,17 +28,34 @@ impl application::Application for MinecraftWeek {
         render.register_bind_group_layout(
             context,
             "global_layout",
-            &[resources::GfxBindingLayout::Uniform],
+            &[
+                resources::GfxBindingLayout::Uniform,
+                resources::GfxBindingLayout::Texture,
+                resources::GfxBindingLayout::Sampler,
+            ],
         )?;
 
         render.register_pipeline::<pipelines::Rainbow>(context, "rainbow_pipe", &["global_layout"]);
+        render.register_pipeline::<pipelines::Terrain>(context, "terrain_pipe", &["global_layout"]);
 
         render.register_mesh(
             "triangle_mesh",
             util::mesh(context, pipelines::TRI_VERTICES, pipelines::TRI_INDICES),
         );
         render.register_resource("camera_uni", util::uniform::<glam::Mat4>(context, "Camera"));
-        render.register_bind_group(context, "global_bg", "global_layout", &["camera_uni"])?;
+        render.register_resource("sampler", util::sampler(context, "Sampler"));
+        render.register_resource(
+            "texture_atlas",
+            util::texture(context, "./res/atlas/test_texture.jpg", "Texture atlas")?,
+        );
+        render.register_bind_group(
+            context,
+            "global_bg",
+            "global_layout",
+            &["camera_uni", "texture_atlas", "sampler"],
+        )?;
+
+        render.register_mesh("cube_mesh", mesher::make_cube_mesh(context));
 
         let camera = camera::Camera {
             inner: transform::Transform::from_position([0.0, 0.0, 1.0].into()),
@@ -87,17 +104,17 @@ impl application::Application for MinecraftWeek {
         if input.get_key_pres("shiftleft") {
             dy -= 1.0;
         }
-        [dx, dy, dz] = (glam::vec3(dx, dy, dz).normalize_or_zero() * 0.01).to_array();
+        [dx, dy, dz] = (glam::vec3(dx, dy, dz).normalize_or_zero() * 0.03).to_array();
         self.camera.update_position(dx, dy, dz);
 
         let [mut dy, mut dx] = input.consume_mouse_delta().into();
-        [dy, dx] = (glam::vec2(dy, dx) * 0.001).to_array();
+        [dy, dx] = (glam::vec2(dy, dx) * 0.005).to_array();
         self.camera.update_rotation(-dx, -dy, 0.0);
     }
 
     fn gfx_frame(
         &self,
-        input: &input::Input,
+        _: &input::Input,
         gfx_context: &mut render::GfxContext,
         gfx_render: &mut render::GfxRenderer,
     ) {
@@ -110,6 +127,11 @@ impl application::Application for MinecraftWeek {
         render.queue(render::GfxDrawCall {
             mesh: "triangle_mesh".into(),
             pipe: "rainbow_pipe".into(),
+            bind_groups: vec!["global_bg".into()],
+        });
+        render.queue(render::GfxDrawCall {
+            mesh: "cube_mesh".into(),
+            pipe: "terrain_pipe".into(),
             bind_groups: vec!["global_bg".into()],
         });
     }

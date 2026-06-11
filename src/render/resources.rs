@@ -104,7 +104,7 @@ impl GfxTexture {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: context.config.format,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             view_formats: &[],
         });
@@ -123,6 +123,26 @@ impl GfxTexture {
             },
             size,
         );
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        Ok(Self { texture, view })
+    }
+
+    pub fn new_depth(context: &GfxContext, label: &str) -> anyhow::Result<Self> {
+        let texture = context.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some(&format!("{} depth texture", label)),
+            size: wgpu::Extent3d {
+                width: context.config.width,
+                height: context.config.height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth32Float,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         Ok(Self { texture, view })

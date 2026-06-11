@@ -35,7 +35,7 @@ pub fn sampler(context: &GfxContext, label: &str) -> resources::GfxResource {
         address_mode_w: wgpu::AddressMode::Repeat,
         mag_filter: wgpu::FilterMode::Nearest,
         min_filter: wgpu::FilterMode::Nearest,
-        mipmap_filter: wgpu::MipmapFilterMode::Linear,
+        mipmap_filter: wgpu::MipmapFilterMode::Nearest,
         ..Default::default()
     }))
 }

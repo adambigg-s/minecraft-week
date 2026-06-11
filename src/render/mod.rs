@@ -73,6 +73,7 @@ impl GfxContext {
             .copied()
             .find(|format| format.is_srgb())
             .unwrap_or(surface_caps.formats[0]);
+        log::warn!("Surface format: {:?}", surface_format);
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
@@ -98,17 +99,26 @@ pub struct GfxDrawCall {
 
 #[derive(bon::Builder, Debug, Default)]
 pub struct GfxRenderer {
+    #[builder(default)]
     pub bind_group_layouts: collections::HashMap<String, wgpu::BindGroupLayout>,
+    #[builder(default)]
     pub bind_groups: collections::HashMap<String, wgpu::BindGroup>,
+    #[builder(default)]
     pub pipelines: collections::HashMap<String, wgpu::RenderPipeline>,
+    #[builder(default)]
     pub meshes: collections::HashMap<String, mesh::GfxMesh>,
+    #[builder(default)]
     pub resources: collections::HashMap<String, resources::GfxResource>,
+    pub depth_texture: Option<resources::GfxTexture>,
+    #[builder(default)]
     pub render_queue: Vec<GfxDrawCall>,
 }
 
 impl GfxRenderer {
-    pub fn new(_: &GfxContext) -> anyhow::Result<Self> {
-        Ok(Self::default())
+    pub fn new(context: &GfxContext) -> anyhow::Result<Self> {
+        Ok(Self::builder()
+            .depth_texture(resources::GfxTexture::new_depth(context, "Main depth")?)
+            .build())
     }
 
     pub fn register_bind_group_layout(
