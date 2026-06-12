@@ -84,10 +84,10 @@ where
         Ok(Self { window, gfx_context, gfx_render, input, inner_state })
     }
 
-    pub fn config_changed(&mut self, width: u32, height: u32) {
-        self.gfx_context.config.width = width;
-        self.gfx_context.config.height = height;
-        self.gfx_context.surface.configure(&self.gfx_context.device, &self.gfx_context.config);
+    pub fn config_changed(&mut self, width: u32, height: u32) -> anyhow::Result<()> {
+        self.gfx_context.config_changed(width, height);
+        self.gfx_render.config_changed(&self.gfx_context)?;
+        Ok(())
     }
 
     pub fn update(&mut self) -> anyhow::Result<()> {
@@ -253,7 +253,7 @@ where
             }
             | event::WindowEvent::Resized(physical_size) => {
                 log::info!("Resize requested: {:?}", physical_size);
-                state.config_changed(physical_size.width, physical_size.height);
+                state.config_changed(physical_size.width, physical_size.height).unwrap();
             }
             | event::WindowEvent::MouseInput { state: ele_state, button, .. } => {
                 log::debug!("Mouse pressed: {:?}", button);

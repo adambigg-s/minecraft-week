@@ -1,5 +1,6 @@
 use crate::{
     application::{self, input},
+    atlas,
     engine::{camera, transform},
     mesher, pipelines,
     render::{self, GfxCamera, resources, util},
@@ -56,6 +57,9 @@ impl application::Application for MinecraftWeek {
         )?;
 
         render.register_mesh("cube_mesh", mesher::make_cube_mesh(context));
+
+        let atlas = atlas::TextureAtlas::new("./res/", 32)?;
+        atlas.save("./res/atlas/texture_atlas.png")?;
 
         let camera = camera::Camera {
             inner: transform::Transform::from_position([0.0, 0.0, 1.0].into()),

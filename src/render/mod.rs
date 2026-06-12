@@ -88,6 +88,12 @@ impl GfxContext {
 
         Ok(Self { surface, config, device, queue })
     }
+
+    pub fn config_changed(&mut self, width: u32, height: u32) {
+        self.config.width = width;
+        self.config.height = height;
+        self.surface.configure(&self.device, &self.config);
+    }
 }
 
 #[derive(bon::Builder, Debug)]
@@ -101,24 +107,33 @@ pub struct GfxDrawCall {
 pub struct GfxRenderer {
     #[builder(default)]
     pub bind_group_layouts: collections::HashMap<String, wgpu::BindGroupLayout>,
+
     #[builder(default)]
     pub bind_groups: collections::HashMap<String, wgpu::BindGroup>,
+
     #[builder(default)]
     pub pipelines: collections::HashMap<String, wgpu::RenderPipeline>,
+
     #[builder(default)]
     pub meshes: collections::HashMap<String, mesh::GfxMesh>,
+
     #[builder(default)]
     pub resources: collections::HashMap<String, resources::GfxResource>,
+
     pub depth_texture: Option<resources::GfxTexture>,
+
     #[builder(default)]
     pub render_queue: Vec<GfxDrawCall>,
 }
 
 impl GfxRenderer {
-    pub fn new(context: &GfxContext) -> anyhow::Result<Self> {
-        Ok(Self::builder()
-            .depth_texture(resources::GfxTexture::new_depth(context, "Main depth")?)
-            .build())
+    pub fn new(_: &GfxContext) -> anyhow::Result<Self> {
+        Ok(Self::builder().build())
+    }
+
+    pub fn config_changed(&mut self, context: &GfxContext) -> anyhow::Result<()> {
+        self.depth_texture = Some(resources::GfxTexture::new_depth(context, "Main depth")?);
+        Ok(())
     }
 
     pub fn register_bind_group_layout(

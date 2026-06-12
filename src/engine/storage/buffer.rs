@@ -72,6 +72,17 @@ impl<T, const N: usize> Buffer<T, N> {
         index
     }
 
+    pub fn delinearize(&self, mut index: usize) -> [usize; N] {
+        debug_assert!(self.size.iter().product::<usize>() > index);
+        let mut out = [0; N];
+        for dim in (0..N).rev() {
+            let modifier = self.size[0..dim].iter().product::<usize>();
+            out[dim] = index / modifier;
+            index -= out[dim] * modifier;
+        }
+        out
+    }
+
     pub fn surrounds(&self, indices: [usize; N]) -> bool {
         (0..N).all(|idx| indices[idx] < self.size[idx])
     }

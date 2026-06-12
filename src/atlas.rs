@@ -2,70 +2,112 @@ use std::{collections, fs};
 
 use image::GenericImage;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum BlockFace {
+use crate::engine::{self, storage::buffer};
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum BlockTextureFace {
     Top,
+    #[default]
     Side,
     Bottom,
 }
 
+#[derive(bon::Builder, Debug)]
 pub struct TextureAtlas {
+    pub atlas_size: u32,
     pub tile_size: u32,
-    pub image: image::RgbaImage,
-    pub offsets: collections::HashMap<(String, BlockFace), glam::Vec2>,
+    pub atlas: image::RgbaImage,
+    pub offsets: collections::HashMap<String, collections::HashMap<BlockTextureFace, glam::Vec2>>,
 }
 
 impl TextureAtlas {
-    pub fn new(path: &str, tile_sizes: usize) -> anyhow::Result<Self> {
-        let mut block_images: collections::HashMap<
+    pub fn new(directory: &str, tile_size: u32) -> anyhow::Result<Self> {
+        let images = Self::collect_directory(directory, tile_size)?;
+
+        let image_count = images.values().map(|faces| faces.len() as u32).sum::<u32>();
+        let tiles_per_side = image_count.isqrt() + 1;
+        let atlas_size = (tiles_per_side * tile_size).next_power_of_two();
+
+        let mut atlas = image::RgbaImage::new(atlas_size, atlas_size);
+        let mut offsets: collections::HashMap<String, collections::HashMap<BlockTextureFace, glam::Vec2>> =
+            collections::HashMap::new();
+        let index_assistant =
+            buffer::Buffer::<(), 2>::new([tiles_per_side as usize, tiles_per_side as usize]);
+
+        let mut current_tile = 0;
+        for (block_name, faces) in images {
+            for (face, image) in faces {
+                let [x, y] = index_assistant.delinearize(current_tile).map(|val| val as u32 * tile_size);
+
+                atlas.copy_from(&image, x, y)?;
+                log::info!("Block written into texture atlas: ({}, {:?})", block_name, face,);
+
+                let uv = glam::vec2(x as f32, y as f32) / atlas_size as f32;
+                offsets.entry(block_name.to_owned()).or_default().insert(face, uv);
+
+                current_tile += 1;
+            }
+        }
+        log::warn!("Texture atlas created: {} images at {} pixels", image_count, atlas_size);
+
+        Ok(Self { atlas_size, tile_size, atlas, offsets })
+    }
+
+    pub fn save(&self, path: &str) -> anyhow::Result<()> {
+        self.atlas.save(path)?;
+        Ok(())
+    }
+
+    fn collect_directory(
+        directory: &str,
+        tile_size: u32,
+    ) -> anyhow::Result<collections::HashMap<String, collections::HashMap<BlockTextureFace, image::RgbaImage>>>
+    {
+        let mut images: collections::HashMap<
             String,
-            collections::HashMap<BlockFace, image::DynamicImage>,
+            collections::HashMap<BlockTextureFace, image::RgbaImage>,
         > = collections::HashMap::new();
-        let entries = fs::read_dir(path)?;
+
+        let entries = fs::read_dir(directory)?;
         for entry in entries {
             let entry = entry?;
-            let file_name = entry.file_name().into_string().unwrap();
-            let block_name = file_name.split("_").nth(0).unwrap().to_string();
-            let image = image::open(entry.path())?;
+            let path = entry.path();
 
-            let face = if file_name.contains("_top") {
-                BlockFace::Top
+            if !path.is_file() {
+                continue;
             }
-            else if file_name.contains("_bot") {
-                BlockFace::Bottom
+
+            if path.extension().and_then(|extension| extension.to_str()) != Some("png") {
+                log::error!("Attempted read on invalid file: {:?}", path);
+                continue;
             }
-            else {
-                BlockFace::Side
+
+            let stem = path
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .ok_or_else(|| anyhow::anyhow!("Invalid file name: {:?}", path))?;
+
+            let (block_name, tile_type) = stem
+                .split_once('_')
+                .ok_or_else(|| anyhow::anyhow!("File name has no '_' separator: {:?}", path))?;
+
+            let face = match tile_type {
+                | "top" | "t" => BlockTextureFace::Top,
+                | "side" | "s" => BlockTextureFace::Side,
+                | "bottom" | "bot" | "b" => BlockTextureFace::Bottom,
+                | _ => BlockTextureFace::Side,
             };
 
-            block_images.entry(block_name).or_default().insert(face, image);
-        }
+            let image = image::open(&path)?.flipv().to_rgba8();
 
-        let total_faces = block_images.values().map(|face| face.len()).sum::<usize>();
-        let side_tiles = (total_faces as f32).sqrt().ceil() as u32;
-        let atlas_dim = side_tiles * tile_sizes as u32;
-
-        let mut atlas_image = image::RgbaImage::new(atlas_dim, atlas_dim);
-        let mut offsets = collections::HashMap::new();
-
-        let mut curr_idx = 0;
-        for (block_name, face) in block_images {
-            for (face, img) in face {
-                let x = (curr_idx % side_tiles) * tile_sizes as u32;
-                let y = (curr_idx / side_tiles) * tile_sizes as u32;
-                atlas_image.copy_from(&img, x, y)?;
-
-                let uv = glam::vec2(x as f32 / atlas_dim as f32, y as f32 / atlas_dim as f32);
-                offsets.insert((block_name.clone(), face), uv);
-
-                curr_idx += 1;
+            if image.width() != tile_size || image.height() != tile_size {
+                log::error!("Invalid image size: {:?}", path);
+                continue;
             }
+
+            images.entry(block_name.to_string()).or_default().insert(face, image);
         }
 
-        Ok(Self {
-            tile_size: tile_sizes as u32,
-            image: atlas_image,
-            offsets,
-        })
+        Ok(images)
     }
 }
