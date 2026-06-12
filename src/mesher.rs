@@ -18,14 +18,58 @@ pub enum Face {
 }
 
 impl Face {
+    #[rustfmt::skip]
     pub fn normal(&self) -> glam::Vec3 {
         match self {
-            | Face::Top => glam::Vec3::Y,
+            | Face::Top    => glam::Vec3::Y,
             | Face::Bottom => glam::Vec3::NEG_Y,
-            | Face::Left => glam::Vec3::X,
-            | Face::Right => glam::Vec3::NEG_X,
-            | Face::Back => glam::Vec3::Z,
-            | Face::Front => glam::Vec3::NEG_Z,
+            | Face::Left   => glam::Vec3::X,
+            | Face::Right  => glam::Vec3::NEG_X,
+            | Face::Back   => glam::Vec3::Z,
+            | Face::Front  => glam::Vec3::NEG_Z,
+        }
+    }
+
+    pub fn corners(&self) -> [(glam::IVec3, glam::IVec2); 4] {
+        use glam::{ivec2, ivec3};
+
+        match self {
+            | Face::Top => [
+                (ivec3(0, 1, 1), ivec2(0, 0)),
+                (ivec3(0, 1, 0), ivec2(0, 1)),
+                (ivec3(1, 1, 1), ivec2(1, 0)),
+                (ivec3(1, 1, 0), ivec2(1, 1)),
+            ],
+            | Face::Bottom => [
+                (ivec3(0, 0, 0), ivec2(0, 0)),
+                (ivec3(0, 0, 1), ivec2(0, 1)),
+                (ivec3(1, 0, 0), ivec2(1, 0)),
+                (ivec3(1, 0, 1), ivec2(1, 1)),
+            ],
+            | Face::Left => [
+                (ivec3(0, 1, 1), ivec2(0, 0)),
+                (ivec3(0, 0, 1), ivec2(0, 1)),
+                (ivec3(0, 1, 0), ivec2(1, 0)),
+                (ivec3(0, 0, 0), ivec2(1, 1)),
+            ],
+            | Face::Right => [
+                (ivec3(1, 1, 0), ivec2(0, 0)),
+                (ivec3(1, 0, 0), ivec2(0, 1)),
+                (ivec3(1, 1, 1), ivec2(1, 0)),
+                (ivec3(1, 0, 1), ivec2(1, 1)),
+            ],
+            | Face::Back => [
+                (ivec3(1, 1, 1), ivec2(0, 0)),
+                (ivec3(1, 0, 1), ivec2(0, 1)),
+                (ivec3(0, 1, 1), ivec2(1, 0)),
+                (ivec3(0, 0, 1), ivec2(1, 1)),
+            ],
+            | Face::Front => [
+                (ivec3(0, 1, 0), ivec2(0, 0)),
+                (ivec3(0, 0, 0), ivec2(0, 1)),
+                (ivec3(1, 1, 0), ivec2(1, 0)),
+                (ivec3(1, 0, 0), ivec2(1, 1)),
+            ],
         }
     }
 }
@@ -38,54 +82,16 @@ pub struct Quad {
 }
 
 impl Quad {
-    fn positions(&self) -> [glam::Vec3; 4] {
-        use glam::ivec3;
+    pub fn positions(&self) -> [glam::Vec3; 4] {
+        self.face.corners().map(|(offset, _)| (self.location + offset).as_vec3())
+    }
 
-        #[rustfmt::skip]
-        let positions = match self.face {
-            | Face::Top    => [ivec3(0, 1, 0), ivec3(1, 1, 0), ivec3(0, 1, 1), ivec3(1, 1, 1)],
-            | Face::Bottom => [ivec3(0, 0, 0), ivec3(1, 0, 0), ivec3(0, 0, 1), ivec3(1, 0, 1)],
-            | Face::Left   => [ivec3(0, 0, 0), ivec3(0, 1, 0), ivec3(0, 0, 1), ivec3(0, 1, 1)],
-            | Face::Right  => [ivec3(1, 0, 0), ivec3(1, 1, 0), ivec3(1, 0, 1), ivec3(1, 1, 1)],
-            | Face::Back   => [ivec3(0, 0, 0), ivec3(0, 1, 0), ivec3(1, 0, 0), ivec3(1, 1, 0)],
-            | Face::Front  => [ivec3(0, 0, 1), ivec3(0, 1, 1), ivec3(1, 0, 1), ivec3(1, 1, 1)],
-        };
-
-        [
-            glam::vec3(
-                self.location[0] as f32 + positions[0][0] as f32,
-                self.location[1] as f32 + positions[0][1] as f32,
-                self.location[2] as f32 + positions[0][2] as f32,
-            ),
-            glam::vec3(
-                self.location[0] as f32 + positions[1][0] as f32,
-                self.location[1] as f32 + positions[1][1] as f32,
-                self.location[2] as f32 + positions[1][2] as f32,
-            ),
-            glam::vec3(
-                self.location[0] as f32 + positions[2][0] as f32,
-                self.location[1] as f32 + positions[2][1] as f32,
-                self.location[2] as f32 + positions[2][2] as f32,
-            ),
-            glam::vec3(
-                self.location[0] as f32 + positions[3][0] as f32,
-                self.location[1] as f32 + positions[3][1] as f32,
-                self.location[2] as f32 + positions[3][2] as f32,
-            ),
-        ]
+    pub fn texture_uvs(&self) -> [glam::Vec2; 4] {
+        self.face.corners().map(|(_, uv)| uv.as_vec2())
     }
 
     pub fn normals(&self) -> [glam::Vec3; 4] {
         [self.face.normal(); 4]
-    }
-
-    pub fn texture_uvs(&self) -> [glam::Vec2; 4] {
-        [
-            glam::vec2(0.0, 0.0),
-            glam::vec2(0.0, 1.0),
-            glam::vec2(1.0, 0.0),
-            glam::vec2(1.0, 1.0),
-        ]
     }
 
     fn indices(&self, start: u16) -> [u16; 6] {
@@ -143,38 +149,19 @@ pub fn mesh_quads(
 }
 
 pub fn make_cube_mesh(context: &render::GfxContext, atlas: &atlas::TextureAtlas) -> mesh::GfxMesh {
-    let quads = vec![
-        Quad {
-            location: glam::IVec3::ZERO,
-            face: Face::Top,
-            block: block::Block::Grass,
-        },
-        Quad {
-            location: glam::IVec3::ZERO,
-            face: Face::Bottom,
-            block: block::Block::Grass,
-        },
-        Quad {
-            location: glam::IVec3::ZERO,
-            face: Face::Left,
-            block: block::Block::Grass,
-        },
-        Quad {
-            location: glam::IVec3::ZERO,
-            face: Face::Right,
-            block: block::Block::Grass,
-        },
-        Quad {
-            location: glam::IVec3::ZERO,
-            face: Face::Front,
-            block: block::Block::Grass,
-        },
-        Quad {
-            location: glam::IVec3::ZERO,
-            face: Face::Back,
-            block: block::Block::Grass,
-        },
+    let faces = [
+        Face::Top,
+        Face::Bottom,
+        Face::Left,
+        Face::Right,
+        Face::Front,
+        Face::Back,
     ];
+    let quads = faces.map(|face| Quad {
+        location: glam::ivec3(1, 1, 1),
+        face,
+        block: block::Block::Sand,
+    });
 
     mesh_quads(context, atlas, &quads)
 }

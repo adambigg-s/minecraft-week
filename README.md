@@ -11,4 +11,3 @@ Minecraft inspired voxel game made in one week with Rust and wgpu
 
 ### Files that are in disarray
 - mesher.rs
-- atlas.rs

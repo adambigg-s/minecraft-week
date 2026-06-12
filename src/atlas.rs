@@ -128,7 +128,7 @@ impl TextureAtlas {
                 | _ => BlockTextureFace::Side,
             };
 
-            let image = image::open(&path)?.flipv().to_rgba8();
+            let image = image::open(&path)?.to_rgba8();
 
             if image.width() != tile_size || image.height() != tile_size {
                 log::error!("Invalid image size: {:?}", path);

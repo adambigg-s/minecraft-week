@@ -217,29 +217,31 @@ where
             }
         };
 
+        #[rustfmt::skip]
         match event {
             | event::WindowEvent::ActivationTokenDone { .. } => todo!(),
-            | event::WindowEvent::DroppedFile(_) => todo!(),
-            | event::WindowEvent::HoveredFile(_) => todo!(),
-            | event::WindowEvent::HoveredFileCancelled => todo!(),
-            | event::WindowEvent::Ime(_) => todo!(),
-            | event::WindowEvent::PinchGesture { .. } => todo!(),
-            | event::WindowEvent::PanGesture { .. } => todo!(),
-            | event::WindowEvent::DoubleTapGesture { .. } => todo!(),
-            | event::WindowEvent::RotationGesture { .. } => todo!(),
-            | event::WindowEvent::TouchpadPressure { .. } => todo!(),
-            | event::WindowEvent::AxisMotion { .. } => todo!(),
-            | event::WindowEvent::ScaleFactorChanged { .. } => todo!(),
-            | event::WindowEvent::ThemeChanged(_) => todo!(),
+            | event::WindowEvent::DroppedFile(_)             => todo!(),
+            | event::WindowEvent::HoveredFile(_)             => todo!(),
+            | event::WindowEvent::HoveredFileCancelled       => todo!(),
+            | event::WindowEvent::Ime(_)                     => todo!(),
+            | event::WindowEvent::PinchGesture { .. }        => todo!(),
+            | event::WindowEvent::PanGesture { .. }          => todo!(),
+            | event::WindowEvent::DoubleTapGesture { .. }    => todo!(),
+            | event::WindowEvent::RotationGesture { .. }     => todo!(),
+            | event::WindowEvent::TouchpadPressure { .. }    => todo!(),
+            | event::WindowEvent::AxisMotion { .. }          => todo!(),
+            | event::WindowEvent::ScaleFactorChanged { .. }  => todo!(),
+            | event::WindowEvent::ThemeChanged(_)            => todo!(),
 
-            | event::WindowEvent::ModifiersChanged(_) => {}
-            | event::WindowEvent::Touch(_) => {}
-            | event::WindowEvent::MouseWheel { .. } => {}
-            | event::WindowEvent::Occluded(_) => {}
-            | event::WindowEvent::Moved(_) => {}
-            | event::WindowEvent::CursorLeft { .. } => {}
-            | event::WindowEvent::CursorMoved { .. } => {}
+            | event::WindowEvent::ModifiersChanged(_)  => {}
+            | event::WindowEvent::Touch(_)             => {}
+            | event::WindowEvent::MouseWheel { .. }    => {}
+            | event::WindowEvent::Occluded(_)          => {}
+            | event::WindowEvent::Moved(_)             => {}
+            | event::WindowEvent::CursorLeft { .. }    => {}
+            | event::WindowEvent::CursorMoved { .. }   => {}
             | event::WindowEvent::CursorEntered { .. } => {}
+
             | event::WindowEvent::Focused(_) => {
                 log::info!("Window focused");
             }
@@ -261,22 +263,22 @@ where
                     | event::ElementState::Pressed => {
                         let (left, right) = &mut state.input.mouse_pressed;
                         match button {
-                            | event::MouseButton::Left => *left = true,
-                            | event::MouseButton::Right => *right = true,
-                            | event::MouseButton::Middle => todo!(),
-                            | event::MouseButton::Back => todo!(),
-                            | event::MouseButton::Forward => todo!(),
+                            | event::MouseButton::Left     => *left = true,
+                            | event::MouseButton::Right    => *right = true,
+                            | event::MouseButton::Middle   => todo!(),
+                            | event::MouseButton::Back     => todo!(),
+                            | event::MouseButton::Forward  => todo!(),
                             | event::MouseButton::Other(_) => todo!(),
                         }
                     }
                     | event::ElementState::Released => {
                         let (left, right) = &mut state.input.mouse_released;
                         match button {
-                            | event::MouseButton::Left => *left = true,
-                            | event::MouseButton::Right => *right = true,
-                            | event::MouseButton::Middle => todo!(),
-                            | event::MouseButton::Back => todo!(),
-                            | event::MouseButton::Forward => todo!(),
+                            | event::MouseButton::Left     => *left = true,
+                            | event::MouseButton::Right    => *right = true,
+                            | event::MouseButton::Middle   => todo!(),
+                            | event::MouseButton::Back     => todo!(),
+                            | event::MouseButton::Forward  => todo!(),
                             | event::MouseButton::Other(_) => todo!(),
                         }
                     }
@@ -332,6 +334,6 @@ where
                     event_loop.exit();
                 }
             }
-        }
+        };
     }
 }

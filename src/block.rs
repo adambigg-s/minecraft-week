@@ -5,6 +5,7 @@ pub enum Block {
     #[default]
     Air,
     Grass,
+    Sand,
 }
 
 impl Block {
@@ -12,6 +13,7 @@ impl Block {
         match self {
             | Block::Air => "air",
             | Block::Grass => "grass",
+            | Block::Sand => "sand",
         }
     }
 }
