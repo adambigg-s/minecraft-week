@@ -148,7 +148,10 @@ pub fn mesh_quads(
     mesh::GfxMesh::new(context, &vertices, &indices)
 }
 
-pub fn make_cube_mesh(context: &render::GfxContext, atlas: &atlas::TextureAtlas) -> mesh::GfxMesh {
+pub fn make_block_texture_checker(
+    context: &render::GfxContext,
+    atlas: &atlas::TextureAtlas,
+) -> mesh::GfxMesh {
     let faces = [
         Face::Top,
         Face::Bottom,
@@ -157,10 +160,33 @@ pub fn make_cube_mesh(context: &render::GfxContext, atlas: &atlas::TextureAtlas)
         Face::Front,
         Face::Back,
     ];
-    let quads = faces.map(|face| Quad {
-        location: glam::ivec3(1, 1, 1),
-        face,
-        block: block::Block::Sand,
+    let mut quads = Vec::new();
+    faces.iter().for_each(|&face| {
+        quads.push(Quad {
+            location: glam::ivec3(1, 1, 1),
+            face,
+            block: block::Block::Water,
+        });
+        quads.push(Quad {
+            location: glam::ivec3(1, 1, 2),
+            face,
+            block: block::Block::Grass,
+        });
+        quads.push(Quad {
+            location: glam::ivec3(1, 1, 3),
+            face,
+            block: block::Block::Sand,
+        });
+        quads.push(Quad {
+            location: glam::ivec3(1, 1, 4),
+            face,
+            block: block::Block::Log,
+        });
+        quads.push(Quad {
+            location: glam::ivec3(1, 2, 4),
+            face,
+            block: block::Block::Leaf,
+        });
     });
 
     mesh_quads(context, atlas, &quads)

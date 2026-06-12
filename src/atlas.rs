@@ -131,7 +131,7 @@ impl TextureAtlas {
             let image = image::open(&path)?.to_rgba8();
 
             if image.width() != tile_size || image.height() != tile_size {
-                log::error!("Invalid image size: {:?}", path);
+                log::error!("Invalid image size: {:?} at {}x{}", path, image.width(), image.height());
                 continue;
             }
 

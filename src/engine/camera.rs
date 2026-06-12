@@ -1,14 +1,20 @@
-use std::fmt::{self, Display};
+use std::{
+    f32,
+    fmt::{self, Display},
+};
 
 use crate::{engine::transform, render};
 
-#[derive(bon::Builder, Debug)]
+#[derive(bon::Builder, Debug, Default)]
+
 pub struct Camera {
     pub inner: transform::Transform,
     pub ar: f32,
     pub fov: f32,
     pub znear: f32,
     pub zfear: f32,
+    pub pitch: f32,
+    pub yaw: f32,
 }
 
 impl Camera {
@@ -22,6 +28,11 @@ impl Camera {
         self.inner.position += self.inner.forward() * dz;
         self.inner.position += self.inner.right() * dx;
         self.inner.position += self.inner.up() * dy;
+    }
+
+    pub fn confine_euler(&mut self) {
+        self.pitch = self.pitch.clamp(-f32::consts::PI / 2.0 * 0.99, f32::consts::PI / 2.0 * 0.99);
+        self.yaw %= f32::consts::TAU;
     }
 
     pub fn view(&self) -> glam::Mat4 {

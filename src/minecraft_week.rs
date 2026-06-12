@@ -46,7 +46,7 @@ impl application::Application for MinecraftWeek {
             util::texture(context, "./res/atlas/test_texture.jpg", "Debug grass texture")?,
         );
 
-        let atlas = atlas::TextureAtlas::new("./res/", 32)?;
+        let atlas = atlas::TextureAtlas::new("./res/", 16)?;
         atlas.save("./res/atlas/texture_atlas.png")?;
         render
             .register_resource("texture_atlas", util::texture_image(context, &atlas.atlas, "Texture atlas"));
@@ -63,7 +63,7 @@ impl application::Application for MinecraftWeek {
             "triangle_mesh",
             util::mesh(context, pipelines::TRI_VERTICES, pipelines::TRI_INDICES),
         );
-        render.register_mesh("cube_mesh", mesher::make_cube_mesh(context, &atlas));
+        render.register_mesh("cube_mesh", mesher::make_block_texture_checker(context, &atlas));
 
         let camera = camera::Camera {
             inner: transform::Transform::from_position([0.0, 0.0, 1.0].into()),
@@ -71,6 +71,7 @@ impl application::Application for MinecraftWeek {
             fov: 67.0,
             znear: 0.05,
             zfear: 100.0,
+            ..Default::default()
         };
 
         Ok(Self { camera })
@@ -116,8 +117,12 @@ impl application::Application for MinecraftWeek {
         self.camera.update_position(dx, dy, dz);
 
         let [mut dy, mut dx] = input.consume_mouse_delta().into();
-        [dy, dx] = (glam::vec2(dy, dx) * 0.005).to_array();
-        self.camera.update_rotation(-dx, -dy, 0.0);
+        [dy, dx] = (glam::vec2(dy, dx) * 0.0025).to_array();
+        self.camera.yaw -= dy;
+        self.camera.pitch -= dx;
+        self.camera.confine_euler();
+        self.camera.inner.rotation =
+            glam::Quat::from_rotation_y(self.camera.yaw) * glam::Quat::from_rotation_x(self.camera.pitch);
     }
 
     fn gfx_frame(

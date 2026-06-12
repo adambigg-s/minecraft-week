@@ -26,5 +26,9 @@ fn vs_main(in: VertexIn) -> VertexOut {
 
 @fragment
 fn fs_main(out: VertexOut) -> @location(0) vec4<f32> {
-    return textureSample(texture_atlas, sample_atlas, out.tex);
+    let color = textureSample(texture_atlas, sample_atlas, out.tex);
+    if color.a == 0.0 {
+        discard;
+    }
+    return color;
 }

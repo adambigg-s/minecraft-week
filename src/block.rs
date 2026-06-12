@@ -6,6 +6,9 @@ pub enum Block {
     Air,
     Grass,
     Sand,
+    Water,
+    Log,
+    Leaf,
 }
 
 impl Block {
@@ -14,6 +17,9 @@ impl Block {
             | Block::Air => "air",
             | Block::Grass => "grass",
             | Block::Sand => "sand",
+            | Block::Water => "water",
+            | Block::Log => "log",
+            | Block::Leaf => "leaf",
         }
     }
 }
