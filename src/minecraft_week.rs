@@ -1,6 +1,6 @@
 use crate::{
     application::{self, input},
-    atlas,
+    atlas, chunk,
     engine::{camera, transform},
     mesher, pipelines,
     render::{self, GfxCamera, resources, util},
@@ -65,6 +65,10 @@ impl application::Application for MinecraftWeek {
         );
         render.register_mesh("cube_mesh", mesher::make_block_texture_checker(context, &atlas));
 
+        let random_chunk = chunk::generate_random_chunk();
+        log::warn!("Chunk done generating");
+        render.register_mesh("chunk_mesh", mesher::mesh_chunk(context, &atlas, &random_chunk));
+
         let camera = camera::Camera {
             inner: transform::Transform::from_position([0.0, 0.0, 1.0].into()),
             ar: context.config.width as f32 / context.config.height as f32,
@@ -83,7 +87,7 @@ impl application::Application for MinecraftWeek {
         gfx_context: &render::GfxContext,
         gfx_render: &render::GfxRenderer,
     ) {
-        let (context, render) = (gfx_context, gfx_render);
+        let (context, _) = (gfx_context, gfx_render);
 
         self.camera.ar = context.config.width as f32 / context.config.height as f32;
 
@@ -113,7 +117,7 @@ impl application::Application for MinecraftWeek {
         if input.get_key_pres("shiftleft") {
             dy -= 1.0;
         }
-        [dx, dy, dz] = (glam::vec3(dx, dy, dz).normalize_or_zero() * 0.03).to_array();
+        [dx, dy, dz] = (glam::vec3(dx, dy, dz).normalize_or_zero() * 0.1).to_array();
         self.camera.update_position(dx, dy, dz);
 
         let [mut dy, mut dx] = input.consume_mouse_delta().into();
@@ -144,6 +148,11 @@ impl application::Application for MinecraftWeek {
         });
         render.queue(render::GfxDrawCall {
             mesh: "cube_mesh".into(),
+            pipe: "terrain_pipe".into(),
+            bind_groups: vec!["global_bg".into()],
+        });
+        render.queue(render::GfxDrawCall {
+            mesh: "chunk_mesh".into(),
             pipe: "terrain_pipe".into(),
             bind_groups: vec!["global_bg".into()],
         });

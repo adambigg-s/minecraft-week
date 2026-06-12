@@ -1,6 +1,9 @@
 # minecraft-week
 Minecraft inspired voxel game made in one week with Rust and wgpu
 
+### Current state
+![screenshot](images/first_chunk.png)
+
 ### Goals
 - Infinite world generation
 - Player collision
@@ -11,3 +14,5 @@ Minecraft inspired voxel game made in one week with Rust and wgpu
 
 ### Files that are in disarray
 - mesher.rs
+- block.rs
+- chunk.rs

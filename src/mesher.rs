@@ -3,7 +3,7 @@ use std::mem;
 use wgpu::vertex_attr_array;
 
 use crate::{
-    atlas, block,
+    atlas, block, chunk,
     render::{self, mesh},
 };
 
@@ -18,6 +18,27 @@ pub enum Face {
 }
 
 impl Face {
+    pub const ALL: [Face; 6] = [
+        Face::Top,
+        Face::Bottom,
+        Face::Left,
+        Face::Right,
+        Face::Front,
+        Face::Back,
+    ];
+
+    #[rustfmt::skip]
+    pub fn neighbor_offset(&self) -> glam::IVec3 {
+        match self {
+            | Face::Top    => glam::ivec3(0, 1, 0),
+            | Face::Bottom => glam::ivec3(0, -1, 0),
+            | Face::Left   => glam::ivec3(-1, 0, 0),
+            | Face::Right  => glam::ivec3(1, 0, 0),
+            | Face::Back   => glam::ivec3(0, 0, 1),
+            | Face::Front  => glam::ivec3(0, 0, -1),
+        }
+    }
+
     #[rustfmt::skip]
     pub fn normal(&self) -> glam::Vec3 {
         match self {
@@ -76,14 +97,14 @@ impl Face {
 
 #[derive(bon::Builder, Debug)]
 pub struct Quad {
-    location: glam::IVec3,
-    face: Face,
+    position: glam::IVec3,
     block: block::Block,
+    face: Face,
 }
 
 impl Quad {
     pub fn positions(&self) -> [glam::Vec3; 4] {
-        self.face.corners().map(|(offset, _)| (self.location + offset).as_vec3())
+        self.face.corners().map(|(offset, _)| (self.position + offset).as_vec3())
     }
 
     pub fn texture_uvs(&self) -> [glam::Vec2; 4] {
@@ -131,60 +152,94 @@ pub fn mesh_quads(
     let mut vertices = Vec::new();
     let mut indices = Vec::new();
 
-    for quad in quads {
-        let base = vertices.len();
+    quads.iter().for_each(|quad| {
+        let len = vertices.len();
+
         let pos = quad.positions();
         let nor = quad.normals();
-        let ind = quad.indices(base as u16);
         let mut uvs = quad.texture_uvs();
         atlas.conform_uvs(&mut uvs, &quad.block.to_string(), quad.face);
+        (0..4).for_each(|idx| {
+            vertices.push(TerrainVertex { pos: pos[idx], nor: nor[idx], tex: uvs[idx] });
+        });
 
-        for i in 0..4 {
-            vertices.push(TerrainVertex { pos: pos[i], nor: nor[i], tex: uvs[i] });
-        }
+        let ind = quad.indices(len as u16);
         indices.extend_from_slice(&ind);
-    }
+    });
 
     mesh::GfxMesh::new(context, &vertices, &indices)
+}
+
+pub fn mesh_chunk(
+    context: &render::GfxContext,
+    atlas: &atlas::TextureAtlas,
+    chunk: &chunk::Chunk,
+) -> mesh::GfxMesh {
+    log::info!("Chunk meshing started");
+    let mut quads = Vec::new();
+    for z in 0..chunk.width {
+        for y in 0..chunk.height {
+            for x in 0..chunk.width {
+                let block = chunk.blocks.get([x, y, z]);
+
+                if block == &block::Block::Air {
+                    continue;
+                }
+
+                for face in Face::ALL {
+                    let offset = face.neighbor_offset();
+                    if let Some(neighbor) = chunk.blocks.try_get([
+                        (x as i32 + offset.x) as usize,
+                        (y as i32 + offset.y) as usize,
+                        (z as i32 + offset.z) as usize,
+                    ]) {
+                        if neighbor != &block::Block::Air {
+                            continue;
+                        }
+
+                        quads.push(Quad {
+                            position: glam::ivec3(x as i32, y as i32, z as i32),
+                            block: *block,
+                            face,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    mesh_quads(context, atlas, &quads)
 }
 
 pub fn make_block_texture_checker(
     context: &render::GfxContext,
     atlas: &atlas::TextureAtlas,
 ) -> mesh::GfxMesh {
-    let faces = [
-        Face::Top,
-        Face::Bottom,
-        Face::Left,
-        Face::Right,
-        Face::Front,
-        Face::Back,
-    ];
     let mut quads = Vec::new();
-    faces.iter().for_each(|&face| {
+    Face::ALL.iter().for_each(|&quad_face| {
         quads.push(Quad {
-            location: glam::ivec3(1, 1, 1),
-            face,
+            position: glam::ivec3(1, 1, 1),
+            face: quad_face,
             block: block::Block::Water,
         });
         quads.push(Quad {
-            location: glam::ivec3(1, 1, 2),
-            face,
+            position: glam::ivec3(1, 1, 2),
+            face: quad_face,
             block: block::Block::Grass,
         });
         quads.push(Quad {
-            location: glam::ivec3(1, 1, 3),
-            face,
+            position: glam::ivec3(1, 1, 3),
+            face: quad_face,
             block: block::Block::Sand,
         });
         quads.push(Quad {
-            location: glam::ivec3(1, 1, 4),
-            face,
+            position: glam::ivec3(1, 1, 4),
+            face: quad_face,
             block: block::Block::Log,
         });
         quads.push(Quad {
-            location: glam::ivec3(1, 2, 4),
-            face,
+            position: glam::ivec3(1, 2, 4),
+            face: quad_face,
             block: block::Block::Leaf,
         });
     });
