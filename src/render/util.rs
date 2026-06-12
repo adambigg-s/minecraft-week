@@ -1,4 +1,4 @@
-use crate::render::{self, GfxContext, mesh, resources};
+use crate::render::{self, mesh, resources};
 
 pub fn mesh<Vertex, Index>(
     context: &render::GfxContext,
@@ -27,7 +27,15 @@ pub fn texture(
     Ok(resources::GfxResource::Texture(resources::GfxTexture::new(context, path, label)?))
 }
 
-pub fn sampler(context: &GfxContext, label: &str) -> resources::GfxResource {
+pub fn texture_image(
+    context: &render::GfxContext,
+    image: image::RgbaImage,
+    label: &str,
+) -> resources::GfxResource {
+    resources::GfxResource::Texture(resources::GfxTexture::new_image(context, image, label))
+}
+
+pub fn sampler(context: &render::GfxContext, label: &str) -> resources::GfxResource {
     resources::GfxResource::Sampler(context.device.create_sampler(&wgpu::SamplerDescriptor {
         label: Some(&format!("{} sampler", label)),
         address_mode_u: wgpu::AddressMode::Repeat,

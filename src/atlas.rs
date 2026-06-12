@@ -2,7 +2,7 @@ use std::{collections, fs};
 
 use image::GenericImage;
 
-use crate::engine::{self, storage::buffer};
+use crate::engine::storage::buffer;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum BlockTextureFace {
@@ -22,7 +22,7 @@ pub struct TextureAtlas {
 
 impl TextureAtlas {
     pub fn new(directory: &str, tile_size: u32) -> anyhow::Result<Self> {
-        let images = Self::collect_directory(directory, tile_size)?;
+        let images = Self::collect_textures(directory, tile_size)?;
 
         let image_count = images.values().map(|faces| faces.len() as u32).sum::<u32>();
         let tiles_per_side = image_count.isqrt() + 1;
@@ -31,9 +31,8 @@ impl TextureAtlas {
         let mut atlas = image::RgbaImage::new(atlas_size, atlas_size);
         let mut offsets: collections::HashMap<String, collections::HashMap<BlockTextureFace, glam::Vec2>> =
             collections::HashMap::new();
-        let index_assistant =
-            buffer::Buffer::<(), 2>::new([tiles_per_side as usize, tiles_per_side as usize]);
 
+        let index_assistant = buffer::Buffer::<(), 2>::new([tiles_per_side as usize; 2]);
         let mut current_tile = 0;
         for (block_name, faces) in images {
             for (face, image) in faces {
@@ -58,7 +57,7 @@ impl TextureAtlas {
         Ok(())
     }
 
-    fn collect_directory(
+    fn collect_textures(
         directory: &str,
         tile_size: u32,
     ) -> anyhow::Result<collections::HashMap<String, collections::HashMap<BlockTextureFace, image::RgbaImage>>>

@@ -93,6 +93,10 @@ impl GfxTexture {
         let image = image::open(path)?.flipv();
         let rgba = image.to_rgba8();
 
+        Ok(Self::new_image(context, rgba, label))
+    }
+
+    pub fn new_image(context: &GfxContext, image: image::RgbaImage, label: &str) -> Self {
         let size = wgpu::Extent3d {
             width: image.width(),
             height: image.height(),
@@ -115,7 +119,7 @@ impl GfxTexture {
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,
             },
-            &rgba,
+            &image,
             wgpu::TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some(4 * texture.width()),
@@ -125,7 +129,7 @@ impl GfxTexture {
         );
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-        Ok(Self { texture, view })
+        Self { texture, view }
     }
 
     pub fn new_depth(context: &GfxContext, label: &str) -> anyhow::Result<Self> {

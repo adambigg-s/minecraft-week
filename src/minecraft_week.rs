@@ -36,6 +36,9 @@ impl application::Application for MinecraftWeek {
             ],
         )?;
 
+        let atlas = atlas::TextureAtlas::new("./res/", 32)?;
+        atlas.save("./res/atlas/texture_atlas.png")?;
+
         render.register_pipeline::<pipelines::Rainbow>(context, "rainbow_pipe", &["global_layout"]);
         render.register_pipeline::<pipelines::Terrain>(context, "terrain_pipe", &["global_layout"]);
 
@@ -46,9 +49,10 @@ impl application::Application for MinecraftWeek {
         render.register_resource("camera_uni", util::uniform::<glam::Mat4>(context, "Camera"));
         render.register_resource("sampler", util::sampler(context, "Sampler"));
         render.register_resource(
-            "texture_atlas",
-            util::texture(context, "./res/atlas/test_texture.jpg", "Texture atlas")?,
+            "test_texture",
+            util::texture(context, "./res/atlas/test_texture.jpg", "Debug grass texture")?,
         );
+        render.register_resource("texture_atlas", util::texture_image(context, atlas.atlas, "Texture atlas"));
         render.register_bind_group(
             context,
             "global_bg",
@@ -57,9 +61,6 @@ impl application::Application for MinecraftWeek {
         )?;
 
         render.register_mesh("cube_mesh", mesher::make_cube_mesh(context));
-
-        let atlas = atlas::TextureAtlas::new("./res/", 32)?;
-        atlas.save("./res/atlas/texture_atlas.png")?;
 
         let camera = camera::Camera {
             inner: transform::Transform::from_position([0.0, 0.0, 1.0].into()),
