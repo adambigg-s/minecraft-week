@@ -1,3 +1,5 @@
+const EPS: f32 = 1e-3;
+
 struct VertexIn {
     @location(0) pos: vec3<f32>,
     @location(1) nor: vec3<f32>,
@@ -27,8 +29,13 @@ fn vs_main(in: VertexIn) -> VertexOut {
 @fragment
 fn fs_main(out: VertexOut) -> @location(0) vec4<f32> {
     let color = textureSample(texture_atlas, sample_atlas, out.tex);
-    if color.a == 0.0 {
+
+    if color.a < EPS {
         discard;
     }
-    return color;
+
+    let abs_nor = abs(out.nor);
+    let light = dot(abs_nor, vec3<f32>(1.0, 0.6, 0.4));
+
+    return color * light;
 }

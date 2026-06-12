@@ -1,3 +1,9 @@
+use std::collections;
+
+pub const MOVE_SPEED: f32 = 0.8;
+pub const LOOK_SPEED: f32 = 0.0025;
+pub const TESTING_GEN: i32 = 9;
+
 use crate::{
     application::{self, input},
     atlas, chunk,
@@ -7,8 +13,24 @@ use crate::{
 };
 
 #[derive(bon::Builder, Debug)]
+pub struct ChunkManager {
+    pub chunks: collections::HashMap<glam::IVec2, chunk::Chunk>,
+}
+
+impl ChunkManager {
+    pub fn generate(&mut self, location: glam::IVec2) {
+        if self.chunks.contains_key(&location) {
+            return;
+        }
+
+        todo!()
+    }
+}
+
+#[derive(bon::Builder, Debug)]
 pub struct MinecraftWeek {
-    camera: camera::Camera,
+    pub camera: camera::Camera,
+    pub chunk_manager: ChunkManager,
 }
 
 impl application::Application for MinecraftWeek {
@@ -39,19 +61,11 @@ impl application::Application for MinecraftWeek {
         render.register_pipeline::<pipelines::Rainbow>(context, "rainbow_pipe", &["global_layout"]);
         render.register_pipeline::<pipelines::Terrain>(context, "terrain_pipe", &["global_layout"]);
 
-        render.register_resource("camera_uni", util::uniform::<glam::Mat4>(context, "Camera"));
-
-        render.register_resource(
-            "test_texture",
-            util::texture(context, "./res/atlas/test_texture.jpg", "Debug grass texture")?,
-        );
-
         let atlas = atlas::TextureAtlas::new("./res/", 16)?;
         atlas.save("./res/atlas/texture_atlas.png")?;
-        render
-            .register_resource("texture_atlas", util::texture_image(context, &atlas.atlas, "Texture atlas"));
+        render.register_resource("texture_atlas", util::texture_image(context, &atlas.atlas, "Atlas"));
         render.register_resource("sampler", util::sampler(context, "Sampler"));
-
+        render.register_resource("camera_uni", util::uniform::<glam::Mat4>(context, "Camera"));
         render.register_bind_group(
             context,
             "global_bg",
@@ -59,26 +73,28 @@ impl application::Application for MinecraftWeek {
             &["camera_uni", "texture_atlas", "sampler"],
         )?;
 
-        render.register_mesh(
-            "triangle_mesh",
-            util::mesh(context, pipelines::TRI_VERTICES, pipelines::TRI_INDICES),
-        );
-        render.register_mesh("cube_mesh", mesher::make_block_texture_checker(context, &atlas));
-
-        let random_chunk = chunk::generate_random_chunk();
-        log::warn!("Chunk done generating");
-        render.register_mesh("chunk_mesh", mesher::mesh_chunk(context, &atlas, &random_chunk));
+        for i in 0..TESTING_GEN {
+            for j in 0..TESTING_GEN {
+                let random_chunk = chunk::generate_random_chunk(glam::ivec3(i, 0, j));
+                render.register_mesh(
+                    &format!("chunk_{}x{}_mesh", i, j),
+                    mesher::mesh_chunk(context, &atlas, &random_chunk),
+                );
+            }
+        }
 
         let camera = camera::Camera {
             inner: transform::Transform::from_position([0.0, 0.0, 1.0].into()),
             ar: context.config.width as f32 / context.config.height as f32,
             fov: 67.0,
-            znear: 0.05,
-            zfear: 100.0,
+            znear: 0.1,
+            zfear: 500.0,
             ..Default::default()
         };
 
-        Ok(Self { camera })
+        let chunk_manager = ChunkManager { chunks: collections::HashMap::new() };
+
+        Ok(Self { camera, chunk_manager })
     }
 
     fn physics_frame(
@@ -117,11 +133,11 @@ impl application::Application for MinecraftWeek {
         if input.get_key_pres("shiftleft") {
             dy -= 1.0;
         }
-        [dx, dy, dz] = (glam::vec3(dx, dy, dz).normalize_or_zero() * 0.1).to_array();
+        [dx, dy, dz] = (glam::vec3(dx, dy, dz).normalize_or_zero() * MOVE_SPEED).to_array();
         self.camera.update_position(dx, dy, dz);
 
         let [mut dy, mut dx] = input.consume_mouse_delta().into();
-        [dy, dx] = (glam::vec2(dy, dx) * 0.0025).to_array();
+        [dy, dx] = (glam::vec2(dy, dx) * LOOK_SPEED).to_array();
         self.camera.yaw -= dy;
         self.camera.pitch -= dx;
         self.camera.confine_euler();
@@ -141,20 +157,14 @@ impl application::Application for MinecraftWeek {
             cam.write(context, &self.camera.view_proj());
         }
 
-        render.queue(render::GfxDrawCall {
-            mesh: "triangle_mesh".into(),
-            pipe: "rainbow_pipe".into(),
-            bind_groups: vec!["global_bg".into()],
-        });
-        render.queue(render::GfxDrawCall {
-            mesh: "cube_mesh".into(),
-            pipe: "terrain_pipe".into(),
-            bind_groups: vec!["global_bg".into()],
-        });
-        render.queue(render::GfxDrawCall {
-            mesh: "chunk_mesh".into(),
-            pipe: "terrain_pipe".into(),
-            bind_groups: vec!["global_bg".into()],
-        });
+        for i in 0..TESTING_GEN {
+            for j in 0..TESTING_GEN {
+                render.queue(render::GfxDrawCall {
+                    mesh: format!("chunk_{}x{}_mesh", i, j),
+                    pipe: "terrain_pipe".into(),
+                    bind_groups: vec!["global_bg".into()],
+                });
+            }
+        }
     }
 }

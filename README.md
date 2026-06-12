@@ -12,7 +12,20 @@ Minecraft inspired voxel game made in one week with Rust and wgpu
 - Sun shadows
 - Voxel lighting
 
-### Files that are in disarray
+#### Notes
+
+##### Files that are in disarray
 - mesher.rs
 - block.rs
 - chunk.rs
+
+##### Blocks to add
+- dirt
+- lava
+- gravel
+- stone
+- ores (coal, iron etc.)
+- wood planks
+- flower
+
+

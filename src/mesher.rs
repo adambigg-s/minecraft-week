@@ -175,8 +175,8 @@ pub fn mesh_chunk(
     atlas: &atlas::TextureAtlas,
     chunk: &chunk::Chunk,
 ) -> mesh::GfxMesh {
-    log::info!("Chunk meshing started");
     let mut quads = Vec::new();
+    let origin_shift = chunk.offset * glam::ivec3(chunk.width as i32, 0, chunk.width as i32);
     for z in 0..chunk.width {
         for y in 0..chunk.height {
             for x in 0..chunk.width {
@@ -188,21 +188,23 @@ pub fn mesh_chunk(
 
                 for face in Face::ALL {
                     let offset = face.neighbor_offset();
-                    if let Some(neighbor) = chunk.blocks.try_get([
+                    let neighbor = chunk.blocks.try_get([
                         (x as i32 + offset.x) as usize,
                         (y as i32 + offset.y) as usize,
                         (z as i32 + offset.z) as usize,
-                    ]) {
-                        if neighbor != &block::Block::Air {
-                            continue;
-                        }
+                    ]);
 
-                        quads.push(Quad {
-                            position: glam::ivec3(x as i32, y as i32, z as i32),
-                            block: *block,
-                            face,
-                        });
+                    if let Some(neighbor) = neighbor
+                        && neighbor != &block::Block::Air
+                    {
+                        continue;
                     }
+
+                    quads.push(Quad {
+                        position: glam::ivec3(x as i32, y as i32, z as i32) + origin_shift,
+                        block: *block,
+                        face,
+                    });
                 }
             }
         }

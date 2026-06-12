@@ -3,6 +3,13 @@ use std::{
     mem,
 };
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Visibility {
+    #[default]
+    Opaque,
+    Transparent,
+}
+
 #[repr(u8)]
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Block {
@@ -26,16 +33,28 @@ impl Block {
         Block::Leaf,
     ];
 
+        #[rustfmt::skip]
     pub fn name(&self) -> &'static str {
         match self {
-            | Block::Air => "air",
-            | Block::Grass => "grass",
-            | Block::Sand => "sand",
-            | Block::Water => "water",
-            | Block::Log => "log",
-            | Block::Leaf => "leaf",
+            | Block::Air          => "air",
+            | Block::Grass        => "grass",
+            | Block::Sand         => "sand",
+            | Block::Water        => "water",
+            | Block::Log          => "log",
+            | Block::Leaf         => "leaf",
             | Block::BlockCounter => "",
         }
+    }
+
+    pub fn visibility(&self) -> Visibility {
+        match self {
+            | Block::Leaf | Block::Air => Visibility::Transparent,
+            | _ => Visibility::Opaque,
+        }
+    }
+
+    pub fn random() -> Self {
+        Self::from(rand::random_range(1..Block::BlockCounter as u8))
     }
 }
 
