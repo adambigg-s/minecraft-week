@@ -21,10 +21,7 @@ Minecraft inspired voxel game made in one week with Rust and wgpu
 - skybox.rs
 
 ##### Blocks to add
-- dirt
-- lava
 - gravel
-- stone
 - ores (coal, iron etc.)
 - wood planks
 - flower
@@ -32,7 +29,5 @@ Minecraft inspired voxel game made in one week with Rust and wgpu
 ###### Goals for today
 - terrain generation (look nice)
 - infinite generation
-- skybox
-- fog shader
 
 

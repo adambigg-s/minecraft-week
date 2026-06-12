@@ -56,6 +56,7 @@ impl application::Application for MinecraftWeek {
             "global_layout",
             &[
                 resource::GfxBindingLayout::Uniform,
+                resource::GfxBindingLayout::Uniform,
                 resource::GfxBindingLayout::Texture,
                 resource::GfxBindingLayout::Sampler,
             ],
@@ -92,12 +93,13 @@ impl application::Application for MinecraftWeek {
         render.register_resource("texture_atlas", util::texture_image(context, &atlas.atlas, "Main atlas"));
         render.register_resource("sampler", util::sampler(context, "Sampler"));
         render.register_resource("camera_uni", util::uniform::<glam::Mat4>(context, "Camera"));
+        render.register_resource("camera_view_uni", util::uniform::<glam::Mat4>(context, "Camera view"));
 
         render.register_bind_group(
             context,
             "global_bg",
             "global_layout",
-            &["camera_uni", "texture_atlas", "sampler"],
+            &["camera_uni", "camera_view_uni", "texture_atlas", "sampler"],
         )?;
         render.register_bind_group(context, "skybox_bg", "skybox_layout", &["skybox_atlas", "sampler"])?;
 
@@ -195,8 +197,11 @@ impl application::Application for MinecraftWeek {
     ) {
         let (context, render) = (gfx_context, gfx_render);
 
-        if let Some(resource::GfxResource::Uniform(cam)) = render.resources.get("camera_uni") {
-            cam.write(context, &self.camera.view_proj());
+        if let Some(resource::GfxResource::Uniform(cam_view_proj)) = render.resources.get("camera_uni") {
+            cam_view_proj.write(context, &self.camera.view_proj());
+        }
+        if let Some(resource::GfxResource::Uniform(cam_view)) = render.resources.get("camera_view_uni") {
+            cam_view.write(context, &self.camera.view());
         }
 
         render.queue(render::GfxDrawCall {
