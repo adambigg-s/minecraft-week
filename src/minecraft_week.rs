@@ -2,14 +2,15 @@ use std::collections;
 
 pub const MOVE_SPEED: f32 = 0.8;
 pub const LOOK_SPEED: f32 = 0.0025;
-pub const TESTING_GEN: i32 = 1;
+pub const TESTING_GEN: i32 = 3;
 
 use crate::{
     application::{self, input},
     atlas, chunk,
     engine::{camera, transform},
     mesher, pipelines,
-    render::{self, GfxCamera, resources, util},
+    render::{self, GfxCamera, resource, util},
+    skybox, terrain,
 };
 
 #[derive(bon::Builder, Debug)]
@@ -32,6 +33,7 @@ pub struct MinecraftWeek {
     pub camera: camera::Camera,
     pub chunk_manager: ChunkManager,
     pub pipeline: String,
+    pub avaliable_pipelines: Vec<String>,
 }
 
 impl application::Application for MinecraftWeek {
@@ -53,34 +55,60 @@ impl application::Application for MinecraftWeek {
             context,
             "global_layout",
             &[
-                resources::GfxBindingLayout::Uniform,
-                resources::GfxBindingLayout::Texture,
-                resources::GfxBindingLayout::Sampler,
+                resource::GfxBindingLayout::Uniform,
+                resource::GfxBindingLayout::Texture,
+                resource::GfxBindingLayout::Sampler,
             ],
         )?;
 
-        render.register_pipeline::<pipelines::Rainbow>(context, "rainbow_pipe", &["global_layout"]);
+        render.register_bind_group_layout(
+            context,
+            "skybox_layout",
+            &[
+                resource::GfxBindingLayout::Texture,
+                resource::GfxBindingLayout::Sampler,
+            ],
+        )?;
+
         render.register_pipeline::<pipelines::Terrain>(context, "terrain_pipe", &["global_layout"]);
         render.register_pipeline::<pipelines::WireFrame>(context, "wireframe_pipe", &["global_layout"]);
+        render.register_pipeline::<pipelines::Skybox>(
+            context,
+            "skybox_pipe",
+            &["global_layout", "skybox_layout"],
+        );
 
+        let mut skybox = skybox::Skybox::new("./res/skybox/", 32, 500.0)?;
+        skybox.texture.save("./res/atlas/skybox_atlas.png")?;
         let atlas = atlas::TextureAtlas::new("./res/", 16)?;
         atlas.save("./res/atlas/texture_atlas.png")?;
-        render.register_resource("texture_atlas", util::texture_image(context, &atlas.atlas, "Atlas"));
+
+        render.register_mesh("skybox_mesh", skybox.create_gfx_mesh(context));
+
+        render.register_resource(
+            "skybox_atlas",
+            util::texture_image(context, &skybox.texture.atlas, "Skybox atlas"),
+        );
+        render.register_resource("texture_atlas", util::texture_image(context, &atlas.atlas, "Main atlas"));
         render.register_resource("sampler", util::sampler(context, "Sampler"));
         render.register_resource("camera_uni", util::uniform::<glam::Mat4>(context, "Camera"));
+
         render.register_bind_group(
             context,
             "global_bg",
             "global_layout",
             &["camera_uni", "texture_atlas", "sampler"],
         )?;
+        render.register_bind_group(context, "skybox_bg", "skybox_layout", &["skybox_atlas", "sampler"])?;
+
+        let terrain_gen = terrain::TerrainGenerator::new(1);
 
         for i in 0..TESTING_GEN {
             for j in 0..TESTING_GEN {
-                let random_chunk = chunk::generate_random_chunk(glam::ivec3(i, 0, j));
+                let chunk = terrain_gen.new_chunk(glam::ivec3(i, 0, j));
                 render.register_mesh(
                     &format!("chunk_{}x{}_mesh", i, j),
-                    mesher::mesh_chunk(context, &atlas, &random_chunk),
+                    mesher::mesh_chunk(context, &atlas, &chunk),
                 );
             }
         }
@@ -90,15 +118,16 @@ impl application::Application for MinecraftWeek {
             ar: context.config.width as f32 / context.config.height as f32,
             fov: 67.0,
             znear: 0.1,
-            zfear: 500.0,
+            zfear: 1000.0,
             ..Default::default()
         };
 
         let chunk_manager = ChunkManager { chunks: collections::HashMap::new() };
 
         let pipeline = "terrain_pipe".into();
+        let avaliable_pipelines = vec!["terrain_pipe".into(), "wireframe_pipe".into()];
 
-        Ok(Self { camera, chunk_manager, pipeline })
+        Ok(Self { camera, chunk_manager, pipeline, avaliable_pipelines })
     }
 
     fn physics_frame(
@@ -107,7 +136,7 @@ impl application::Application for MinecraftWeek {
         gfx_context: &render::GfxContext,
         gfx_render: &render::GfxRenderer,
     ) {
-        let (context, render) = (gfx_context, gfx_render);
+        let (context, _) = (gfx_context, gfx_render);
 
         self.camera.ar = context.config.width as f32 / context.config.height as f32;
 
@@ -117,10 +146,11 @@ impl application::Application for MinecraftWeek {
         if input.consume_key_release("keyq") {
             input.request_grab = !input.request_grab;
         }
-        if input.consume_key_release("keyr") {
-            for pipe in render.pipelines.keys() {
-                if pipe != &self.pipeline {
-                    self.pipeline = pipe.into();
+        if input.consume_key_press("keyr") {
+            for (index, pipe) in self.avaliable_pipelines.iter().enumerate() {
+                if pipe == &self.pipeline {
+                    self.pipeline =
+                        self.avaliable_pipelines[(index + 1) % self.avaliable_pipelines.len()].to_owned();
                     break;
                 }
             }
@@ -165,9 +195,15 @@ impl application::Application for MinecraftWeek {
     ) {
         let (context, render) = (gfx_context, gfx_render);
 
-        if let Some(resources::GfxResource::Uniform(cam)) = render.resources.get("camera_uni") {
+        if let Some(resource::GfxResource::Uniform(cam)) = render.resources.get("camera_uni") {
             cam.write(context, &self.camera.view_proj());
         }
+
+        render.queue(render::GfxDrawCall {
+            mesh: "skybox_mesh".into(),
+            pipe: "skybox_pipe".into(),
+            bind_groups: vec!["global_bg".into(), "skybox_bg".into()],
+        });
 
         for i in 0..TESTING_GEN {
             for j in 0..TESTING_GEN {

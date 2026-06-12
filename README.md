@@ -2,7 +2,7 @@
 Minecraft inspired voxel game made in one week with Rust and wgpu
 
 ### Current state
-![screenshot](images/first_chunk.png)
+![screenshot](images/skybox_working.png)
 
 ### Goals
 - Infinite world generation
@@ -18,6 +18,7 @@ Minecraft inspired voxel game made in one week with Rust and wgpu
 - mesher.rs
 - block.rs
 - chunk.rs
+- skybox.rs
 
 ##### Blocks to add
 - dirt

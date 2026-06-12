@@ -21,6 +21,9 @@ fn vs_main(in: VertexIn) -> VertexOut {
     return out;
 }
 
+@group(0) @binding(1) var texture_atlas: texture_2d<f32>;
+@group(0) @binding(2) var sample_atlas: sampler;
+
 @fragment
 fn fs_main(out: VertexOut) -> @location(0) vec4<f32> {
     return vec4<f32>(abs(out.nor + vec3<f32>(0.33)), 1.0);

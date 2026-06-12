@@ -1,0 +1,63 @@
+use std::mem;
+
+use wgpu::vertex_attr_array;
+
+use crate::{
+    atlas, mesher,
+    render::{self, mesh},
+};
+
+#[repr(C)]
+#[derive(bytemuck::Pod, bytemuck::Zeroable, bon::Builder, Debug, Default, Clone, Copy)]
+pub struct SkyboxVertex {
+    pub pos: glam::Vec3,
+    pub tex: glam::Vec2,
+}
+
+impl render::GfxVertex for SkyboxVertex {
+    fn descriptor() -> wgpu::VertexBufferLayout<'static> {
+        const ATTRIBS: &[wgpu::VertexAttribute] = &vertex_attr_array![
+            0 => Float32x3,
+            1 => Float32x2,
+        ];
+
+        wgpu::VertexBufferLayout {
+            array_stride: mem::size_of::<Self>() as u64,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: ATTRIBS,
+        }
+    }
+}
+
+#[derive(bon::Builder, Debug)]
+pub struct Skybox {
+    pub texture: atlas::TextureAtlas,
+    pub mesh: mesher::RectilinearMesh,
+}
+
+impl Skybox {
+    pub fn new(directory: &str, tile_size: u32, absolute_size: f32) -> anyhow::Result<Self> {
+        let texture = atlas::TextureAtlas::new(directory, tile_size)?;
+        let mut mesh = mesher::RectilinearMesh::unit_cube();
+        mesh.shift(glam::Vec3::splat(-0.5));
+        mesh.scale(glam::Vec3::splat(absolute_size));
+
+        Ok(Self { texture, mesh })
+    }
+
+    pub fn create_gfx_mesh(&mut self, context: &render::GfxContext) -> mesh::GfxMesh {
+        let indices = &self.mesh.indices;
+        let mut vertices = Vec::new();
+        for (index, &face) in self.mesh.faces.iter().enumerate() {
+            let start = index * 4;
+            let pos = &self.mesh.positions[start..start + 4];
+            let uvs = &mut self.mesh.tex_uvs[start..start + 4];
+            self.texture.conform_uvs(uvs, "skybox", face);
+            for i in 0..4 {
+                vertices.push(SkyboxVertex { pos: pos[i], tex: uvs[i] });
+            }
+        }
+
+        mesh::GfxMesh::new(context, &vertices, indices)
+    }
+}

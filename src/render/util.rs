@@ -1,4 +1,4 @@
-use crate::render::{self, mesh, resources};
+use crate::render::{self, mesh, resource};
 
 pub fn mesh<Vertex, Index>(
     context: &render::GfxContext,
@@ -12,31 +12,31 @@ where
     mesh::GfxMesh::new(context, vertices, indices)
 }
 
-pub fn uniform<Uniform>(context: &render::GfxContext, label: &str) -> resources::GfxResource
+pub fn uniform<Uniform>(context: &render::GfxContext, label: &str) -> resource::GfxResource
 where
     Uniform: bytemuck::Pod,
 {
-    resources::GfxResource::Uniform(resources::GfxUniform::new::<Uniform>(context, label))
+    resource::GfxResource::Uniform(resource::GfxUniform::new::<Uniform>(context, label))
 }
 
 pub fn texture(
     context: &render::GfxContext,
     path: &str,
     label: &str,
-) -> anyhow::Result<resources::GfxResource> {
-    Ok(resources::GfxResource::Texture(resources::GfxTexture::new(context, path, label)?))
+) -> anyhow::Result<resource::GfxResource> {
+    Ok(resource::GfxResource::Texture(resource::GfxTexture::new(context, path, label)?))
 }
 
 pub fn texture_image(
     context: &render::GfxContext,
     image: &image::RgbaImage,
     label: &str,
-) -> resources::GfxResource {
-    resources::GfxResource::Texture(resources::GfxTexture::new_image(context, image, label))
+) -> resource::GfxResource {
+    resource::GfxResource::Texture(resource::GfxTexture::new_image(context, image, label))
 }
 
-pub fn sampler(context: &render::GfxContext, label: &str) -> resources::GfxResource {
-    resources::GfxResource::Sampler(context.device.create_sampler(&wgpu::SamplerDescriptor {
+pub fn sampler(context: &render::GfxContext, label: &str) -> resource::GfxResource {
+    resource::GfxResource::Sampler(context.device.create_sampler(&wgpu::SamplerDescriptor {
         label: Some(&format!("{} sampler", label)),
         address_mode_u: wgpu::AddressMode::Repeat,
         address_mode_v: wgpu::AddressMode::Repeat,

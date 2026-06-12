@@ -20,23 +20,27 @@ impl Chunk {
 
         Self { blocks, offset, height, width }
     }
-}
 
-pub fn generate_random_chunk(offset: glam::IVec3) -> Chunk {
-    let mut chunk = Chunk::new(offset);
-    for i in 0..32 {
-        for j in 0..32 {
-            let fx = j as f32 / chunk.width as f32;
-            let fy = i as f32 / chunk.width as f32;
-
-            let mut height = (chunk.height as f32 * (fx * 4.0).sin().abs() * (fy * 3.0).cos().abs()) as i32;
-            height = height.clamp(1, chunk.height as i32 - 1);
-
-            for k in 0..height {
-                *chunk.blocks.get_mut([i, k as usize, j]) = block::Block::random();
-            }
-        }
+    pub fn size(&self) -> glam::IVec3 {
+        glam::ivec3(self.width as i32, self.height as i32, self.width as i32)
     }
-
-    chunk
 }
+
+// pub fn generate_random_chunk(offset: glam::IVec3) -> Chunk {
+//     let mut chunk = Chunk::new(offset);
+//     for i in 0..32 {
+//         for j in 0..32 {
+//             let fx = j as f32 / chunk.width as f32;
+//             let fy = i as f32 / chunk.width as f32;
+
+//             let mut height = (chunk.height as f32 * (fx * 4.0).sin().abs() * (fy * 3.0).cos().abs()) as i32;
+//             height = height.clamp(1, chunk.height as i32 - 1);
+
+//             for k in 0..height {
+//                 *chunk.blocks.get_mut([i, k as usize, j]) = block::Block::random();
+//             }
+//         }
+//     }
+
+//     chunk
+// }

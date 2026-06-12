@@ -15,33 +15,42 @@ pub enum Visibility {
 pub enum Block {
     #[default]
     Air,
+    Dirt,
     Grass,
     Sand,
     Water,
+    Lava,
     Log,
     Leaf,
+    Stone,
     BlockCounter,
 }
 
 impl Block {
     pub const ALL: [Block; Block::BlockCounter as usize] = [
         Block::Air,
+        Block::Dirt,
         Block::Grass,
         Block::Sand,
         Block::Water,
+        Block::Lava,
         Block::Log,
         Block::Leaf,
+        Block::Stone,
     ];
 
-        #[rustfmt::skip]
+    #[rustfmt::skip]
     pub fn name(&self) -> &'static str {
         match self {
             | Block::Air          => "air",
+            | Block::Dirt         => "dirt",
             | Block::Grass        => "grass",
             | Block::Sand         => "sand",
             | Block::Water        => "water",
+            | Block::Lava         => "lava",
             | Block::Log          => "log",
             | Block::Leaf         => "leaf",
+            | Block::Stone        => "stone",
             | Block::BlockCounter => "",
         }
     }

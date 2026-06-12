@@ -118,6 +118,39 @@ impl Quad {
     fn indices(&self, start: u16) -> [u16; 6] {
         [start, start + 2, start + 1, start + 1, start + 2, start + 3]
     }
+
+    pub const CUBE: [Quad; 6] = [
+        Quad {
+            position: glam::IVec3::ZERO,
+            block: block::Block::Air,
+            face: Face::Top,
+        },
+        Quad {
+            position: glam::IVec3::ZERO,
+            block: block::Block::Air,
+            face: Face::Bottom,
+        },
+        Quad {
+            position: glam::IVec3::ZERO,
+            block: block::Block::Air,
+            face: Face::Left,
+        },
+        Quad {
+            position: glam::IVec3::ZERO,
+            block: block::Block::Air,
+            face: Face::Right,
+        },
+        Quad {
+            position: glam::IVec3::ZERO,
+            block: block::Block::Air,
+            face: Face::Front,
+        },
+        Quad {
+            position: glam::IVec3::ZERO,
+            block: block::Block::Air,
+            face: Face::Back,
+        },
+    ];
 }
 
 #[repr(C)]
@@ -141,6 +174,46 @@ impl render::GfxVertex for TerrainVertex {
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: ATTRIBS,
         }
+    }
+}
+
+#[derive(bon::Builder, Debug, Default)]
+pub struct RectilinearMesh {
+    pub positions: Vec<glam::Vec3>,
+    pub normals: Vec<glam::Vec3>,
+    pub tex_uvs: Vec<glam::Vec2>,
+    pub indices: Vec<u16>,
+    pub faces: Vec<Face>,
+}
+
+impl RectilinearMesh {
+    pub fn from_quads(quads: &[Quad]) -> Self {
+        let mut out = Self::default();
+        for quad in quads {
+            let len = out.positions.len();
+            out.positions.extend_from_slice(&quad.positions());
+            out.normals.extend_from_slice(&quad.normals());
+            out.tex_uvs.extend_from_slice(&quad.texture_uvs());
+            out.indices.extend_from_slice(&quad.indices(len as u16));
+            out.faces.push(quad.face);
+        }
+        out
+    }
+
+    pub fn scale(&mut self, scale: glam::Vec3) {
+        self.positions.iter_mut().for_each(|pos| {
+            *pos *= scale;
+        });
+    }
+
+    pub fn shift(&mut self, shift: glam::Vec3) {
+        self.positions.iter_mut().for_each(|pos| {
+            *pos += shift;
+        });
+    }
+
+    pub fn unit_cube() -> Self {
+        Self::from_quads(&Quad::CUBE)
     }
 }
 

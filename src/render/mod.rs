@@ -1,5 +1,5 @@
 pub mod mesh;
-pub mod resources;
+pub mod resource;
 pub mod util;
 
 use std::{collections, sync};
@@ -118,9 +118,9 @@ pub struct GfxRenderer {
     pub meshes: collections::HashMap<String, mesh::GfxMesh>,
 
     #[builder(default)]
-    pub resources: collections::HashMap<String, resources::GfxResource>,
+    pub resources: collections::HashMap<String, resource::GfxResource>,
 
-    pub depth_texture: Option<resources::GfxTexture>,
+    pub depth_texture: Option<resource::GfxTexture>,
 
     #[builder(default)]
     pub render_queue: Vec<GfxDrawCall>,
@@ -132,7 +132,7 @@ impl GfxRenderer {
     }
 
     pub fn config_changed(&mut self, context: &GfxContext) -> anyhow::Result<()> {
-        self.depth_texture = Some(resources::GfxTexture::new_depth(context, "Main depth")?);
+        self.depth_texture = Some(resource::GfxTexture::new_depth(context, "Main depth")?);
         Ok(())
     }
 
@@ -140,7 +140,7 @@ impl GfxRenderer {
         &mut self,
         context: &GfxContext,
         name: &str,
-        layouts: &[resources::GfxBindingLayout],
+        layouts: &[resource::GfxBindingLayout],
     ) -> anyhow::Result<()> {
         if self.bind_group_layouts.contains_key(name) {
             log::error!("Layout name already registered: {}", name);
@@ -207,7 +207,7 @@ impl GfxRenderer {
         self.meshes.insert(name.into(), mesh);
     }
 
-    pub fn register_resource(&mut self, name: &str, resource: resources::GfxResource) {
+    pub fn register_resource(&mut self, name: &str, resource: resource::GfxResource) {
         self.resources.insert(name.into(), resource);
     }
 
