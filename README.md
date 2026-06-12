@@ -28,4 +28,10 @@ Minecraft inspired voxel game made in one week with Rust and wgpu
 - wood planks
 - flower
 
+###### Goals for today
+- terrain generation (look nice)
+- infinite generation
+- skybox
+- fog shader
+
 

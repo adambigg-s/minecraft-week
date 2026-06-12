@@ -2,7 +2,7 @@ use std::collections;
 
 pub const MOVE_SPEED: f32 = 0.8;
 pub const LOOK_SPEED: f32 = 0.0025;
-pub const TESTING_GEN: i32 = 9;
+pub const TESTING_GEN: i32 = 1;
 
 use crate::{
     application::{self, input},
@@ -31,6 +31,7 @@ impl ChunkManager {
 pub struct MinecraftWeek {
     pub camera: camera::Camera,
     pub chunk_manager: ChunkManager,
+    pub pipeline: String,
 }
 
 impl application::Application for MinecraftWeek {
@@ -60,6 +61,7 @@ impl application::Application for MinecraftWeek {
 
         render.register_pipeline::<pipelines::Rainbow>(context, "rainbow_pipe", &["global_layout"]);
         render.register_pipeline::<pipelines::Terrain>(context, "terrain_pipe", &["global_layout"]);
+        render.register_pipeline::<pipelines::WireFrame>(context, "wireframe_pipe", &["global_layout"]);
 
         let atlas = atlas::TextureAtlas::new("./res/", 16)?;
         atlas.save("./res/atlas/texture_atlas.png")?;
@@ -94,7 +96,9 @@ impl application::Application for MinecraftWeek {
 
         let chunk_manager = ChunkManager { chunks: collections::HashMap::new() };
 
-        Ok(Self { camera, chunk_manager })
+        let pipeline = "terrain_pipe".into();
+
+        Ok(Self { camera, chunk_manager, pipeline })
     }
 
     fn physics_frame(
@@ -103,7 +107,7 @@ impl application::Application for MinecraftWeek {
         gfx_context: &render::GfxContext,
         gfx_render: &render::GfxRenderer,
     ) {
-        let (context, _) = (gfx_context, gfx_render);
+        let (context, render) = (gfx_context, gfx_render);
 
         self.camera.ar = context.config.width as f32 / context.config.height as f32;
 
@@ -112,6 +116,14 @@ impl application::Application for MinecraftWeek {
         }
         if input.consume_key_release("keyq") {
             input.request_grab = !input.request_grab;
+        }
+        if input.consume_key_release("keyr") {
+            for pipe in render.pipelines.keys() {
+                if pipe != &self.pipeline {
+                    self.pipeline = pipe.into();
+                    break;
+                }
+            }
         }
 
         let [mut dx, mut dy, mut dz] = [0.0; 3];
@@ -161,7 +173,7 @@ impl application::Application for MinecraftWeek {
             for j in 0..TESTING_GEN {
                 render.queue(render::GfxDrawCall {
                     mesh: format!("chunk_{}x{}_mesh", i, j),
-                    pipe: "terrain_pipe".into(),
+                    pipe: self.pipeline.to_owned(),
                     bind_groups: vec!["global_bg".into()],
                 });
             }
