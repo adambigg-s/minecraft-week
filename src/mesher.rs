@@ -2,8 +2,12 @@ use std::mem;
 
 use wgpu::vertex_attr_array;
 
-use crate::render::{self, mesh};
+use crate::{
+    atlas, block,
+    render::{self, mesh},
+};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Face {
     Top,
     Bottom,
@@ -26,56 +30,25 @@ impl Face {
     }
 }
 
-pub enum Block {
-    Air,
-    Dirt,
-}
-
+#[derive(bon::Builder, Debug)]
 pub struct Quad {
     location: glam::IVec3,
     face: Face,
-    block: Block,
+    block: block::Block,
 }
 
 impl Quad {
     fn positions(&self) -> [glam::Vec3; 4] {
+        use glam::ivec3;
+
+        #[rustfmt::skip]
         let positions = match self.face {
-            | Face::Top => [
-                glam::ivec3(0, 1, 0),
-                glam::ivec3(1, 1, 0),
-                glam::ivec3(0, 1, 1),
-                glam::ivec3(1, 1, 1),
-            ],
-            | Face::Bottom => [
-                glam::ivec3(0, 0, 0),
-                glam::ivec3(1, 0, 0),
-                glam::ivec3(0, 0, 1),
-                glam::ivec3(1, 0, 1),
-            ],
-            | Face::Left => [
-                glam::ivec3(0, 0, 0),
-                glam::ivec3(0, 1, 0),
-                glam::ivec3(0, 0, 1),
-                glam::ivec3(0, 1, 1),
-            ],
-            | Face::Right => [
-                glam::ivec3(1, 0, 0),
-                glam::ivec3(1, 1, 0),
-                glam::ivec3(1, 0, 1),
-                glam::ivec3(1, 1, 1),
-            ],
-            | Face::Back => [
-                glam::ivec3(0, 0, 0),
-                glam::ivec3(0, 1, 0),
-                glam::ivec3(1, 0, 0),
-                glam::ivec3(1, 1, 0),
-            ],
-            | Face::Front => [
-                glam::ivec3(0, 0, 1),
-                glam::ivec3(0, 1, 1),
-                glam::ivec3(1, 0, 1),
-                glam::ivec3(1, 1, 1),
-            ],
+            | Face::Top    => [ivec3(0, 1, 0), ivec3(1, 1, 0), ivec3(0, 1, 1), ivec3(1, 1, 1)],
+            | Face::Bottom => [ivec3(0, 0, 0), ivec3(1, 0, 0), ivec3(0, 0, 1), ivec3(1, 0, 1)],
+            | Face::Left   => [ivec3(0, 0, 0), ivec3(0, 1, 0), ivec3(0, 0, 1), ivec3(0, 1, 1)],
+            | Face::Right  => [ivec3(1, 0, 0), ivec3(1, 1, 0), ivec3(1, 0, 1), ivec3(1, 1, 1)],
+            | Face::Back   => [ivec3(0, 0, 0), ivec3(0, 1, 0), ivec3(1, 0, 0), ivec3(1, 1, 0)],
+            | Face::Front  => [ivec3(0, 0, 1), ivec3(0, 1, 1), ivec3(1, 0, 1), ivec3(1, 1, 1)],
         };
 
         [
@@ -109,8 +82,8 @@ impl Quad {
     pub fn texture_uvs(&self) -> [glam::Vec2; 4] {
         [
             glam::vec2(0.0, 0.0),
-            glam::vec2(1.0, 0.0),
             glam::vec2(0.0, 1.0),
+            glam::vec2(1.0, 0.0),
             glam::vec2(1.0, 1.0),
         ]
     }
@@ -144,58 +117,64 @@ impl render::GfxVertex for TerrainVertex {
     }
 }
 
-pub fn mesh_quads(context: &render::GfxContext, quads: &[Quad]) -> mesh::GfxMesh {
+pub fn mesh_quads(
+    context: &render::GfxContext,
+    atlas: &atlas::TextureAtlas,
+    quads: &[Quad],
+) -> mesh::GfxMesh {
     let mut vertices = Vec::new();
     let mut indices = Vec::new();
 
     for quad in quads {
         let base = vertices.len();
-        let positions = quad.positions();
-        let normals = quad.normals();
-        let uvs = quad.texture_uvs();
+        let pos = quad.positions();
+        let nor = quad.normals();
+        let ind = quad.indices(base as u16);
+        let mut uvs = quad.texture_uvs();
+        atlas.conform_uvs(&mut uvs, &quad.block.to_string(), quad.face);
 
         for i in 0..4 {
-            vertices.push(TerrainVertex { pos: positions[i], nor: normals[i], tex: uvs[i] });
+            vertices.push(TerrainVertex { pos: pos[i], nor: nor[i], tex: uvs[i] });
         }
-        indices.extend_from_slice(&quad.indices(base as u16));
+        indices.extend_from_slice(&ind);
     }
 
     mesh::GfxMesh::new(context, &vertices, &indices)
 }
 
-pub fn make_cube_mesh(context: &render::GfxContext) -> mesh::GfxMesh {
+pub fn make_cube_mesh(context: &render::GfxContext, atlas: &atlas::TextureAtlas) -> mesh::GfxMesh {
     let quads = vec![
         Quad {
             location: glam::IVec3::ZERO,
             face: Face::Top,
-            block: Block::Dirt,
+            block: block::Block::Grass,
         },
         Quad {
             location: glam::IVec3::ZERO,
             face: Face::Bottom,
-            block: Block::Dirt,
+            block: block::Block::Grass,
         },
         Quad {
             location: glam::IVec3::ZERO,
             face: Face::Left,
-            block: Block::Dirt,
+            block: block::Block::Grass,
         },
         Quad {
             location: glam::IVec3::ZERO,
             face: Face::Right,
-            block: Block::Dirt,
+            block: block::Block::Grass,
         },
         Quad {
             location: glam::IVec3::ZERO,
             face: Face::Front,
-            block: Block::Dirt,
+            block: block::Block::Grass,
         },
         Quad {
             location: glam::IVec3::ZERO,
             face: Face::Back,
-            block: Block::Dirt,
+            block: block::Block::Grass,
         },
     ];
 
-    mesh_quads(context, &quads)
+    mesh_quads(context, atlas, &quads)
 }

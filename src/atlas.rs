@@ -2,7 +2,7 @@ use std::{collections, fs};
 
 use image::GenericImage;
 
-use crate::engine::storage::buffer;
+use crate::{engine::storage::buffer, mesher};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum BlockTextureFace {
@@ -55,6 +55,37 @@ impl TextureAtlas {
     pub fn save(&self, path: &str) -> anyhow::Result<()> {
         self.atlas.save(path)?;
         Ok(())
+    }
+
+    pub fn conform_uvs(&self, uvs: &mut [glam::Vec2], name: &str, face: mesher::Face) {
+        let face_texture = match face {
+            | mesher::Face::Top => BlockTextureFace::Top,
+            | mesher::Face::Bottom => BlockTextureFace::Bottom,
+            | _ => BlockTextureFace::Side,
+        };
+
+        let scale = self.tile_size as f32 / self.atlas_size as f32;
+        let offset = match self.offsets.get(name) {
+            | Some(blocks) => match blocks.get(&face_texture) {
+                | Some(offset) => *offset,
+                | None => match blocks.get(&BlockTextureFace::Side) {
+                    | Some(offset) => *offset,
+                    | None => {
+                        log::error!("No default side texture for block: {}", name);
+                        glam::Vec2::ZERO
+                    }
+                },
+            },
+            | None => {
+                log::error!("No texture images found for block: {}", name);
+                glam::Vec2::ZERO
+            }
+        };
+
+        for uv in uvs {
+            *uv *= scale;
+            *uv += offset;
+        }
     }
 
     fn collect_textures(

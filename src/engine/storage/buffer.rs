@@ -75,11 +75,11 @@ impl<T, const N: usize> Buffer<T, N> {
     pub fn delinearize(&self, mut index: usize) -> [usize; N] {
         debug_assert!(self.size.iter().product::<usize>() > index);
         let mut out = [0; N];
-        for dim in (0..N).rev() {
+        (0..N).rev().for_each(|dim| {
             let modifier = self.size[0..dim].iter().product::<usize>();
             out[dim] = index / modifier;
             index -= out[dim] * modifier;
-        }
+        });
         out
     }
 

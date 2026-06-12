@@ -93,10 +93,10 @@ impl GfxTexture {
         let image = image::open(path)?.flipv();
         let rgba = image.to_rgba8();
 
-        Ok(Self::new_image(context, rgba, label))
+        Ok(Self::new_image(context, &rgba, label))
     }
 
-    pub fn new_image(context: &GfxContext, image: image::RgbaImage, label: &str) -> Self {
+    pub fn new_image(context: &GfxContext, image: &image::RgbaImage, label: &str) -> Self {
         let size = wgpu::Extent3d {
             width: image.width(),
             height: image.height(),

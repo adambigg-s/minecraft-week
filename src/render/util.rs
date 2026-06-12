@@ -29,7 +29,7 @@ pub fn texture(
 
 pub fn texture_image(
     context: &render::GfxContext,
-    image: image::RgbaImage,
+    image: &image::RgbaImage,
     label: &str,
 ) -> resources::GfxResource {
     resources::GfxResource::Texture(resources::GfxTexture::new_image(context, image, label))
