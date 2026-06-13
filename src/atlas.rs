@@ -32,13 +32,19 @@ impl TextureAtlas {
         let mut offsets: collections::HashMap<String, collections::HashMap<BlockTextureFace, glam::Vec2>> =
             collections::HashMap::new();
 
+        let mut images = images.iter().collect::<Vec<_>>();
+        images.sort_unstable_by_key(|(a, _)| *a);
+
         let index_assistant = buffer::Buffer::<(), 2>::new([tiles_per_side as usize; 2]);
         let mut current_tile = 0;
         for (block_name, faces) in images {
-            for (face, image) in faces {
+            let mut faces = faces.iter().collect::<Vec<_>>();
+            faces.sort_unstable_by_key(|(a, _)| *a);
+
+            for (&face, image) in faces {
                 let [x, y] = index_assistant.delinearize(current_tile).map(|val| val as u32 * tile_size);
 
-                atlas.copy_from(&image, x, y)?;
+                atlas.copy_from(image, x, y)?;
                 log::info!("Block written into texture atlas: ({}, {:?})", block_name, face,);
 
                 let uv = glam::vec2(x as f32, y as f32) / atlas_size as f32;
