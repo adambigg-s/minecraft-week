@@ -21,6 +21,7 @@ winit = "0.30.13"
 opt-level = 1
 
 [profile.dev]
+opt-level = 1
 incremental = true
 codegen-units = 16
 

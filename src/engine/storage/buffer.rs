@@ -88,6 +88,18 @@ impl<T, const N: usize> Buffer<T, N> {
     }
 }
 
+impl<T, const N: usize> Buffer<T, N>
+where
+    T: Default + Copy,
+{
+    pub fn new_zeroed(size: [usize; N]) -> Self {
+        Self {
+            size,
+            items: vec![T::default(); size.iter().product()].into(),
+        }
+    }
+}
+
 impl<T, const N: usize> Default for Buffer<T, N> {
     fn default() -> Self {
         Self { size: [0; N], items: Default::default() }

@@ -1,4 +1,4 @@
-use std::collections;
+use std::{collections, time};
 
 pub const MOVE_SPEED: f32 = 0.5;
 pub const LOOK_SPEED: f32 = 0.0025;
@@ -55,10 +55,12 @@ impl ChunkManager {
             return;
         }
 
+        let start = time::Instant::now();
         let chunk = self.terrain.new_chunk(glam::ivec3(location.x, 0, location.y));
+        log::info!("Chunk gen: {}", start.elapsed().as_millis());
         render.register_mesh(&Self::chunk_key(location), chunk.mesh(context, atlas));
+        log::info!("Chunk meshing: {}", start.elapsed().as_millis());
         self.chunks.insert(location, chunk);
-        log::info!("Chunk generated at: {}", location);
     }
 
     pub fn chunk_key(coord: glam::IVec2) -> String {

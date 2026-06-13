@@ -257,7 +257,7 @@ impl<'c> ChunkMesher<'c> {
         (0..rectilinear.size).for_each(|index| {
             let RectilinearMeshSlice { face, ipos, uvs, .. } = rectilinear.quad_slice(index);
             let position = self.chunk.to_chunk_coords(ipos);
-            let block = self.chunk.blocks.get(self.chunk.chunk_coords(position));
+            let block = self.chunk.blocks.get(self.chunk.idx(position));
             self.atlas.conform_uvs(uvs, block.name(), face);
         });
     }

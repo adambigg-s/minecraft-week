@@ -211,6 +211,14 @@ impl GfxRenderer {
         self.resources.insert(name.into(), resource);
     }
 
+    pub fn unregister_mesh(&mut self, name: &str) {
+        self.meshes.remove(name);
+    }
+
+    pub fn unregister_resource(&mut self, name: &str) {
+        self.resources.remove(name);
+    }
+
     pub fn queue(&mut self, call: GfxDrawCall) {
         self.render_queue.push(call);
     }
