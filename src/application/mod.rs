@@ -8,6 +8,7 @@ use winit::event_loop;
 
 use crate::render;
 
+// TODO:
 pub trait Application
 where
     Self: Sized,
@@ -19,11 +20,12 @@ where
         gfx_render: &mut render::GfxRenderer,
     ) -> anyhow::Result<Self>;
 
+    // These need to become un-mut, however that was causing problems at the moment
     fn physics_frame(
         &mut self,
         input: &mut input::Input,
-        gfx_context: &render::GfxContext,
-        gfx_render: &render::GfxRenderer,
+        gfx_context: &mut render::GfxContext,
+        gfx_render: &mut render::GfxRenderer,
     );
 
     fn gfx_frame(
@@ -42,7 +44,10 @@ pub struct Config {
 }
 
 fn init() {
-    unsafe { env::set_var("RUST_LOG", "info") };
+    unsafe {
+        env::set_var("RUST_LOG", "info");
+        env::set_var("RUST_BACKTRACE", "full");
+    };
     env_logger::init();
     log::warn!("Application started");
 }

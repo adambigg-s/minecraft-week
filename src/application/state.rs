@@ -36,7 +36,7 @@ where
     }
 
     pub fn update(&mut self) -> anyhow::Result<()> {
-        self.inner_state.physics_frame(&mut self.input, &self.gfx_context, &self.gfx_render);
+        self.inner_state.physics_frame(&mut self.input, &mut self.gfx_context, &mut self.gfx_render);
         Ok(())
     }
 

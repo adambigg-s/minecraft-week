@@ -2,7 +2,7 @@ use std::collections;
 
 pub const MOVE_SPEED: f32 = 0.5;
 pub const LOOK_SPEED: f32 = 0.0025;
-pub const TESTING_GEN: i32 = 12;
+pub const TESTING_GEN: i32 = 4;
 
 use crate::{
     application::{self, input},
@@ -16,15 +16,53 @@ use crate::{
 #[derive(bon::Builder, Debug)]
 pub struct ChunkManager {
     pub chunks: collections::HashMap<glam::IVec2, chunk::Chunk>,
+    pub terrain: terrain::TerrainGenerator,
+    pub generation_range: i32,
+    pub player_chunk: glam::IVec2,
 }
 
 impl ChunkManager {
-    pub fn generate(&mut self, location: glam::IVec2) {
+    pub fn update(
+        &mut self,
+        player_pos: glam::Vec3,
+        context: &render::GfxContext,
+        render: &mut render::GfxRenderer,
+        atlas: &atlas::TextureAtlas,
+    ) {
+        let player_chunk = glam::ivec2((player_pos.x / 32.0) as i32, (player_pos.z / 32.0) as i32);
+
+        if player_chunk == self.player_chunk {
+            return;
+        }
+        self.player_chunk = player_chunk;
+
+        for dx in -self.generation_range..self.generation_range {
+            for dz in -self.generation_range..self.generation_range {
+                let coord = player_chunk + glam::ivec2(dx, dz);
+                self.generate(coord, context, render, atlas);
+            }
+        }
+    }
+
+    pub fn generate(
+        &mut self,
+        location: glam::IVec2,
+        context: &render::GfxContext,
+        render: &mut render::GfxRenderer,
+        atlas: &atlas::TextureAtlas,
+    ) {
         if self.chunks.contains_key(&location) {
             return;
         }
 
-        todo!()
+        let chunk = self.terrain.new_chunk(glam::ivec3(location.x, 0, location.y));
+        render.register_mesh(&Self::chunk_key(location), chunk.mesh(context, atlas));
+        self.chunks.insert(location, chunk);
+        log::info!("Chunk generated at: {}", location);
+    }
+
+    pub fn chunk_key(coord: glam::IVec2) -> String {
+        format!("chunk_{}x{}_mesh", coord.x, coord.y)
     }
 }
 
@@ -34,6 +72,7 @@ pub struct MinecraftWeek {
     pub movespeed: f32,
     pub lookspeed: f32,
     pub chunk_manager: ChunkManager,
+    pub atlas: atlas::TextureAtlas,
     pub pipeline: String,
     pub avaliable_pipelines: Vec<String>,
 }
@@ -107,24 +146,6 @@ impl application::Application for MinecraftWeek {
 
         let terrain_gen = terrain::TerrainGenerator::new(1);
 
-        for i in 0..TESTING_GEN {
-            for j in 0..TESTING_GEN {
-                let time = std::time::Instant::now();
-                let chunk = terrain_gen.new_chunk(glam::ivec3(i, 0, j));
-                log::warn!(
-                    "Chunk generation: {:.3} | {} ms",
-                    time.elapsed().as_secs_f32(),
-                    time.elapsed().as_millis()
-                );
-                render.register_mesh(&format!("chunk_{}x{}_mesh", i, j), chunk.mesh(context, &atlas));
-                log::warn!(
-                    "Chunk meshing: {:.3} | {} ms",
-                    time.elapsed().as_secs_f32(),
-                    time.elapsed().as_millis()
-                );
-            }
-        }
-
         let camera = camera::Camera {
             inner: transform::Transform::from_position([0.0, 0.0, 1.0].into()),
             ar: context.config.width as f32 / context.config.height as f32,
@@ -134,7 +155,12 @@ impl application::Application for MinecraftWeek {
             ..Default::default()
         };
 
-        let chunk_manager = ChunkManager { chunks: collections::HashMap::new() };
+        let chunk_manager = ChunkManager {
+            chunks: collections::HashMap::new(),
+            terrain: terrain_gen,
+            generation_range: 3,
+            player_chunk: glam::IVec2::MAX,
+        };
 
         let pipeline = "terrain_pipe".into();
         let avaliable_pipelines = vec!["terrain_pipe".into(), "wireframe_pipe".into()];
@@ -149,16 +175,17 @@ impl application::Application for MinecraftWeek {
             avaliable_pipelines,
             lookspeed,
             movespeed,
+            atlas,
         })
     }
 
     fn physics_frame(
         &mut self,
         input: &mut input::Input,
-        gfx_context: &render::GfxContext,
-        gfx_render: &render::GfxRenderer,
+        gfx_context: &mut render::GfxContext,
+        gfx_render: &mut render::GfxRenderer,
     ) {
-        let (context, _) = (gfx_context, gfx_render);
+        let (context, render) = (gfx_context, gfx_render);
 
         self.camera.ar = context.config.width as f32 / context.config.height as f32;
 
@@ -213,6 +240,9 @@ impl application::Application for MinecraftWeek {
         self.camera.confine_euler();
         self.camera.inner.rotation =
             glam::Quat::from_rotation_y(self.camera.yaw) * glam::Quat::from_rotation_x(self.camera.pitch);
+
+        let player_pos = self.camera.inner.position;
+        self.chunk_manager.update(player_pos, context, render, &self.atlas);
     }
 
     fn gfx_frame(
@@ -236,14 +266,12 @@ impl application::Application for MinecraftWeek {
             bind_groups: vec!["global_bg".into(), "skybox_bg".into()],
         });
 
-        for i in 0..TESTING_GEN {
-            for j in 0..TESTING_GEN {
-                render.queue(render::GfxDrawCall {
-                    mesh: format!("chunk_{}x{}_mesh", i, j),
-                    pipe: self.pipeline.to_owned(),
-                    bind_groups: vec!["global_bg".into()],
-                });
-            }
+        for &coord in self.chunk_manager.chunks.keys() {
+            render.queue(render::GfxDrawCall {
+                mesh: ChunkManager::chunk_key(coord),
+                pipe: self.pipeline.to_owned(),
+                bind_groups: vec!["global_bg".into()],
+            });
         }
     }
 }

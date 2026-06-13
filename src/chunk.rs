@@ -31,7 +31,7 @@ impl Chunk {
     }
 
     pub fn to_chunk_coords(&self, pos: glam::IVec3) -> glam::IVec3 {
-        pos % self.size()
+        pos.rem_euclid(self.size())
     }
 
     pub fn chunk_coords(&self, pos: glam::IVec3) -> [usize; 3] {
