@@ -1,6 +1,6 @@
 use std::collections;
 
-pub const MOVE_SPEED: f32 = 0.8;
+pub const MOVE_SPEED: f32 = 0.5;
 pub const LOOK_SPEED: f32 = 0.0025;
 pub const TESTING_GEN: i32 = 3;
 
@@ -31,6 +31,8 @@ impl ChunkManager {
 #[derive(bon::Builder, Debug)]
 pub struct MinecraftWeek {
     pub camera: camera::Camera,
+    pub movespeed: f32,
+    pub lookspeed: f32,
     pub chunk_manager: ChunkManager,
     pub pipeline: String,
     pub avaliable_pipelines: Vec<String>,
@@ -129,7 +131,17 @@ impl application::Application for MinecraftWeek {
         let pipeline = "terrain_pipe".into();
         let avaliable_pipelines = vec!["terrain_pipe".into(), "wireframe_pipe".into()];
 
-        Ok(Self { camera, chunk_manager, pipeline, avaliable_pipelines })
+        let lookspeed = LOOK_SPEED;
+        let movespeed = MOVE_SPEED;
+
+        Ok(Self {
+            camera,
+            chunk_manager,
+            pipeline,
+            avaliable_pipelines,
+            lookspeed,
+            movespeed,
+        })
     }
 
     fn physics_frame(
@@ -157,6 +169,12 @@ impl application::Application for MinecraftWeek {
                 }
             }
         }
+        if input.consume_key_press("digit1") {
+            self.movespeed *= 0.5;
+        }
+        if input.consume_key_press("digit2") {
+            self.movespeed *= 2.0;
+        }
 
         let [mut dx, mut dy, mut dz] = [0.0; 3];
         if input.get_key_pres("keyw") {
@@ -177,11 +195,11 @@ impl application::Application for MinecraftWeek {
         if input.get_key_pres("shiftleft") {
             dy -= 1.0;
         }
-        [dx, dy, dz] = (glam::vec3(dx, dy, dz).normalize_or_zero() * MOVE_SPEED).to_array();
+        [dx, dy, dz] = (glam::vec3(dx, dy, dz).normalize_or_zero() * self.movespeed).to_array();
         self.camera.update_position(dx, dy, dz);
 
         let [mut dy, mut dx] = input.consume_mouse_delta().into();
-        [dy, dx] = (glam::vec2(dy, dx) * LOOK_SPEED).to_array();
+        [dy, dx] = (glam::vec2(dy, dx) * self.lookspeed).to_array();
         self.camera.yaw -= dy;
         self.camera.pitch -= dx;
         self.camera.confine_euler();

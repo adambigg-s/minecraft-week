@@ -10,6 +10,7 @@ use crate::{
 
 pub struct Highlight;
 impl render::GfxPipeline for Highlight {
+    #[allow(unused)]
     fn pipeline(
         context: &render::GfxContext,
         layouts: &[Option<&wgpu::BindGroupLayout>],

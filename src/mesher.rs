@@ -98,11 +98,14 @@ impl Face {
 #[derive(bon::Builder, Debug)]
 pub struct Quad {
     position: glam::IVec3,
-    block: block::Block,
     face: Face,
 }
 
 impl Quad {
+    pub fn cube() -> [Self; 6] {
+        Face::ALL.map(|face| Self { position: glam::IVec3::ZERO, face })
+    }
+
     pub fn positions(&self) -> [glam::Vec3; 4] {
         self.face.corners().map(|(offset, _)| (self.position + offset).as_vec3())
     }
@@ -115,42 +118,9 @@ impl Quad {
         [self.face.normal(); 4]
     }
 
-    fn indices(&self, start: u16) -> [u16; 6] {
+    pub fn indices(&self, start: u16) -> [u16; 6] {
         [start, start + 2, start + 1, start + 1, start + 2, start + 3]
     }
-
-    pub const CUBE: [Quad; 6] = [
-        Quad {
-            position: glam::IVec3::ZERO,
-            block: block::Block::Air,
-            face: Face::Top,
-        },
-        Quad {
-            position: glam::IVec3::ZERO,
-            block: block::Block::Air,
-            face: Face::Bottom,
-        },
-        Quad {
-            position: glam::IVec3::ZERO,
-            block: block::Block::Air,
-            face: Face::Left,
-        },
-        Quad {
-            position: glam::IVec3::ZERO,
-            block: block::Block::Air,
-            face: Face::Right,
-        },
-        Quad {
-            position: glam::IVec3::ZERO,
-            block: block::Block::Air,
-            face: Face::Front,
-        },
-        Quad {
-            position: glam::IVec3::ZERO,
-            block: block::Block::Air,
-            face: Face::Back,
-        },
-    ];
 }
 
 #[repr(C)]
@@ -177,6 +147,14 @@ impl render::GfxVertex for TerrainVertex {
     }
 }
 
+#[derive(bon::Builder, Debug)]
+pub struct RectilinearMeshSlice<'r> {
+    pub face: Face,
+    pub pos: &'r mut [glam::Vec3],
+    pub nor: &'r mut [glam::Vec3],
+    pub uvs: &'r mut [glam::Vec2],
+}
+
 #[derive(bon::Builder, Debug, Default)]
 pub struct RectilinearMesh {
     pub positions: Vec<glam::Vec3>,
@@ -184,11 +162,12 @@ pub struct RectilinearMesh {
     pub tex_uvs: Vec<glam::Vec2>,
     pub indices: Vec<u16>,
     pub faces: Vec<Face>,
+    pub size: usize,
 }
 
 impl RectilinearMesh {
     pub fn from_quads(quads: &[Quad]) -> Self {
-        let mut out = Self::default();
+        let mut out = Self { size: quads.len(), ..Default::default() };
         for quad in quads {
             let len = out.positions.len();
             out.positions.extend_from_slice(&quad.positions());
@@ -198,6 +177,20 @@ impl RectilinearMesh {
             out.faces.push(quad.face);
         }
         out
+    }
+
+    pub fn quad_slice<'r>(&'r mut self, index: usize) -> RectilinearMeshSlice<'r> {
+        let offset = index * 4;
+        RectilinearMeshSlice {
+            face: self.faces[index],
+            pos: &mut self.positions[offset..offset + 4],
+            nor: &mut self.normals[offset..offset + 4],
+            uvs: &mut self.tex_uvs[offset..offset + 4],
+        }
+    }
+
+    pub fn unit_cube() -> Self {
+        Self::from_quads(&Quad::cube())
     }
 
     pub fn scale(&mut self, scale: glam::Vec3) {
@@ -211,36 +204,6 @@ impl RectilinearMesh {
             *pos += shift;
         });
     }
-
-    pub fn unit_cube() -> Self {
-        Self::from_quads(&Quad::CUBE)
-    }
-}
-
-pub fn mesh_quads(
-    context: &render::GfxContext,
-    atlas: &atlas::TextureAtlas,
-    quads: &[Quad],
-) -> mesh::GfxMesh {
-    let mut vertices = Vec::new();
-    let mut indices = Vec::new();
-
-    quads.iter().for_each(|quad| {
-        let len = vertices.len();
-
-        let pos = quad.positions();
-        let nor = quad.normals();
-        let mut uvs = quad.texture_uvs();
-        atlas.conform_uvs(&mut uvs, &quad.block.to_string(), quad.face);
-        (0..4).for_each(|idx| {
-            vertices.push(TerrainVertex { pos: pos[idx], nor: nor[idx], tex: uvs[idx] });
-        });
-
-        let ind = quad.indices(len as u16);
-        indices.extend_from_slice(&ind);
-    });
-
-    mesh::GfxMesh::new(context, &vertices, &indices)
 }
 
 pub fn mesh_chunk(
@@ -275,7 +238,6 @@ pub fn mesh_chunk(
 
                     quads.push(Quad {
                         position: glam::ivec3(x as i32, y as i32, z as i32) + origin_shift,
-                        block: *block,
                         face,
                     });
                 }
@@ -283,41 +245,27 @@ pub fn mesh_chunk(
         }
     }
 
-    mesh_quads(context, atlas, &quads)
-}
+    let mut vertices = Vec::new();
+    let mut indices = Vec::new();
 
-pub fn make_block_texture_checker(
-    context: &render::GfxContext,
-    atlas: &atlas::TextureAtlas,
-) -> mesh::GfxMesh {
-    let mut quads = Vec::new();
-    Face::ALL.iter().for_each(|&quad_face| {
-        quads.push(Quad {
-            position: glam::ivec3(1, 1, 1),
-            face: quad_face,
-            block: block::Block::Water,
+    quads.iter().for_each(|quad| {
+        let len = vertices.len();
+
+        let pos = quad.positions();
+        let nor = quad.normals();
+        let mut uvs = quad.texture_uvs();
+        let mut position = quad.position.to_array().map(|val| val as usize);
+        position[0] %= chunk.width;
+        position[1] %= chunk.height;
+        position[2] %= chunk.width;
+        atlas.conform_uvs(&mut uvs, chunk.blocks.get(position).name(), quad.face);
+        (0..4).for_each(|idx| {
+            vertices.push(TerrainVertex { pos: pos[idx], nor: nor[idx], tex: uvs[idx] });
         });
-        quads.push(Quad {
-            position: glam::ivec3(1, 1, 2),
-            face: quad_face,
-            block: block::Block::Grass,
-        });
-        quads.push(Quad {
-            position: glam::ivec3(1, 1, 3),
-            face: quad_face,
-            block: block::Block::Sand,
-        });
-        quads.push(Quad {
-            position: glam::ivec3(1, 1, 4),
-            face: quad_face,
-            block: block::Block::Log,
-        });
-        quads.push(Quad {
-            position: glam::ivec3(1, 2, 4),
-            face: quad_face,
-            block: block::Block::Leaf,
-        });
+
+        let ind = quad.indices(len as u16);
+        indices.extend_from_slice(&ind);
     });
 
-    mesh_quads(context, atlas, &quads)
+    mesh::GfxMesh::new(context, &vertices, &indices)
 }
