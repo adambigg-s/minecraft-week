@@ -7,7 +7,7 @@ pub fn mesh<Vertex, Index>(
 ) -> mesh::GfxMesh
 where
     Vertex: render::GfxVertex,
-    Index: Into<u16> + Copy,
+    Index: Into<u32> + Copy,
 {
     mesh::GfxMesh::new(context, vertices, indices)
 }

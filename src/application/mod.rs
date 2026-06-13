@@ -29,7 +29,7 @@ where
     );
 
     fn gfx_frame(
-        &self,
+        &mut self,
         input: &input::Input,
         gfx_context: &mut render::GfxContext,
         gfx_render: &mut render::GfxRenderer,

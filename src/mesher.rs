@@ -118,7 +118,7 @@ impl Quad {
         [self.face.normal(); 4]
     }
 
-    pub fn indices(&self, start: u16) -> [u16; 6] {
+    pub fn indices(&self, start: u32) -> [u32; 6] {
         [start, start + 2, start + 1, start + 1, start + 2, start + 3]
     }
 }
@@ -150,7 +150,7 @@ impl render::GfxVertex for TerrainVertex {
 #[derive(bon::Builder, Debug)]
 pub struct RectilinearMeshSlice<'r> {
     pub face: Face,
-    pub ipos: glam::IVec3,
+    pub integer_position: glam::IVec3,
     pub pos: &'r mut [glam::Vec3],
     pub nor: &'r mut [glam::Vec3],
     pub uvs: &'r mut [glam::Vec2],
@@ -160,9 +160,9 @@ pub struct RectilinearMeshSlice<'r> {
 pub struct RectilinearMesh {
     pub positions: Vec<glam::Vec3>,
     pub normals: Vec<glam::Vec3>,
-    pub tex_uvs: Vec<glam::Vec2>,
-    pub indices: Vec<u16>,
-    pub ipos: Vec<glam::IVec3>,
+    pub uvs: Vec<glam::Vec2>,
+    pub indices: Vec<u32>,
+    pub integer_positions: Vec<glam::IVec3>,
     pub faces: Vec<Face>,
     pub size: usize,
 }
@@ -170,15 +170,15 @@ pub struct RectilinearMesh {
 impl RectilinearMesh {
     pub fn from_quads(quads: &[Quad]) -> Self {
         let mut out = Self { size: quads.len(), ..Default::default() };
-        for quad in quads {
+        quads.iter().for_each(|quad| {
             let len = out.positions.len();
             out.positions.extend_from_slice(&quad.positions());
             out.normals.extend_from_slice(&quad.normals());
-            out.tex_uvs.extend_from_slice(&quad.texture_uvs());
-            out.indices.extend_from_slice(&quad.indices(len as u16));
+            out.uvs.extend_from_slice(&quad.texture_uvs());
+            out.indices.extend_from_slice(&quad.indices(len as u32));
             out.faces.push(quad.face);
-            out.ipos.push(quad.position);
-        }
+            out.integer_positions.push(quad.position);
+        });
         out
     }
 
@@ -186,10 +186,10 @@ impl RectilinearMesh {
         let offset = index * 4;
         RectilinearMeshSlice {
             face: self.faces[index],
-            ipos: self.ipos[index],
+            integer_position: self.integer_positions[index],
             pos: &mut self.positions[offset..offset + 4],
             nor: &mut self.normals[offset..offset + 4],
-            uvs: &mut self.tex_uvs[offset..offset + 4],
+            uvs: &mut self.uvs[offset..offset + 4],
         }
     }
 
@@ -255,9 +255,10 @@ impl<'c> ChunkMesher<'c> {
 
     pub fn map_uvs(&self, rectilinear: &mut RectilinearMesh) {
         (0..rectilinear.size).for_each(|index| {
-            let RectilinearMeshSlice { face, ipos, uvs, .. } = rectilinear.quad_slice(index);
-            let position = self.chunk.to_chunk_coords(ipos);
-            let block = self.chunk.blocks.get(self.chunk.idx(position));
+            let RectilinearMeshSlice { face, integer_position, uvs, .. } = rectilinear.quad_slice(index);
+
+            let position = self.chunk.to_chunk_coords(integer_position);
+            let block = self.chunk.get(position);
             self.atlas.conform_uvs(uvs, block.name(), face);
         });
     }

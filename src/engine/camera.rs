@@ -8,12 +8,16 @@ use crate::{engine::transform, render};
 #[derive(bon::Builder, Debug, Default)]
 
 pub struct Camera {
+    #[builder(default)]
     pub inner: transform::Transform,
+    #[builder(default)]
     pub ar: f32,
     pub fov: f32,
     pub znear: f32,
     pub zfear: f32,
+    #[builder(default)]
     pub pitch: f32,
+    #[builder(default)]
     pub yaw: f32,
 }
 

@@ -1,80 +1,17 @@
-use std::{collections, time};
-
-pub const MOVE_SPEED: f32 = 0.5;
-pub const LOOK_SPEED: f32 = 0.0025;
-pub const TESTING_GEN: i32 = 4;
-
 use crate::{
     application::{self, input},
     atlas, chunk,
     engine::{camera, transform},
-    pipelines,
+    pipelines, player,
     render::{self, GfxCamera, resource, util},
     skybox, terrain,
 };
 
 #[derive(bon::Builder, Debug)]
-pub struct ChunkManager {
-    pub chunks: collections::HashMap<glam::IVec2, chunk::Chunk>,
-    pub terrain: terrain::TerrainGenerator,
-    pub generation_range: i32,
-    pub player_chunk: glam::IVec2,
-}
-
-impl ChunkManager {
-    pub fn update(
-        &mut self,
-        player_pos: glam::Vec3,
-        context: &render::GfxContext,
-        render: &mut render::GfxRenderer,
-        atlas: &atlas::TextureAtlas,
-    ) {
-        let player_chunk = glam::ivec2((player_pos.x / 32.0) as i32, (player_pos.z / 32.0) as i32);
-
-        if player_chunk == self.player_chunk {
-            return;
-        }
-        self.player_chunk = player_chunk;
-
-        for dx in -self.generation_range..self.generation_range {
-            for dz in -self.generation_range..self.generation_range {
-                let coord = player_chunk + glam::ivec2(dx, dz);
-                self.generate(coord, context, render, atlas);
-            }
-        }
-    }
-
-    pub fn generate(
-        &mut self,
-        location: glam::IVec2,
-        context: &render::GfxContext,
-        render: &mut render::GfxRenderer,
-        atlas: &atlas::TextureAtlas,
-    ) {
-        if self.chunks.contains_key(&location) {
-            return;
-        }
-
-        let start = time::Instant::now();
-        let chunk = self.terrain.new_chunk(glam::ivec3(location.x, 0, location.y));
-        log::info!("Chunk gen: {}", start.elapsed().as_millis());
-        render.register_mesh(&Self::chunk_key(location), chunk.mesh(context, atlas));
-        log::info!("Chunk meshing: {}", start.elapsed().as_millis());
-        self.chunks.insert(location, chunk);
-    }
-
-    pub fn chunk_key(coord: glam::IVec2) -> String {
-        format!("chunk_{}x{}_mesh", coord.x, coord.y)
-    }
-}
-
-#[derive(bon::Builder, Debug)]
 pub struct MinecraftWeek {
     pub camera: camera::Camera,
-    pub movespeed: f32,
-    pub lookspeed: f32,
-    pub chunk_manager: ChunkManager,
-    pub atlas: atlas::TextureAtlas,
+    pub player: player::PlayerController,
+    pub world: chunk::ChunkManager,
     pub pipeline: String,
     pub avaliable_pipelines: Vec<String>,
 }
@@ -94,91 +31,37 @@ impl application::Application for MinecraftWeek {
     ) -> anyhow::Result<Self> {
         let (context, render) = (gfx_context, gfx_render);
 
-        render.register_bind_group_layout(
-            context,
-            "global_layout",
-            &[
-                resource::GfxBindingLayout::Uniform,
-                resource::GfxBindingLayout::Uniform,
-                resource::GfxBindingLayout::Texture,
-                resource::GfxBindingLayout::Sampler,
-            ],
-        )?;
+        let (texture_atlas, _) = register_resources(context, render)?;
 
-        render.register_bind_group_layout(
-            context,
-            "skybox_layout",
-            &[
-                resource::GfxBindingLayout::Texture,
-                resource::GfxBindingLayout::Sampler,
-            ],
-        )?;
+        register_pipelines(context, render)?;
 
-        render.register_pipeline::<pipelines::Terrain>(context, "terrain_pipe", &["global_layout"]);
-        render.register_pipeline::<pipelines::WireFrame>(context, "wireframe_pipe", &["global_layout"]);
-        render.register_pipeline::<pipelines::Skybox>(
-            context,
-            "skybox_pipe",
-            &["global_layout", "skybox_layout"],
-        );
-
-        let mut skybox = skybox::Skybox::new("./res/skybox/", 32, 500.0)?;
-        skybox.texture.save("./res/atlas/skybox_atlas.png")?;
-        let atlas = atlas::TextureAtlas::new("./res/", 16)?;
-        atlas.save("./res/atlas/texture_atlas.png")?;
-
-        render.register_mesh("skybox_mesh", skybox.create_gfx_mesh(context));
-
-        render.register_resource(
-            "skybox_atlas",
-            util::texture_image(context, &skybox.texture.atlas, "Skybox atlas"),
-        );
-        render.register_resource("texture_atlas", util::texture_image(context, &atlas.atlas, "Main atlas"));
-        render.register_resource("sampler", util::sampler(context, "Sampler"));
-        render.register_resource("camera_uni", util::uniform::<glam::Mat4>(context, "Camera"));
-        render.register_resource("camera_view_uni", util::uniform::<glam::Mat4>(context, "Camera view"));
-
-        render.register_bind_group(
-            context,
-            "global_bg",
-            "global_layout",
-            &["camera_uni", "camera_view_uni", "texture_atlas", "sampler"],
-        )?;
-        render.register_bind_group(context, "skybox_bg", "skybox_layout", &["skybox_atlas", "sampler"])?;
+        register_bind_groups(context, render)?;
 
         let terrain_gen = terrain::TerrainGenerator::new(1);
 
-        let camera = camera::Camera {
-            inner: transform::Transform::from_position([0.0, 0.0, 1.0].into()),
-            ar: context.config.width as f32 / context.config.height as f32,
-            fov: 67.0,
-            znear: 0.1,
-            zfear: 1000.0,
-            ..Default::default()
-        };
+        let camera = camera::Camera::builder()
+            .inner(transform::Transform::from_position(
+                glam::usizevec3(chunk::CHUNK_WIDTH / 2, chunk::CHUNK_HEIGHT, chunk::CHUNK_WIDTH / 2)
+                    .as_vec3(),
+            ))
+            .fov(70.0)
+            .znear(0.1)
+            .zfear(1000.0)
+            .build();
+        let player = player::PlayerController::builder().movespeed(0.5).lookspeed(0.0025).build();
 
-        let chunk_manager = ChunkManager {
-            chunks: collections::HashMap::new(),
-            terrain: terrain_gen,
-            generation_range: 3,
-            player_chunk: glam::IVec2::MAX,
-        };
+        let world = chunk::ChunkManager::builder()
+            .atlas(texture_atlas)
+            .view_distance(12)
+            .terrain(terrain_gen)
+            .chunk_width(chunk::CHUNK_WIDTH)
+            .chunk_height(chunk::CHUNK_HEIGHT)
+            .build();
 
         let pipeline = "terrain_pipe".into();
         let avaliable_pipelines = vec!["terrain_pipe".into(), "wireframe_pipe".into()];
 
-        let lookspeed = LOOK_SPEED;
-        let movespeed = MOVE_SPEED;
-
-        Ok(Self {
-            camera,
-            chunk_manager,
-            pipeline,
-            avaliable_pipelines,
-            lookspeed,
-            movespeed,
-            atlas,
-        })
+        Ok(Self { camera, player, world, pipeline, avaliable_pipelines })
     }
 
     fn physics_frame(
@@ -187,10 +70,131 @@ impl application::Application for MinecraftWeek {
         gfx_context: &mut render::GfxContext,
         gfx_render: &mut render::GfxRenderer,
     ) {
+        let (_, _) = (gfx_context, gfx_render);
+
+        self.handle_logistics_input(input);
+        self.handle_movement_input(input);
+
+        self.world.update_chunks(self.camera.inner.position);
+    }
+
+    fn gfx_frame(
+        &mut self,
+        _: &input::Input,
+        gfx_context: &mut render::GfxContext,
+        gfx_render: &mut render::GfxRenderer,
+    ) {
         let (context, render) = (gfx_context, gfx_render);
 
         self.camera.ar = context.config.width as f32 / context.config.height as f32;
 
+        self.world.sync_gfx_chunks(context, render);
+
+        if let Some(resource::GfxResource::Uniform(cam_view_proj)) = render.resources.get("camera_uni") {
+            cam_view_proj.write(context, &self.camera.view_proj());
+        }
+        if let Some(resource::GfxResource::Uniform(cam_view)) = render.resources.get("camera_view_uni") {
+            cam_view.write(context, &self.camera.view());
+        }
+
+        render.queue(render::GfxDrawCall {
+            mesh: "skybox_mesh".into(),
+            pipe: "skybox_pipe".into(),
+            bind_groups: vec!["global_bg".into(), "skybox_bg".into()],
+        });
+
+        self.world.chunks.keys().for_each(|&coord| {
+            render.queue(render::GfxDrawCall {
+                mesh: self.world.chunk_key(coord),
+                pipe: self.pipeline.to_owned(),
+                bind_groups: vec!["global_bg".into()],
+            });
+        });
+        log::debug!("Number of draws calls: {}", render.render_queue.len());
+    }
+}
+
+fn register_bind_groups(
+    context: &mut render::GfxContext,
+    render: &mut render::GfxRenderer,
+) -> Result<(), anyhow::Error> {
+    render.register_bind_group(
+        context,
+        "global_bg",
+        "global_layout",
+        &["camera_uni", "camera_view_uni", "texture_atlas", "sampler"],
+    )?;
+    render.register_bind_group(context, "skybox_bg", "skybox_layout", &["skybox_atlas", "sampler"])?;
+    Ok(())
+}
+
+fn register_resources(
+    context: &mut render::GfxContext,
+    render: &mut render::GfxRenderer,
+) -> Result<(atlas::TextureAtlas, skybox::Skybox), anyhow::Error> {
+    let skybox = create_skybox(context, render)?;
+    let atlas = create_atlas()?;
+    render.register_resource(
+        "skybox_atlas",
+        util::texture_image(context, &skybox.texture.atlas, "Skybox atlas"),
+    );
+    render.register_resource("texture_atlas", util::texture_image(context, &atlas.atlas, "Main atlas"));
+    render.register_resource("sampler", util::sampler(context, "Sampler"));
+    render.register_resource("camera_uni", util::uniform::<glam::Mat4>(context, "Camera"));
+    render.register_resource("camera_view_uni", util::uniform::<glam::Mat4>(context, "Camera view"));
+    Ok((atlas, skybox))
+}
+
+fn create_atlas() -> Result<atlas::TextureAtlas, anyhow::Error> {
+    let atlas = atlas::TextureAtlas::new("./res/", 16)?;
+    atlas.save("./res/atlas/texture_atlas.png")?;
+    Ok(atlas)
+}
+
+fn create_skybox(
+    context: &mut render::GfxContext,
+    render: &mut render::GfxRenderer,
+) -> Result<skybox::Skybox, anyhow::Error> {
+    let mut skybox = skybox::Skybox::new("./res/skybox/", 32, 500.0)?;
+    skybox.texture.save("./res/atlas/skybox_atlas.png")?;
+    render.register_mesh("skybox_mesh", skybox.create_gfx_mesh(context));
+    Ok(skybox)
+}
+
+fn register_pipelines(
+    context: &mut render::GfxContext,
+    render: &mut render::GfxRenderer,
+) -> Result<(), anyhow::Error> {
+    render.register_bind_group_layout(
+        context,
+        "global_layout",
+        &[
+            resource::GfxBindingLayout::Uniform,
+            resource::GfxBindingLayout::Uniform,
+            resource::GfxBindingLayout::Texture,
+            resource::GfxBindingLayout::Sampler,
+        ],
+    )?;
+    render.register_bind_group_layout(
+        context,
+        "skybox_layout",
+        &[
+            resource::GfxBindingLayout::Texture,
+            resource::GfxBindingLayout::Sampler,
+        ],
+    )?;
+    render.register_pipeline::<pipelines::Terrain>(context, "terrain_pipe", &["global_layout"]);
+    render.register_pipeline::<pipelines::WireFrame>(context, "wireframe_pipe", &["global_layout"]);
+    render.register_pipeline::<pipelines::Skybox>(
+        context,
+        "skybox_pipe",
+        &["global_layout", "skybox_layout"],
+    );
+    Ok(())
+}
+
+impl MinecraftWeek {
+    fn handle_logistics_input(&mut self, input: &mut input::Input) {
         if input.consume_key_press("escape") {
             input.request_quit = !input.request_quit;
         }
@@ -206,11 +210,14 @@ impl application::Application for MinecraftWeek {
                 }
             }
         }
+    }
+
+    fn handle_movement_input(&mut self, input: &mut input::Input) {
         if input.consume_key_press("digit1") {
-            self.movespeed *= 0.5;
+            self.player.movespeed *= 0.5;
         }
         if input.consume_key_press("digit2") {
-            self.movespeed *= 2.0;
+            self.player.movespeed *= 2.0;
         }
 
         let [mut dx, mut dy, mut dz] = [0.0; 3];
@@ -232,48 +239,15 @@ impl application::Application for MinecraftWeek {
         if input.get_key_pres("shiftleft") {
             dy -= 1.0;
         }
-        [dx, dy, dz] = (glam::vec3(dx, dy, dz).normalize_or_zero() * self.movespeed).to_array();
+        [dx, dy, dz] = (glam::vec3(dx, dy, dz).normalize_or_zero() * self.player.movespeed).to_array();
         self.camera.update_position(dx, dy, dz);
 
         let [mut dy, mut dx] = input.consume_mouse_delta().into();
-        [dy, dx] = (glam::vec2(dy, dx) * self.lookspeed).to_array();
+        [dy, dx] = (glam::vec2(dy, dx) * self.player.lookspeed).to_array();
         self.camera.yaw -= dy;
         self.camera.pitch -= dx;
         self.camera.confine_euler();
         self.camera.inner.rotation =
             glam::Quat::from_rotation_y(self.camera.yaw) * glam::Quat::from_rotation_x(self.camera.pitch);
-
-        let player_pos = self.camera.inner.position;
-        self.chunk_manager.update(player_pos, context, render, &self.atlas);
-    }
-
-    fn gfx_frame(
-        &self,
-        _: &input::Input,
-        gfx_context: &mut render::GfxContext,
-        gfx_render: &mut render::GfxRenderer,
-    ) {
-        let (context, render) = (gfx_context, gfx_render);
-
-        if let Some(resource::GfxResource::Uniform(cam_view_proj)) = render.resources.get("camera_uni") {
-            cam_view_proj.write(context, &self.camera.view_proj());
-        }
-        if let Some(resource::GfxResource::Uniform(cam_view)) = render.resources.get("camera_view_uni") {
-            cam_view.write(context, &self.camera.view());
-        }
-
-        render.queue(render::GfxDrawCall {
-            mesh: "skybox_mesh".into(),
-            pipe: "skybox_pipe".into(),
-            bind_groups: vec!["global_bg".into(), "skybox_bg".into()],
-        });
-
-        for &coord in self.chunk_manager.chunks.keys() {
-            render.queue(render::GfxDrawCall {
-                mesh: ChunkManager::chunk_key(coord),
-                pipe: self.pipeline.to_owned(),
-                bind_groups: vec!["global_bg".into()],
-            });
-        }
     }
 }

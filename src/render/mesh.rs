@@ -13,7 +13,7 @@ impl GfxMesh {
     pub fn new<Vertex, Index>(context: &render::GfxContext, vertices: &[Vertex], indices: &[Index]) -> Self
     where
         Vertex: render::GfxVertex,
-        Index: Into<u16> + Copy,
+        Index: Into<u32> + Copy,
     {
         let vertex = context.device.create_buffer_init(&util::BufferInitDescriptor {
             label: Some("Vertex buffer"),
@@ -22,7 +22,7 @@ impl GfxMesh {
         });
         let index = context.device.create_buffer_init(&util::BufferInitDescriptor {
             label: Some("Index buffer"),
-            contents: bytemuck::cast_slice(&indices.iter().map(|&index| index.into()).collect::<Vec<u16>>()),
+            contents: bytemuck::cast_slice(&indices.iter().map(|&index| index.into()).collect::<Vec<u32>>()),
             usage: wgpu::BufferUsages::INDEX,
         });
         let size = indices.len() as u32;
@@ -33,13 +33,13 @@ impl GfxMesh {
     pub fn write<Vertex, Index>(&self, context: &render::GfxContext, vertices: &[Vertex], indices: &[Index])
     where
         Vertex: render::GfxVertex,
-        Index: Into<u16> + Copy,
+        Index: Into<u32> + Copy,
     {
         context.queue.write_buffer(&self.vertex, 0, bytemuck::cast_slice(vertices));
         context.queue.write_buffer(
             &self.index,
             0,
-            bytemuck::cast_slice(&indices.iter().map(|&index| index.into()).collect::<Vec<u16>>()),
+            bytemuck::cast_slice(&indices.iter().map(|&index| index.into()).collect::<Vec<u32>>()),
         );
     }
 }

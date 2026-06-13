@@ -1,5 +1,6 @@
 pub mod application;
 pub mod atlas;
+pub mod player;
 pub mod terrain;
 pub mod engine;
 pub mod mesher;

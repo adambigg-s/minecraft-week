@@ -23,6 +23,8 @@ pub enum Block {
     Log,
     Leaf,
     Stone,
+    Gravel,
+    Plank,
     BlockCounter,
 }
 
@@ -37,6 +39,8 @@ impl Block {
         Block::Log,
         Block::Leaf,
         Block::Stone,
+        Block::Gravel,
+        Block::Plank,
     ];
 
     #[rustfmt::skip]
@@ -51,6 +55,8 @@ impl Block {
             | Block::Log          => "log",
             | Block::Leaf         => "leaf",
             | Block::Stone        => "stone",
+            | Block::Gravel       => "gravel",
+            | Block::Plank        => "plank",
             | Block::BlockCounter => "",
         }
     }
@@ -63,7 +69,7 @@ impl Block {
     }
 
     pub fn random() -> Self {
-        Self::from(rand::random_range(1..Block::BlockCounter as u8))
+        Self::ALL[rand::random_range(0..Self::BlockCounter as u8) as usize]
     }
 }
 

@@ -2,7 +2,7 @@
 Minecraft inspired voxel game made in one week with Rust and wgpu
 
 ### Current state
-![screenshot](images/skybox_working.png)
+![screenshot](images/infinite_worldgen.png)
 
 ### Goals
 - Infinite world generation
@@ -21,17 +21,14 @@ Minecraft inspired voxel game made in one week with Rust and wgpu
 - main file
 
 ##### Logic that needs changed
-- terrain gen is infinite, but it is so slow
 - chunk meshing is so slow
-- renderer can't unadd chunks 
 
 ##### Blocks to add
-- gravel
 - ores (coal, iron etc.)
-- wood planks
 - flower
 
 ###### Goals for today
-- terrain generation (look nice)
+- load chunks with a background thread
+- make terrain generation look nice
 
 

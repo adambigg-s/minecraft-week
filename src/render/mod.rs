@@ -249,7 +249,7 @@ impl GfxRenderer {
 
             if rc.mesh != call.mesh {
                 render_pass.set_vertex_buffer(0, mesh.vertex.slice(..));
-                render_pass.set_index_buffer(mesh.index.slice(..), wgpu::IndexFormat::Uint16);
+                render_pass.set_index_buffer(mesh.index.slice(..), wgpu::IndexFormat::Uint32);
             }
 
             for (index, bind_group) in call.bind_groups.iter().enumerate() {
