@@ -16,9 +16,8 @@ Minecraft inspired voxel game made in one week with Rust and wgpu
 
 ##### Files that are in disarray
 - mesher.rs
-- block.rs
 - chunk.rs
-- skybox.rs
+- main file
 
 ##### Blocks to add
 - gravel

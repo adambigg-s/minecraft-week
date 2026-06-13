@@ -1,7 +1,12 @@
-use crate::{block, engine::storage::buffer};
+use crate::{
+    atlas, block,
+    engine::storage::buffer,
+    mesher,
+    render::{self, mesh},
+};
 
 pub const CHUNK_WIDTH: usize = 32;
-pub const CHUNK_HEIGHT: usize = 64;
+pub const CHUNK_HEIGHT: usize = 128;
 
 #[derive(bon::Builder, Debug)]
 pub struct Chunk {
@@ -23,5 +28,30 @@ impl Chunk {
 
     pub fn size(&self) -> glam::IVec3 {
         glam::ivec3(self.width as i32, self.height as i32, self.width as i32)
+    }
+
+    pub fn to_chunk_coords(&self, pos: glam::IVec3) -> glam::IVec3 {
+        pos % self.size()
+    }
+
+    pub fn chunk_coords(&self, pos: glam::IVec3) -> [usize; 3] {
+        pos.to_array().map(|ele| ele as usize)
+    }
+
+    pub fn mesh(&self, context: &render::GfxContext, atlas: &atlas::TextureAtlas) -> mesh::GfxMesh {
+        let mesher = mesher::ChunkMesher { chunk: self, atlas };
+        let mut rectilinear = mesher.to_rectilinear();
+        mesher.map_uvs(&mut rectilinear);
+
+        let mut vertices = Vec::new();
+        (0..rectilinear.size).for_each(|index| {
+            let mesher::RectilinearMeshSlice { pos, nor, uvs, .. } = rectilinear.quad_slice(index);
+            (0..4).for_each(|vertex| {
+                vertices.push(mesher::TerrainVertex { pos: pos[vertex], nor: nor[vertex], tex: uvs[vertex] });
+            });
+        });
+        let indices = &rectilinear.indices;
+
+        mesh::GfxMesh::new(context, &vertices, indices)
     }
 }

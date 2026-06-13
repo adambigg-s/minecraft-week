@@ -4,7 +4,7 @@ use wgpu::vertex_attr_array;
 
 use crate::{
     atlas, block, chunk,
-    render::{self, mesh},
+    render::{self},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -150,6 +150,7 @@ impl render::GfxVertex for TerrainVertex {
 #[derive(bon::Builder, Debug)]
 pub struct RectilinearMeshSlice<'r> {
     pub face: Face,
+    pub ipos: glam::IVec3,
     pub pos: &'r mut [glam::Vec3],
     pub nor: &'r mut [glam::Vec3],
     pub uvs: &'r mut [glam::Vec2],
@@ -161,6 +162,7 @@ pub struct RectilinearMesh {
     pub normals: Vec<glam::Vec3>,
     pub tex_uvs: Vec<glam::Vec2>,
     pub indices: Vec<u16>,
+    pub ipos: Vec<glam::IVec3>,
     pub faces: Vec<Face>,
     pub size: usize,
 }
@@ -175,6 +177,7 @@ impl RectilinearMesh {
             out.tex_uvs.extend_from_slice(&quad.texture_uvs());
             out.indices.extend_from_slice(&quad.indices(len as u16));
             out.faces.push(quad.face);
+            out.ipos.push(quad.position);
         }
         out
     }
@@ -183,6 +186,7 @@ impl RectilinearMesh {
         let offset = index * 4;
         RectilinearMeshSlice {
             face: self.faces[index],
+            ipos: self.ipos[index],
             pos: &mut self.positions[offset..offset + 4],
             nor: &mut self.normals[offset..offset + 4],
             uvs: &mut self.tex_uvs[offset..offset + 4],
@@ -206,66 +210,119 @@ impl RectilinearMesh {
     }
 }
 
-pub fn mesh_chunk(
-    context: &render::GfxContext,
-    atlas: &atlas::TextureAtlas,
-    chunk: &chunk::Chunk,
-) -> mesh::GfxMesh {
-    let mut quads = Vec::new();
-    let origin_shift = chunk.offset * glam::ivec3(chunk.width as i32, 0, chunk.width as i32);
-    for z in 0..chunk.width {
-        for y in 0..chunk.height {
-            for x in 0..chunk.width {
-                let block = chunk.blocks.get([x, y, z]);
+pub struct ChunkMesher<'c> {
+    pub chunk: &'c chunk::Chunk,
+    pub atlas: &'c atlas::TextureAtlas,
+}
 
-                if block == &block::Block::Air {
-                    continue;
-                }
+impl<'c> ChunkMesher<'c> {
+    pub fn to_rectilinear(&self) -> RectilinearMesh {
+        let mut quads = Vec::new();
+        let global = self.chunk.offset * glam::ivec3(self.chunk.width as i32, 0, self.chunk.width as i32);
+        for z in 0..self.chunk.width {
+            for y in 0..self.chunk.height {
+                for x in 0..self.chunk.width {
+                    let block = self.chunk.blocks.get([x, y, z]);
 
-                for face in Face::ALL {
-                    let offset = face.neighbor_offset();
-                    let neighbor = chunk.blocks.try_get([
-                        (x as i32 + offset.x) as usize,
-                        (y as i32 + offset.y) as usize,
-                        (z as i32 + offset.z) as usize,
-                    ]);
-
-                    if let Some(neighbor) = neighbor
-                        && neighbor != &block::Block::Air
-                    {
+                    if block == &block::Block::Air {
                         continue;
                     }
 
-                    quads.push(Quad {
-                        position: glam::ivec3(x as i32, y as i32, z as i32) + origin_shift,
-                        face,
-                    });
+                    for face in Face::ALL {
+                        let offset = face.neighbor_offset();
+                        let neighbor = self.chunk.blocks.try_get([
+                            (x as i32 + offset.x) as usize,
+                            (y as i32 + offset.y) as usize,
+                            (z as i32 + offset.z) as usize,
+                        ]);
+
+                        if let Some(neighbor) = neighbor
+                            && neighbor != &block::Block::Air
+                        {
+                            continue;
+                        }
+
+                        quads.push(Quad {
+                            position: glam::ivec3(x as i32, y as i32, z as i32) + global,
+                            face,
+                        });
+                    }
                 }
             }
         }
+        RectilinearMesh::from_quads(&quads)
     }
 
-    let mut vertices = Vec::new();
-    let mut indices = Vec::new();
-
-    quads.iter().for_each(|quad| {
-        let len = vertices.len();
-
-        let pos = quad.positions();
-        let nor = quad.normals();
-        let mut uvs = quad.texture_uvs();
-        let mut position = quad.position.to_array().map(|val| val as usize);
-        position[0] %= chunk.width;
-        position[1] %= chunk.height;
-        position[2] %= chunk.width;
-        atlas.conform_uvs(&mut uvs, chunk.blocks.get(position).name(), quad.face);
-        (0..4).for_each(|idx| {
-            vertices.push(TerrainVertex { pos: pos[idx], nor: nor[idx], tex: uvs[idx] });
-        });
-
-        let ind = quad.indices(len as u16);
-        indices.extend_from_slice(&ind);
-    });
-
-    mesh::GfxMesh::new(context, &vertices, &indices)
+    pub fn map_uvs(&self, rectilinear: &mut RectilinearMesh) {
+        for i in 0..rectilinear.size {
+            let RectilinearMeshSlice { face, ipos, uvs, .. } = rectilinear.quad_slice(i);
+            let position = self.chunk.to_chunk_coords(ipos);
+            let block = self.chunk.blocks.get(self.chunk.chunk_coords(position));
+            self.atlas.conform_uvs(uvs, block.name(), face);
+        }
+    }
 }
+
+// pub fn mesh_chunk(
+//     context: &render::GfxContext,
+//     atlas: &atlas::TextureAtlas,
+//     chunk: &chunk::Chunk,
+// ) -> mesh::GfxMesh {
+//     let mut quads = Vec::new();
+//     let origin_shift = chunk.offset * glam::ivec3(chunk.width as i32, 0, chunk.width as i32);
+//     for z in 0..chunk.width {
+//         for y in 0..chunk.height {
+//             for x in 0..chunk.width {
+//                 let block = chunk.blocks.get([x, y, z]);
+
+//                 if block == &block::Block::Air {
+//                     continue;
+//                 }
+
+//                 for face in Face::ALL {
+//                     let offset = face.neighbor_offset();
+//                     let neighbor = chunk.blocks.try_get([
+//                         (x as i32 + offset.x) as usize,
+//                         (y as i32 + offset.y) as usize,
+//                         (z as i32 + offset.z) as usize,
+//                     ]);
+
+//                     if let Some(neighbor) = neighbor
+//                         && neighbor != &block::Block::Air
+//                     {
+//                         continue;
+//                     }
+
+//                     quads.push(Quad {
+//                         position: glam::ivec3(x as i32, y as i32, z as i32) + origin_shift,
+//                         face,
+//                     });
+//                 }
+//             }
+//         }
+//     }
+
+//     let mut vertices = Vec::new();
+//     let mut indices = Vec::new();
+
+//     quads.iter().for_each(|quad| {
+//         let len = vertices.len();
+
+//         let pos = quad.positions();
+//         let nor = quad.normals();
+//         let mut uvs = quad.texture_uvs();
+//         let mut position = quad.position.to_array().map(|val| val as usize);
+//         position[0] %= chunk.width;
+//         position[1] %= chunk.height;
+//         position[2] %= chunk.width;
+//         atlas.conform_uvs(&mut uvs, chunk.blocks.get(position).name(), quad.face);
+//         (0..4).for_each(|idx| {
+//             vertices.push(TerrainVertex { pos: pos[idx], nor: nor[idx], tex: uvs[idx] });
+//         });
+
+//         let ind = quad.indices(len as u16);
+//         indices.extend_from_slice(&ind);
+//     });
+
+//     mesh::GfxMesh::new(context, &vertices, &indices)
+// }

@@ -2,13 +2,13 @@ use std::collections;
 
 pub const MOVE_SPEED: f32 = 0.5;
 pub const LOOK_SPEED: f32 = 0.0025;
-pub const TESTING_GEN: i32 = 3;
+pub const TESTING_GEN: i32 = 12;
 
 use crate::{
     application::{self, input},
     atlas, chunk,
     engine::{camera, transform},
-    mesher, pipelines,
+    pipelines,
     render::{self, GfxCamera, resource, util},
     skybox, terrain,
 };
@@ -109,10 +109,18 @@ impl application::Application for MinecraftWeek {
 
         for i in 0..TESTING_GEN {
             for j in 0..TESTING_GEN {
+                let time = std::time::Instant::now();
                 let chunk = terrain_gen.new_chunk(glam::ivec3(i, 0, j));
-                render.register_mesh(
-                    &format!("chunk_{}x{}_mesh", i, j),
-                    mesher::mesh_chunk(context, &atlas, &chunk),
+                log::warn!(
+                    "Chunk generation: {:.3} | {} ms",
+                    time.elapsed().as_secs_f32(),
+                    time.elapsed().as_millis()
+                );
+                render.register_mesh(&format!("chunk_{}x{}_mesh", i, j), chunk.mesh(context, &atlas));
+                log::warn!(
+                    "Chunk meshing: {:.3} | {} ms",
+                    time.elapsed().as_secs_f32(),
+                    time.elapsed().as_millis()
                 );
             }
         }
