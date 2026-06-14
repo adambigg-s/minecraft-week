@@ -2,7 +2,10 @@ use std::sync;
 
 use winit::window;
 
-use crate::{application::{self, input}, render};
+use crate::{
+    application::{self, input},
+    render,
+};
 
 #[derive(bon::Builder, Debug)]
 pub struct State<Inner> {
@@ -36,7 +39,8 @@ where
     }
 
     pub fn update(&mut self) -> anyhow::Result<()> {
-        self.inner_state.physics_frame(&mut self.input, &mut self.gfx_context, &mut self.gfx_render);
+        self.inner_state
+            .physics_frame(&mut self.input, &mut self.gfx_context, &mut self.gfx_render);
         Ok(())
     }
 

@@ -79,7 +79,7 @@ impl TerrainGenerator {
                         Stone
                     };
 
-                    if rand::random_bool(0.001) {
+                    if rand::random_bool(0.01) && block_type != Air {
                         block_type = block::Block::random();
                     }
 

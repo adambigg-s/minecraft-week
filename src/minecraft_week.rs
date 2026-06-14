@@ -59,7 +59,11 @@ impl application::Application for MinecraftWeek {
             .build();
 
         let pipeline = "terrain_pipe".into();
-        let avaliable_pipelines = vec!["terrain_pipe".into(), "wireframe_pipe".into()];
+        let avaliable_pipelines = vec![
+            "terrain_pipe".into(),
+            "wireframe_pipe".into(),
+            "culledframe_pipe".into(),
+        ];
 
         Ok(Self { camera, player, world, pipeline, avaliable_pipelines })
     }
@@ -185,6 +189,7 @@ fn register_pipelines(
     )?;
     render.register_pipeline::<pipelines::Terrain>(context, "terrain_pipe", &["global_layout"]);
     render.register_pipeline::<pipelines::WireFrame>(context, "wireframe_pipe", &["global_layout"]);
+    render.register_pipeline::<pipelines::CulledFrame>(context, "culledframe_pipe", &["global_layout"]);
     render.register_pipeline::<pipelines::Skybox>(
         context,
         "skybox_pipe",
@@ -247,7 +252,8 @@ impl MinecraftWeek {
         self.camera.yaw -= dy;
         self.camera.pitch -= dx;
         self.camera.confine_euler();
-        self.camera.inner.rotation =
-            glam::Quat::from_rotation_y(self.camera.yaw) * glam::Quat::from_rotation_x(self.camera.pitch);
+        self.camera.inner.rotation = glam::Quat::from_rotation_z(0.0)
+            * glam::Quat::from_rotation_y(self.camera.yaw)
+            * glam::Quat::from_rotation_x(self.camera.pitch);
     }
 }

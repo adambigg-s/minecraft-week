@@ -145,7 +145,7 @@ impl ChunkManager {
     }
 
     pub fn chunk_key(&self, coord: glam::IVec3) -> String {
-        format!("ch{}x{}_mesh", coord.x, coord.z)
+        format!("ch{}x{}x{}_mesh", coord.x, coord.y, coord.z)
     }
 
     fn generate_chunk(&mut self, coord: glam::IVec3) {
