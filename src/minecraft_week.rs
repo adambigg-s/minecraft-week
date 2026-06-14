@@ -1,3 +1,5 @@
+use std::sync;
+
 use crate::{
     application::{self, input},
     atlas, chunk,
@@ -32,12 +34,13 @@ impl application::Application for MinecraftWeek {
         let (context, render) = (gfx_context, gfx_render);
 
         let (texture_atlas, _) = register_resources(context, render)?;
+        let texture_atlas = sync::Arc::new(texture_atlas);
 
         register_pipelines(context, render)?;
 
         register_bind_groups(context, render)?;
 
-        let terrain_gen = terrain::TerrainGenerator::new(1);
+        let terrain_gen = sync::Arc::new(terrain::TerrainGenerator::new(1));
 
         let camera = camera::Camera::builder()
             .inner(transform::Transform::from_position(
@@ -51,13 +54,13 @@ impl application::Application for MinecraftWeek {
         let player = player::PlayerController::builder().movespeed(0.5).lookspeed(0.0025).build();
 
         let mut world = chunk::ChunkManager::builder()
-            .atlas(texture_atlas.into())
+            .atlas(sync::Arc::clone(&texture_atlas))
             .view_distance(8)
-            .terrain(terrain_gen.clone().into())
+            .terrain(sync::Arc::clone(&terrain_gen))
             .chunk_width(chunk::CHUNK_WIDTH)
             .chunk_height(chunk::CHUNK_HEIGHT)
             .build();
-        // world.spawn_worker(terrain_gen.clone());
+        world.spawn_workers();
 
         let pipeline = "terrain_pipe".into();
         let avaliable_pipelines = vec![

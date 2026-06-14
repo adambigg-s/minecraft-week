@@ -1,6 +1,5 @@
 # minecraft-week
 Minecraft inspired voxel game made in one week with Rust and wgpu
-
 ### Current state
 ![screenshot](images/infinite_worldgen.png)
 
