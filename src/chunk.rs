@@ -154,7 +154,8 @@ impl ChunkManager {
         }
 
         let start_time = time::Instant::now();
-        let chunk = self.terrain.new_chunk(coord);
+        let mut chunk = Chunk::new(coord);
+        self.terrain.form_chunk(&mut chunk);
         self.chunks.insert(coord, chunk);
         self.gfx_mesh_queue.push(coord);
         log::debug!("Chunk generation time: {}", start_time.elapsed().as_millis());

@@ -52,7 +52,7 @@ impl application::Application for MinecraftWeek {
 
         let world = chunk::ChunkManager::builder()
             .atlas(texture_atlas)
-            .view_distance(12)
+            .view_distance(8)
             .terrain(terrain_gen)
             .chunk_width(chunk::CHUNK_WIDTH)
             .chunk_height(chunk::CHUNK_HEIGHT)
@@ -71,8 +71,8 @@ impl application::Application for MinecraftWeek {
     fn physics_frame(
         &mut self,
         input: &mut input::Input,
-        gfx_context: &mut render::GfxContext,
-        gfx_render: &mut render::GfxRenderer,
+        gfx_context: &render::GfxContext,
+        gfx_render: &render::GfxRenderer,
     ) {
         let (_, _) = (gfx_context, gfx_render);
 
@@ -214,6 +214,14 @@ impl MinecraftWeek {
                     break;
                 }
             }
+        }
+        if input.consume_key_press("equal") {
+            self.world.view_distance = self.world.view_distance.saturating_add(1);
+            self.world.center_chunk = glam::IVec3::MAX;
+        }
+        if input.consume_key_press("minus") {
+            self.world.view_distance = self.world.view_distance.saturating_sub(1);
+            self.world.center_chunk = glam::IVec3::MAX;
         }
     }
 

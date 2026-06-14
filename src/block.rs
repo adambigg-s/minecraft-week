@@ -25,6 +25,8 @@ pub enum Block {
     Stone,
     Gravel,
     Plank,
+    Quartz,
+    RedFlower,
     BlockCounter,
 }
 
@@ -41,6 +43,8 @@ impl Block {
         Block::Stone,
         Block::Gravel,
         Block::Plank,
+        Block::Quartz,
+        Block::RedFlower,
     ];
 
     #[rustfmt::skip]
@@ -57,6 +61,8 @@ impl Block {
             | Block::Stone        => "stone",
             | Block::Gravel       => "gravel",
             | Block::Plank        => "plank",
+            | Block::Quartz       => "quartz",
+            | Block::RedFlower    => "redflower",
             | Block::BlockCounter => "",
         }
     }

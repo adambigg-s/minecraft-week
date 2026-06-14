@@ -243,6 +243,10 @@ impl GfxRenderer {
                 continue;
             };
 
+            if mesh.size == 0 {
+                continue;
+            }
+
             if rc.pipe != call.pipe {
                 render_pass.set_pipeline(pipe);
             }

@@ -108,7 +108,7 @@ where
                 event_loop.exit();
             }
             | event::WindowEvent::Resized(physical_size) => {
-                log::info!("Resize requested: {:?}", physical_size);
+                log::debug!("Resize requested: {:?}", physical_size);
                 state.config_changed(physical_size.width, physical_size.height).unwrap();
             }
             | event::WindowEvent::MouseInput { state: ele_state, button, .. } => {

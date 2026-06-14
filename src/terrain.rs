@@ -1,95 +1,129 @@
-use glam::Vec3Swizzles;
 use noise::NoiseFn;
+use rand::{RngExt, SeedableRng, rngs};
 
-use crate::{block, chunk};
+use crate::{block, chunk, engine::storage::buffer};
 
 #[derive(bon::Builder, Debug)]
 pub struct TerrainGenerator {
-    pub noise: noise::OpenSimplex,
-    pub scale: f64,
-    pub water: i32,
+    pub heightmap_noise: noise::Perlin,
+    pub warping_noise: noise::Perlin,
+    pub rand: rngs::SmallRng,
+    pub freq: f64,
 }
 
 impl TerrainGenerator {
     pub fn new(seed: u32) -> Self {
-        let noise = noise::OpenSimplex::new(seed);
-        let scale = 0.005;
-        let water = 64;
+        let heightmap_noise = noise::Perlin::new(seed);
+        let warping_noise = noise::Perlin::new(seed + 67);
+        let freq = 0.005;
+        let rand = rngs::SmallRng::seed_from_u64(seed as u64);
 
-        Self { noise, scale, water }
+        Self { heightmap_noise, warping_noise, rand, freq }
     }
 
-    // https://thebookofshaders.com/13/
-    pub fn sample_fbm(&self, coords: glam::DVec2) -> f64 {
-        let mut freq = self.scale;
-        let mut amp = 1.0;
-        let mut max = 0.0;
-        let mut total = 0.0;
-
-        for _ in 0..8 {
-            total += self.noise.get([coords.x * freq, coords.y * freq]) * amp;
-            max += amp;
-            amp *= 0.5;
-            freq *= 2.0;
-        }
-
-        ((total / max) + 1.0) * 0.5
-    }
-
-    pub fn sample(&self, coords: glam::DVec3) -> f32 {
-        ((self.noise.get([coords.x, coords.z]) + 1.0) * 0.5) as f32
-    }
-
-    pub fn new_chunk(&self, location: glam::IVec3) -> chunk::Chunk {
+    pub fn form_chunk(&mut self, chunk: &mut chunk::Chunk) {
         use block::Block::*;
 
-        let mut chunk = chunk::Chunk::new(location);
-        let base = location * chunk.size();
+        let chunk_height = chunk.height as f64;
+        let heightmap = self.heightmap(chunk.width, chunk.offset, self.freq, 3);
+        let roughmap = self.heightmap(chunk.width, chunk.offset, self.freq * 4.0, 5);
+        for z in 0..heightmap.size()[1] {
+            for x in 0..heightmap.size()[0] {
+                let height = *heightmap.get([x, z]);
+                let rough = *roughmap.get([x, z]);
+                let extra_rought = rough.powf(0.3);
 
-        for z in 0..chunk.width as i32 {
-            for x in 0..chunk.width as i32 {
-                let real = base + glam::ivec3(x, 0, z);
-                let noise = self.sample_fbm(real.as_dvec3().xz());
-                let height = noise.powf(1.5);
+                let terrain_height = height * chunk_height;
+                let rough_height = rough * chunk_height;
+                let extra_rought = extra_rought * chunk_height;
 
-                let min_height = 32.0;
-                let max_height = 128.0;
-                let mut height = (min_height + height * (max_height - min_height)) as i32;
-                height = height.clamp(1, chunk.height as i32 - 1);
+                let height = terrain_height + rough_height / 12.0 + extra_rought / 4.0;
+
+                let height = (height as i32).clamp(1, chunk.height as i32 - 1);
+                let dirt_thickness = 3 + (rough * 3.0) as i32;
+
+                let water = (chunk_height * 0.45) as i32;
 
                 for y in 0..chunk.height as i32 {
-                    let mut block_type = if y > height {
-                        if y <= self.water { Water } else { Air }
+                    let pos = glam::ivec3(x as i32, y, z as i32);
+                    let block = if y > height {
+                        if y <= water { Water } else { Air }
                     }
                     else if y == height {
-                        if y > self.water + 1 {
-                            Grass
-                        }
-                        else if y >= self.water - 1 {
-                            Sand
-                        }
-                        else {
-                            Dirt
-                        }
+                        if y <= water + 2 { Sand } else { Grass }
                     }
-                    else if y > height - 4 {
-                        if height <= self.water + 1 { Sand } else { Dirt }
+                    else if y >= height - dirt_thickness {
+                        if height <= water + 2 { Sand } else { Dirt }
                     }
                     else {
                         Stone
                     };
 
-                    if rand::random_bool(0.01) && block_type != Air {
-                        block_type = block::Block::random();
-                    }
+                    *chunk.get_mut(pos) = block;
+                }
 
-                    if block_type != Air {
-                        *chunk.blocks.get_mut([x as usize, y as usize, z as usize]) = block_type;
+                if self.rand.random_bool(0.01) && height > water {
+                    for i in 0..6 {
+                        let pos = glam::ivec3(x as i32, (height + i).min(chunk.height as i32 - 1), z as i32);
+                        *chunk.get_mut(pos) = Log;
+
+                        for xx in -2..=2 {
+                            for zz in -2..=2 {
+                                if i < 3 {
+                                    continue;
+                                }
+                                let poxss = glam::ivec3(x as i32 + xx, height + i, z as i32 + zz).clamp(
+                                    glam::ivec3(0, 0, 0),
+                                    glam::ivec3(
+                                        chunk.width as i32 - 1,
+                                        chunk.height as i32 - 1,
+                                        chunk.width as i32 - 1,
+                                    ),
+                                );
+                                if chunk.get(poxss) == &Air {
+                                    *chunk.get_mut(poxss) = Leaf;
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
+    }
 
-        chunk
+    fn heightmap(
+        &self,
+        size: usize,
+        origin: glam::IVec3,
+        freq: f64,
+        octaves: usize,
+    ) -> buffer::Buffer<f64, 2> {
+        let mut out = buffer::Buffer::new([size, size]);
+        let base = origin * glam::ivec3(size as i32, 0, size as i32);
+        for x in 0..size {
+            for z in 0..size {
+                let point = (base + glam::ivec3(x as i32, 0, z as i32)).as_dvec3();
+
+                let height = self.sample_fbm(point, octaves, freq);
+                *out.get_mut([x, z]) = height;
+            }
+        }
+        out
+    }
+
+    fn sample_fbm(&self, point: glam::DVec3, octaves: usize, freq: f64) -> f64 {
+        let mut total = 0.0;
+        let mut max = 0.0;
+        let mut amp = 1.0;
+        let mut freq = freq;
+
+        (0..octaves).for_each(|_| {
+            total += self.heightmap_noise.get([point.x * freq, point.z * freq]) * amp;
+            max += amp;
+            amp *= 0.5;
+            freq *= 2.0;
+        });
+
+        ((total / max) + 1.0) * 0.5
     }
 }
