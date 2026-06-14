@@ -50,13 +50,14 @@ impl application::Application for MinecraftWeek {
             .build();
         let player = player::PlayerController::builder().movespeed(0.5).lookspeed(0.0025).build();
 
-        let world = chunk::ChunkManager::builder()
-            .atlas(texture_atlas)
+        let mut world = chunk::ChunkManager::builder()
+            .atlas(texture_atlas.into())
             .view_distance(8)
-            .terrain(terrain_gen)
+            .terrain(terrain_gen.clone().into())
             .chunk_width(chunk::CHUNK_WIDTH)
             .chunk_height(chunk::CHUNK_HEIGHT)
             .build();
+        // world.spawn_worker(terrain_gen.clone());
 
         let pipeline = "terrain_pipe".into();
         let avaliable_pipelines = vec![

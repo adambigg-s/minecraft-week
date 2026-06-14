@@ -1,9 +1,9 @@
 use noise::NoiseFn;
-use rand::{RngExt, SeedableRng, rngs};
+use rand::{SeedableRng, rngs};
 
 use crate::{block, chunk, engine::storage::buffer};
 
-#[derive(bon::Builder, Debug)]
+#[derive(bon::Builder, Debug, Clone)]
 pub struct TerrainGenerator {
     pub heightmap_noise: noise::Perlin,
     pub warping_noise: noise::Perlin,
@@ -21,7 +21,7 @@ impl TerrainGenerator {
         Self { heightmap_noise, warping_noise, rand, freq }
     }
 
-    pub fn form_chunk(&mut self, chunk: &mut chunk::Chunk) {
+    pub fn form_chunk(&self, chunk: &mut chunk::Chunk) {
         use block::Block::*;
 
         let chunk_height = chunk.height as f64;
@@ -40,7 +40,7 @@ impl TerrainGenerator {
                 let height = terrain_height + rough_height / 12.0 + extra_rought / 4.0;
 
                 let height = (height as i32).clamp(1, chunk.height as i32 - 1);
-                let dirt_thickness = 3 + (rough * 3.0) as i32;
+                let dirt_thickness = (rough * 1.3) as i32;
 
                 let water = (chunk_height * 0.45) as i32;
 
@@ -60,32 +60,6 @@ impl TerrainGenerator {
                     };
 
                     *chunk.get_mut(pos) = block;
-                }
-
-                if self.rand.random_bool(0.01) && height > water {
-                    for i in 0..6 {
-                        let pos = glam::ivec3(x as i32, (height + i).min(chunk.height as i32 - 1), z as i32);
-                        *chunk.get_mut(pos) = Log;
-
-                        for xx in -2..=2 {
-                            for zz in -2..=2 {
-                                if i < 3 {
-                                    continue;
-                                }
-                                let poxss = glam::ivec3(x as i32 + xx, height + i, z as i32 + zz).clamp(
-                                    glam::ivec3(0, 0, 0),
-                                    glam::ivec3(
-                                        chunk.width as i32 - 1,
-                                        chunk.height as i32 - 1,
-                                        chunk.width as i32 - 1,
-                                    ),
-                                );
-                                if chunk.get(poxss) == &Air {
-                                    *chunk.get_mut(poxss) = Leaf;
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }
