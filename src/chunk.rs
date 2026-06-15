@@ -50,8 +50,12 @@ impl Chunk {
         coord.rem_euclid(self.size())
     }
 
-    pub fn raw_mesh(&self, atlas: &atlas::TextureAtlas) -> ChunkRawMesh {
-        let mesher = mesher::ChunkMesher { chunk: self, atlas };
+    pub fn raw_mesh(
+        &self,
+        atlas: &atlas::TextureAtlas,
+        assistant: mesher::ChunkMeshingAssisant,
+    ) -> ChunkRawMesh {
+        let mesher = mesher::ChunkMesher { chunks: assistant, atlas };
         let mut rectilinear = mesher.to_rectilinear();
         mesher.map_uvs(&mut rectilinear);
 
@@ -84,6 +88,7 @@ pub enum ChunkRequest {
     },
     Mesh {
         chunk: sync::Arc<Chunk>,
+        assistant: mesher::ChunkMeshingAssisant,
     },
     #[default]
     Cleanup,
@@ -250,7 +255,19 @@ impl ChunkManager {
             return;
         };
 
-        let request = ChunkRequest::Mesh { chunk: sync::Arc::clone(&self.chunks[&coord]) };
+        let assistant = mesher::ChunkMeshingAssisant {
+            chunk: sync::Arc::clone(&self.chunks[&coord]),
+            neighbors: [
+                self.chunks.get(&coord.with_z(&coord.z + 1)).cloned(),
+                self.chunks.get(&coord.with_z(&coord.z - 1)).cloned(),
+                self.chunks.get(&coord.with_x(&coord.x - 1)).cloned(),
+                self.chunks.get(&coord.with_x(&coord.x + 1)).cloned(),
+            ],
+        };
+        let request = ChunkRequest::Mesh {
+            chunk: sync::Arc::clone(&self.chunks[&coord]),
+            assistant,
+        };
 
         if let Err(err) = send.try_send(request) {
             log::debug!("Chunk mesh sending error: {}", err);
@@ -281,8 +298,8 @@ impl ChunkManager {
                             return;
                         }
                     }
-                    | ChunkRequest::Mesh { chunk } => {
-                        let mesh = chunk.raw_mesh(&atlas);
+                    | ChunkRequest::Mesh { chunk, assistant } => {
+                        let mesh = chunk.raw_mesh(&atlas, assistant);
                         let response = ChunkResponse::Meshed { coord: mesh.offset, raw_mesh: mesh };
                         if let Err(err) = chunk_response.send(response) {
                             log::error!("Chunk mesh recieving error: {}", err);
