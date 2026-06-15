@@ -153,7 +153,6 @@ impl ChunkManager {
                         if self.chunks.contains_key(&coord) {
                             self.gfx_insert_queue.push(raw_mesh);
                         }
-                        self.pending_render_chunks.remove(&coord);
                     }
                 }
             }
@@ -190,8 +189,6 @@ impl ChunkManager {
             .collect::<Vec<glam::IVec3>>();
         removal.into_iter().for_each(|coord| {
             self.chunks.remove(&coord);
-            self.render_chunks.remove(&coord);
-            self.pending_chunks.remove(&coord);
             self.pending_render_chunks.remove(&coord);
             self.gfx_remove_queue.push(coord);
         });
@@ -220,7 +217,8 @@ impl ChunkManager {
     }
 
     fn chunk_in_range(&self, coord: glam::IVec3) -> bool {
-        ((coord - self.center_chunk).length_squared() as usize) < self.view_distance * self.view_distance
+        (coord.saturating_sub(self.center_chunk)).length_squared()
+            < (self.view_distance * self.view_distance) as i32
     }
 
     fn chunk_surrounding(&mut self, center: glam::Vec3) -> glam::IVec3 {
@@ -264,6 +262,11 @@ impl ChunkManager {
                 self.chunks.get(&coord.with_x(&coord.x + 1)).cloned(),
             ],
         };
+
+        if !assistant.neighbors.iter().all(|neighbor| neighbor.is_some()) {
+            return;
+        }
+
         let request = ChunkRequest::Mesh {
             chunk: sync::Arc::clone(&self.chunks[&coord]),
             assistant,

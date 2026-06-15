@@ -43,6 +43,10 @@ where
         Ok(())
     }
 
+    pub fn screenshot(&self) -> anyhow::Result<()> {
+        Ok(())
+    }
+
     pub fn render(&mut self) -> anyhow::Result<()> {
         self.window.request_redraw();
         self.inner_state.gfx_frame(&self.input, &mut self.gfx_context, &mut self.gfx_render);

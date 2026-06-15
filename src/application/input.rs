@@ -11,6 +11,7 @@ pub struct Input {
     pub mouse_delta: (f32, f32),
     pub request_quit: bool,
     pub request_grab: bool,
+    pub request_screenshot: bool,
 }
 
 impl Input {

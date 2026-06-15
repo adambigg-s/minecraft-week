@@ -128,7 +128,7 @@ impl application::Application for MinecraftWeek {
                 bind_groups: vec!["global_bg".into()],
             });
         });
-        if self.tick.is_multiple_of(1000) {
+        if self.tick.is_multiple_of(100) {
             log::info!("Number of draws calls: {}", render.render_queue.len());
             log::info!("Number of meshes in renderer: {}", render.meshes.len());
             log::info!("Number of chunks in chunkmanager: {}", self.world.chunks.len());
