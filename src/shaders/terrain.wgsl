@@ -1,10 +1,11 @@
 const EPS: f32 = 1e-3;
 
 const FOG_START: f32 = 150.0;
-const FOG_END: f32 = 500.0;
+const FOG_END: f32 = 550.0;
+const FOG_EXP: f32 = 4.5;
 
 const FACE_LIGHTING: vec3<f32> = vec3<f32>(0.5, 1.0, 0.3);
-const FADE_COLOR: vec4<f32> = vec4<f32>(0.7, 0.8, 0.9, 1.0);
+const FADE_COLOR: vec4<f32> = vec4<f32>(0.7, 0.8, 1.0, 1.0);
 
 struct VertexIn {
     @location(0) pos: vec3<f32>,
@@ -48,7 +49,7 @@ fn fs_main(out: VertexOut) -> @location(0) vec4<f32> {
     let diffuse_color = color * light;
 
     let depth = -out.world_pos.z;
-    let fog_factor = pow(clamp((depth - FOG_START) / (FOG_END - FOG_START), 0.0, 1.0), 3.0);
+    let fog_factor = pow(clamp((depth - FOG_START) / (FOG_END - FOG_START), 0.0, 1.0), FOG_EXP);
 
     let final_color = mix(diffuse_color, FADE_COLOR, fog_factor);
 

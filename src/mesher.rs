@@ -123,30 +123,6 @@ impl Quad {
     }
 }
 
-#[repr(C)]
-#[derive(bytemuck::Pod, bytemuck::Zeroable, bon::Builder, Debug, Default, Clone, Copy)]
-pub struct TerrainVertex {
-    pub pos: glam::Vec3,
-    pub nor: glam::Vec3,
-    pub tex: glam::Vec2,
-}
-
-impl render::GfxVertex for TerrainVertex {
-    fn descriptor() -> wgpu::VertexBufferLayout<'static> {
-        const ATTRIBS: &[wgpu::VertexAttribute] = &vertex_attr_array![
-            0 => Float32x3,
-            1 => Float32x3,
-            2 => Float32x2,
-        ];
-
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<Self>() as u64,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: ATTRIBS,
-        }
-    }
-}
-
 #[derive(bon::Builder, Debug)]
 pub struct RectilinearMeshSlice<'r> {
     pub face: Face,
@@ -207,6 +183,30 @@ impl RectilinearMesh {
         self.positions.iter_mut().for_each(|pos| {
             *pos += shift;
         });
+    }
+}
+
+#[repr(C)]
+#[derive(bytemuck::Pod, bytemuck::Zeroable, bon::Builder, Debug, Default, Clone, Copy)]
+pub struct TerrainVertex {
+    pub pos: glam::Vec3,
+    pub nor: glam::Vec3,
+    pub tex: glam::Vec2,
+}
+
+impl render::GfxVertex for TerrainVertex {
+    fn descriptor() -> wgpu::VertexBufferLayout<'static> {
+        const ATTRIBS: &[wgpu::VertexAttribute] = &vertex_attr_array![
+            0 => Float32x3,
+            1 => Float32x3,
+            2 => Float32x2,
+        ];
+
+        wgpu::VertexBufferLayout {
+            array_stride: mem::size_of::<Self>() as u64,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: ATTRIBS,
+        }
     }
 }
 

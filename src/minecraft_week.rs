@@ -55,12 +55,12 @@ impl application::Application for MinecraftWeek {
 
         let mut world = chunk::ChunkManager::builder()
             .atlas(sync::Arc::clone(&texture_atlas))
-            .view_distance(8)
+            .view_distance(16)
             .terrain(sync::Arc::clone(&terrain_gen))
             .chunk_width(chunk::CHUNK_WIDTH)
             .chunk_height(chunk::CHUNK_HEIGHT)
             .build();
-        world.spawn_workers();
+        world.spawn_worker();
 
         let pipeline = "terrain_pipe".into();
         let avaliable_pipelines = vec![
@@ -113,12 +113,13 @@ impl application::Application for MinecraftWeek {
 
         self.world.chunks.keys().for_each(|&coord| {
             render.queue(render::GfxDrawCall {
-                mesh: self.world.chunk_key(coord),
+                mesh: chunk::ChunkManager::chunk_key(coord),
                 pipe: self.pipeline.to_owned(),
                 bind_groups: vec!["global_bg".into()],
             });
         });
         log::debug!("Number of draws calls: {}", render.render_queue.len());
+        debug_assert!(self.world.chunks.len() == render.meshes.len() - 1);
     }
 }
 

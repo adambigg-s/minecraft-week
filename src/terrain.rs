@@ -37,7 +37,7 @@ impl TerrainGenerator {
                 let rough_height = rough * chunk_height;
                 let extra_rought = extra_rought * chunk_height;
 
-                let height = terrain_height + rough_height / 12.0 + extra_rought / 4.0;
+                let height = terrain_height + rough_height / 8.0 + extra_rought / 8.0;
 
                 let height = (height as i32).clamp(1, chunk.height as i32 - 1);
                 let dirt_thickness = (rough * 1.3) as i32;
@@ -50,7 +50,7 @@ impl TerrainGenerator {
                         if y <= water { Water } else { Air }
                     }
                     else if y == height {
-                        if y <= water + 2 { Sand } else { Grass }
+                        if y <= water + 2 { Sand } else { Dirt }
                     }
                     else if y >= height - dirt_thickness {
                         if height <= water + 2 { Sand } else { Dirt }
