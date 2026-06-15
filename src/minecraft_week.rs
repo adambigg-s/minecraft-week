@@ -16,6 +16,7 @@ pub struct MinecraftWeek {
     pub world: chunk::ChunkManager,
     pub pipeline: String,
     pub avaliable_pipelines: Vec<String>,
+    pub tick: usize,
 }
 
 impl application::Application for MinecraftWeek {
@@ -68,8 +69,16 @@ impl application::Application for MinecraftWeek {
             "wireframe_pipe".into(),
             "culledframe_pipe".into(),
         ];
+        let tick = 0;
 
-        Ok(Self { camera, player, world, pipeline, avaliable_pipelines })
+        Ok(Self {
+            camera,
+            player,
+            world,
+            pipeline,
+            avaliable_pipelines,
+            tick,
+        })
     }
 
     fn physics_frame(
@@ -84,6 +93,7 @@ impl application::Application for MinecraftWeek {
         self.handle_movement_input(input);
 
         self.world.update_chunks(self.camera.inner.position);
+        self.tick += 1;
     }
 
     fn gfx_frame(
@@ -111,15 +121,19 @@ impl application::Application for MinecraftWeek {
             bind_groups: vec!["global_bg".into(), "skybox_bg".into()],
         });
 
-        self.world.chunks.keys().for_each(|&coord| {
+        self.world.render_chunks.iter().for_each(|&coord| {
             render.queue(render::GfxDrawCall {
                 mesh: chunk::ChunkManager::chunk_key(coord),
                 pipe: self.pipeline.to_owned(),
                 bind_groups: vec!["global_bg".into()],
             });
         });
-        log::debug!("Number of draws calls: {}", render.render_queue.len());
-        debug_assert!(self.world.chunks.len() == render.meshes.len() - 1);
+        if self.tick.is_multiple_of(100) {
+            log::info!("Number of draws calls: {}", render.render_queue.len());
+            log::info!("Number of meshes in renderer: {}", render.meshes.len());
+            log::info!("Number of chunks in chunkmanager: {}", self.world.chunks.len());
+            log::info!("Number of renders in chunkmanager: {}", self.world.render_chunks.len());
+        }
     }
 }
 

@@ -64,34 +64,35 @@ impl Chunk {
             });
         });
         let indices = rectilinear.indices;
+        let offset = self.offset;
 
-        ChunkRawMesh { vertices, indices }
+        ChunkRawMesh { vertices, indices, offset }
     }
 }
 
 #[derive(bon::Builder, Debug)]
 pub struct ChunkRawMesh {
-    vertices: Vec<mesher::TerrainVertex>,
-    indices: Vec<u32>,
+    pub vertices: Vec<mesher::TerrainVertex>,
+    pub indices: Vec<u32>,
+    pub offset: glam::IVec3,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub enum ChunkRequest {
     Generate {
         coord: glam::IVec3,
-        width: usize,
-        height: usize,
-        terrain: sync::Arc<terrain::TerrainGenerator>,
-        atlas: sync::Arc<atlas::TextureAtlas>,
     },
+    Mesh {
+        chunk: sync::Arc<Chunk>,
+    },
+    #[default]
     Cleanup,
 }
 
-#[derive(bon::Builder, Debug)]
-pub struct ChunkResponse {
-    coord: glam::IVec3,
-    chunk: Chunk,
-    mesh: ChunkRawMesh,
+#[derive(Debug)]
+pub enum ChunkResponse {
+    Generated { coord: glam::IVec3, chunk: Chunk },
+    Meshed { coord: glam::IVec3, raw_mesh: ChunkRawMesh },
 }
 
 #[derive(bon::Builder, Debug)]
@@ -105,12 +106,16 @@ pub struct ChunkManager {
     pub center_chunk: glam::IVec3,
 
     #[builder(default)]
-    pub chunks: collections::HashMap<glam::IVec3, Chunk>,
+    pub chunks: collections::HashMap<glam::IVec3, sync::Arc<Chunk>>,
     #[builder(default)]
-    pub chunks_pending: collections::HashSet<glam::IVec3>,
+    pub pending_chunks: collections::HashSet<glam::IVec3>,
+    #[builder(default)]
+    pub render_chunks: collections::HashSet<glam::IVec3>,
+    #[builder(default)]
+    pub pending_render_chunks: collections::HashSet<glam::IVec3>,
 
     #[builder(default)]
-    pub gfx_insert_queue: Vec<(glam::IVec3, ChunkRawMesh)>,
+    pub gfx_insert_queue: Vec<ChunkRawMesh>,
     #[builder(default)]
     pub gfx_remove_queue: Vec<glam::IVec3>,
 
@@ -120,7 +125,7 @@ pub struct ChunkManager {
 
 impl ChunkManager {
     pub fn spawn_worker(&mut self) {
-        let (send_tx, send_rx) = mpsc::sync_channel(self.view_distance * self.view_distance);
+        let (send_tx, send_rx) = mpsc::sync_channel(4 * self.view_distance * self.view_distance);
         let (recv_tx, recv_rx) = mpsc::channel();
 
         self.async_chunk_response(send_rx, recv_tx);
@@ -131,27 +136,46 @@ impl ChunkManager {
 
     pub fn update_chunks(&mut self, center: glam::Vec3) {
         if let Some(recv) = &self.chunk_recv {
-            while let Ok(ChunkResponse { coord, chunk, mesh }) = recv.try_recv() {
-                self.chunks.insert(coord, chunk);
-                self.chunks_pending.remove(&coord);
-                self.gfx_insert_queue.push((coord, mesh));
+            while let Ok(response) = recv.try_recv() {
+                match response {
+                    | ChunkResponse::Generated { coord, chunk } => {
+                        if self.chunk_in_range(coord) {
+                            self.chunks.insert(coord, sync::Arc::new(chunk));
+                        }
+                        self.pending_chunks.remove(&coord);
+                    }
+                    | ChunkResponse::Meshed { coord, raw_mesh } => {
+                        if self.chunks.contains_key(&coord) {
+                            self.gfx_insert_queue.push(raw_mesh);
+                        }
+                        self.pending_render_chunks.remove(&coord);
+                    }
+                }
             }
         }
 
         self.center_chunk = self.chunk_surrounding(center);
         let range = self.view_distance as i32;
 
-        (-range..=range).for_each(|dz| {
-            (-range..=range).for_each(|dx| {
+        for dz in -range..=range {
+            for dx in -range..=range {
                 let coord = self.center_chunk + glam::ivec3(dx, 0, dz);
-                if self.chunk_in_range(coord)
-                    && !self.chunks_pending.contains(&coord)
-                    && !self.chunks.contains_key(&coord)
-                {
-                    self.request_chunk(coord);
+                if !self.chunk_in_range(coord) {
+                    continue;
                 }
-            });
-        });
+
+                if !self.pending_chunks.contains(&coord) && !self.chunks.contains_key(&coord) {
+                    self.request_chunk_generation(coord);
+                }
+
+                if !self.render_chunks.contains(&coord)
+                    && !self.pending_render_chunks.contains(&coord)
+                    && self.chunks.contains_key(&coord)
+                {
+                    self.request_chunk_meshing(coord);
+                }
+            }
+        }
 
         let removal = self
             .chunks
@@ -161,18 +185,28 @@ impl ChunkManager {
             .collect::<Vec<glam::IVec3>>();
         removal.into_iter().for_each(|coord| {
             self.chunks.remove(&coord);
-            self.chunks_pending.remove(&coord);
+            self.render_chunks.remove(&coord);
+            self.pending_chunks.remove(&coord);
+            self.pending_render_chunks.remove(&coord);
             self.gfx_remove_queue.push(coord);
         });
     }
 
     pub fn sync_gfx_chunks(&mut self, context: &mut render::GfxContext, render: &mut render::GfxRenderer) {
-        self.gfx_insert_queue.drain(..).for_each(|(coord, raw_mesh)| {
-            let gfx_mesh = mesh::GfxMesh::new(context, &raw_mesh.vertices, &raw_mesh.indices);
-            render.register_mesh(&Self::chunk_key(coord), gfx_mesh);
-        });
+        self.gfx_insert_queue
+            .drain(..)
+            .filter(|raw_mesh| self.chunks.contains_key(&raw_mesh.offset))
+            .for_each(|raw_mesh| {
+                let gfx_mesh = mesh::GfxMesh::new(context, &raw_mesh.vertices, &raw_mesh.indices);
+                render.register_mesh(&Self::chunk_key(raw_mesh.offset), gfx_mesh);
+                self.render_chunks.insert(raw_mesh.offset);
+                self.pending_render_chunks.remove(&raw_mesh.offset);
+            });
+
         self.gfx_remove_queue.drain(..).for_each(|coord| {
             render.unregister_mesh(&Self::chunk_key(coord));
+            self.render_chunks.remove(&coord);
+            self.pending_render_chunks.remove(&coord);
         });
     }
 
@@ -192,27 +226,38 @@ impl ChunkManager {
         )
     }
 
-    fn request_chunk(&mut self, coord: glam::IVec3) {
+    fn request_chunk_generation(&mut self, coord: glam::IVec3) {
         let Some(send) = &self.chunk_send
         else {
-            log::error!("Chunk requested with no workers");
+            log::error!("Chunk generation requested with no workers");
             return;
         };
 
-        let request = ChunkRequest::Generate {
-            coord,
-            width: self.chunk_width,
-            height: self.chunk_height,
-            terrain: sync::Arc::clone(&self.terrain),
-            atlas: sync::Arc::clone(&self.atlas),
-        };
+        let request = ChunkRequest::Generate { coord };
 
         if let Err(err) = send.try_send(request) {
-            log::debug!("Chunk sending error: {}", err);
+            log::debug!("Chunk generation sending error: {}", err);
             return;
         }
 
-        self.chunks_pending.insert(coord);
+        self.pending_chunks.insert(coord);
+    }
+
+    fn request_chunk_meshing(&mut self, coord: glam::IVec3) {
+        let Some(send) = &self.chunk_send
+        else {
+            log::error!("Chunk meshing requested with no workers");
+            return;
+        };
+
+        let request = ChunkRequest::Mesh { chunk: sync::Arc::clone(&self.chunks[&coord]) };
+
+        if let Err(err) = send.try_send(request) {
+            log::debug!("Chunk mesh sending error: {}", err);
+            return;
+        }
+
+        self.pending_render_chunks.insert(coord);
     }
 
     fn async_chunk_response(
@@ -220,17 +265,27 @@ impl ChunkManager {
         chunk_request: mpsc::Receiver<ChunkRequest>,
         chunk_response: mpsc::Sender<ChunkResponse>,
     ) {
+        let width = self.chunk_width;
+        let height = self.chunk_height;
+        let terrain = sync::Arc::clone(&self.terrain);
+        let atlas = sync::Arc::clone(&self.atlas);
         thread::spawn(move || {
             while let Ok(request) = chunk_request.recv() {
                 match request {
-                    | ChunkRequest::Generate { coord, width, height, terrain, atlas } => {
+                    | ChunkRequest::Generate { coord } => {
                         let mut chunk = Chunk::new(coord, width, height);
                         terrain.form_chunk(&mut chunk);
-                        let mesh = chunk.raw_mesh(&atlas);
-
-                        let response = ChunkResponse { coord, chunk, mesh };
+                        let response = ChunkResponse::Generated { coord, chunk };
                         if let Err(err) = chunk_response.send(response) {
-                            log::error!("Chunk recieving error: {}", err);
+                            log::error!("Chunk terrain recieving error: {}", err);
+                            return;
+                        }
+                    }
+                    | ChunkRequest::Mesh { chunk } => {
+                        let mesh = chunk.raw_mesh(&atlas);
+                        let response = ChunkResponse::Meshed { coord: mesh.offset, raw_mesh: mesh };
+                        if let Err(err) = chunk_response.send(response) {
+                            log::error!("Chunk mesh recieving error: {}", err);
                             return;
                         }
                     }
