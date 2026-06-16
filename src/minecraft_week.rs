@@ -1,4 +1,4 @@
-use std::sync;
+use std::{sync, time};
 
 use crate::{
     application::{self, input},
@@ -17,6 +17,8 @@ pub struct MinecraftWeek {
     pub pipeline: String,
     pub avaliable_pipelines: Vec<String>,
     pub tick: usize,
+    pub time: f32,
+    pub instant: time::Instant,
 }
 
 impl application::Application for MinecraftWeek {
@@ -67,6 +69,8 @@ impl application::Application for MinecraftWeek {
             "culledframe_pipe".into(),
         ];
         let tick = 0;
+        let instant = time::Instant::now();
+        let time = instant.elapsed().as_secs_f32();
 
         Ok(Self {
             camera,
@@ -75,6 +79,8 @@ impl application::Application for MinecraftWeek {
             pipeline,
             avaliable_pipelines,
             tick,
+            time,
+            instant,
         })
     }
 
@@ -91,6 +97,8 @@ impl application::Application for MinecraftWeek {
 
         self.world.update_chunks(self.camera.inner.position);
         self.tick += 1;
+        self.time += self.instant.elapsed().as_secs_f32();
+        self.instant = time::Instant::now();
     }
 
     fn gfx_frame(
@@ -105,12 +113,7 @@ impl application::Application for MinecraftWeek {
 
         self.world.sync_gfx_chunks(context, render);
 
-        if let Some(resource::GfxResource::Uniform(cam_view_proj)) = render.resources.get("camera_uni") {
-            cam_view_proj.write(context, &self.camera.view_proj());
-        }
-        if let Some(resource::GfxResource::Uniform(cam_view)) = render.resources.get("camera_view_uni") {
-            cam_view.write(context, &self.camera.view());
-        }
+        self.update_resources(context, render);
 
         if &self.pipeline == "terrain_pipe" {
             render.queue(render::GfxDrawCall {
@@ -138,7 +141,13 @@ fn register_bind_groups(
         context,
         "global_bg",
         "global_layout",
-        &["camera_uni", "camera_view_uni", "texture_atlas", "sampler"],
+        &[
+            "camera_uni",
+            "camera_view_uni",
+            "texture_atlas",
+            "sampler",
+            "time_uni",
+        ],
     )?;
     render.register_bind_group(context, "skybox_bg", "skybox_layout", &["skybox_atlas", "sampler"])?;
     Ok(())
@@ -158,6 +167,7 @@ fn register_resources(
     render.register_resource("sampler", util::sampler(context, "Sampler"));
     render.register_resource("camera_uni", util::uniform::<glam::Mat4>(context, "Camera"));
     render.register_resource("camera_view_uni", util::uniform::<glam::Mat4>(context, "Camera view"));
+    render.register_resource("time_uni", util::uniform::<f32>(context, "Global time"));
     Ok((atlas, skybox))
 }
 
@@ -189,6 +199,7 @@ fn register_pipelines(
             resource::GfxBindingLayout::Uniform,
             resource::GfxBindingLayout::Texture,
             resource::GfxBindingLayout::Sampler,
+            resource::GfxBindingLayout::Uniform,
         ],
     )?;
     render.register_bind_group_layout(
@@ -199,9 +210,16 @@ fn register_pipelines(
             resource::GfxBindingLayout::Sampler,
         ],
     )?;
+    render.register_bind_group_layout(context, "time_layout", &[resource::GfxBindingLayout::Uniform])?;
+
     render.register_pipeline::<pipelines::Terrain>(context, "terrain_pipe", &["global_layout"]);
     render.register_pipeline::<pipelines::WireFrame>(context, "wireframe_pipe", &["global_layout"]);
     render.register_pipeline::<pipelines::CulledFrame>(context, "culledframe_pipe", &["global_layout"]);
+    render.register_pipeline::<pipelines::TimeGradient>(
+        context,
+        "time_gradient_pipe",
+        &["global_layout", "time_layout"],
+    );
     render.register_pipeline::<pipelines::Skybox>(
         context,
         "skybox_pipe",
@@ -279,5 +297,17 @@ impl MinecraftWeek {
         self.camera.inner.rotation = glam::Quat::from_rotation_z(0.0)
             * glam::Quat::from_rotation_y(self.camera.yaw)
             * glam::Quat::from_rotation_x(self.camera.pitch);
+    }
+
+    fn update_resources(&mut self, context: &mut render::GfxContext, render: &mut render::GfxRenderer) {
+        if let Some(resource::GfxResource::Uniform(cam_view_proj)) = render.resources.get("camera_uni") {
+            cam_view_proj.write(context, &self.camera.view_proj());
+        }
+        if let Some(resource::GfxResource::Uniform(cam_view)) = render.resources.get("camera_view_uni") {
+            cam_view.write(context, &self.camera.view());
+        }
+        if let Some(resource::GfxResource::Uniform(global_time)) = render.resources.get("time_uni") {
+            global_time.write(context, &self.time);
+        }
     }
 }
