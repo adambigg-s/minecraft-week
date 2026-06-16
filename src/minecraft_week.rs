@@ -44,7 +44,7 @@ impl application::Application for MinecraftWeek {
         let terrain_gen = sync::Arc::new(terrain::TerrainGenerator::new(1));
 
         let camera = camera::Camera::builder()
-            .inner(transform::Transform::from_position(glam::vec3(0.0, 128.0, 0.0)))
+            .inner(transform::Transform::from_position(glam::vec3(0.0, 200.0, 0.0)))
             .fov(70.0)
             .znear(0.1)
             .zfear(1000.0)
@@ -53,7 +53,7 @@ impl application::Application for MinecraftWeek {
 
         let mut world = chunk::ChunkManager::builder()
             .atlas(sync::Arc::clone(&texture_atlas))
-            .view_distance(16)
+            .view_distance(10)
             .terrain(sync::Arc::clone(&terrain_gen))
             .chunk_width(32)
             .chunk_height(128)
@@ -163,7 +163,7 @@ fn register_resources(
 
 fn create_atlas() -> Result<atlas::TextureAtlas, anyhow::Error> {
     let atlas = atlas::TextureAtlas::new("./res/", 16)?;
-    atlas.save("./res/texture_atlas.png")?;
+    atlas.save("./res/atlas/atlas.png")?;
     Ok(atlas)
 }
 
@@ -172,7 +172,7 @@ fn create_skybox(
     render: &mut render::GfxRenderer,
 ) -> Result<skybox::Skybox, anyhow::Error> {
     let mut skybox = skybox::Skybox::new("./res/skybox/", 32, 500.0)?;
-    skybox.texture.save("./res/skybox_atlas.png")?;
+    skybox.texture.save("./res/atlas/skybox_atlas.png")?;
     render.register_mesh("skybox_mesh", skybox.create_gfx_mesh(context));
     Ok(skybox)
 }
