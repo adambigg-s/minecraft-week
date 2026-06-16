@@ -265,6 +265,8 @@ pub struct ChunkMesher<'c> {
 
 impl<'c> ChunkMesher<'c> {
     pub fn to_rectilinear(&self) -> RectilinearMesh {
+        use block::{Block::*, Visibility::*};
+
         let mut quads = Vec::new();
         let global = self.chunks.chunk.offset
             * glam::ivec3(self.chunks.chunk.width as i32, 0, self.chunks.chunk.width as i32);
@@ -273,7 +275,7 @@ impl<'c> ChunkMesher<'c> {
                 for x in 0..self.chunks.chunk.width {
                     let block = self.chunks.chunk.blocks.get([x, y, z]);
 
-                    if block == &block::Block::Air {
+                    if block == &Air {
                         continue;
                     }
 
@@ -285,10 +287,25 @@ impl<'c> ChunkMesher<'c> {
                             z as i32 + offset.z,
                         ));
 
-                        let our_visibilitiy = block.visibility();
-                        if neighbor.visibility() != block::Visibility::Transparent {
+                        let emit = match (block.visibility(), neighbor.visibility()) {
+                            | (Opaque, PartialOpaque) => true,
+                            | (Opaque, Transparent) => true,
+                            | (Opaque, Invisible) => true,
+                            | (PartialOpaque, PartialOpaque) => true,
+                            | (PartialOpaque, Transparent) => true,
+                            | (PartialOpaque, Invisible) => true,
+                            | (Transparent, Invisible) => true,
+                            | (Transparent, PartialOpaque) => true,
+                            | _ => false,
+                        };
+
+                        if !emit {
                             continue;
                         }
+
+                        // if neighbor.visibility() != block::Visibility::Transparent {
+                        //     continue;
+                        // }
                         // let offset = face.neighbor_offset();
                         // let neighbor = self.chunks.chunk.blocks.try_get([
                         //     (x as i32 + offset.x) as usize,

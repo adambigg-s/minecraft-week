@@ -1,5 +1,6 @@
 # minecraft-week
 Minecraft inspired voxel game made in one week with Rust and wgpu
+
 ### Current state
 ![screenshot](images/trees.png)
 ![screenshot](images/meshing.png)
@@ -26,7 +27,7 @@ Minecraft inspired voxel game made in one week with Rust and wgpu
 - make terrain generation look nice
   - this is the last thing that needs to be done, basically
 - add a screenshot tool
-- chunk clearing currently leaks GPU memory - this needs to be fixed
-  - meshes are so cheap tho, that at this point it doesn't really matter
+- add voxel AO
+- fix meshes with transparency and add flower 
 
 

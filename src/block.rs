@@ -6,8 +6,18 @@ use std::{
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Visibility {
     #[default]
+    Invisible,
     Opaque,
     Transparent,
+    PartialOpaque,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum EmittedMesh {
+    #[default]
+    RectilinearFull,
+    RectilinearPartial,
+    Decorator,
 }
 
 #[repr(u8)]
@@ -69,8 +79,26 @@ impl Block {
 
     pub fn visibility(&self) -> Visibility {
         match self {
-            | Block::Leaf | Block::Air => Visibility::Transparent,
-            | _ => Visibility::Opaque,
+            | Block::Dirt
+            | Block::Grass
+            | Block::Sand
+            | Block::Lava
+            | Block::Log
+            | Block::Stone
+            | Block::Gravel
+            | Block::Plank
+            | Block::Quartz
+            | Block::BlockCounter => Visibility::Opaque,
+            | Block::Air => Visibility::Invisible,
+            | Block::Water => Visibility::Transparent,
+            | Block::Leaf | Block::RedFlower => Visibility::PartialOpaque,
+        }
+    }
+
+    pub fn mesh_style(&self) -> EmittedMesh {
+        match self {
+            | Block::RedFlower => EmittedMesh::Decorator,
+            | _ => EmittedMesh::RectilinearFull,
         }
     }
 

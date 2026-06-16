@@ -53,7 +53,7 @@ impl application::Application for MinecraftWeek {
 
         let mut world = chunk::ChunkManager::builder()
             .atlas(sync::Arc::clone(&texture_atlas))
-            .view_distance(12)
+            .view_distance(18)
             .terrain(sync::Arc::clone(&terrain_gen))
             .chunk_width(32)
             .chunk_height(128)
