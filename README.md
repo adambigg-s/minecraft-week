@@ -1,7 +1,7 @@
 # minecraft-week
 Minecraft inspired voxel game made in one week with Rust and wgpu
 ### Current state
-![screenshot](images/rough_terrain.png)
+![screenshot](images/trees.png)
 ![screenshot](images/meshing.png)
 
 ### Goals
@@ -15,9 +15,8 @@ Minecraft inspired voxel game made in one week with Rust and wgpu
 #### Notes
 
 ##### Files that are in disarray
-- chunk.rs
 - terrain.rs
-- main file
+- mesher.rs
 
 ##### Blocks to add
 - ores (coal, iron etc.)

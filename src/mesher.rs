@@ -285,7 +285,8 @@ impl<'c> ChunkMesher<'c> {
                             z as i32 + offset.z,
                         ));
 
-                        if neighbor != block::Block::Air {
+                        let our_visibilitiy = block.visibility();
+                        if neighbor.visibility() != block::Visibility::Transparent {
                             continue;
                         }
                         // let offset = face.neighbor_offset();
