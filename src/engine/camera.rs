@@ -6,7 +6,6 @@ use std::{
 use crate::{engine::transform, render};
 
 #[derive(bon::Builder, Debug, Default)]
-
 pub struct Camera {
     #[builder(default)]
     pub inner: transform::Transform,

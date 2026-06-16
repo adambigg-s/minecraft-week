@@ -99,7 +99,7 @@ impl TerrainGenerator {
 
                 let decorator = self.sample_2d([gcoord.x + 99000.0, gcoord.z + 99000.0], 1.1);
                 let decorator2 = self.sample_2d([gcoord.x + 89000.0, gcoord.z + 89000.0], 1.1);
-                let decorator3 = self.sample_2d([gcoord.x + -300.0, gcoord.z + -300.0], 1.1);
+                let decorator3 = self.sample_2d([gcoord.x + -300.0, gcoord.z + -300.0], 0.3);
 
                 let cliff_subtrator = self.sample_fbm_2d([gcoord.x + 5000.0, gcoord.z + 5000.0], 1, 0.03);
                 if cliff_subtrator > 0.75 {
@@ -152,13 +152,13 @@ impl TerrainGenerator {
                     }
                 }
 
-                if decorator2 > 0.97 && decorator > 0.5 {
+                if decorator2 > 0.95 && decorator > 0.5 {
                     let coord = glam::ivec3(x, height as i32 + 1, z);
                     if chunk.get(coord) == &Air {
                         *chunk.get_mut(coord) = RedFlower
                     }
                 }
-                if decorator2 > 0.97 && decorator < 0.5 {
+                if decorator2 > 0.95 && decorator < 0.5 {
                     let coord = glam::ivec3(x, height as i32 + 1, z);
                     if chunk.get(coord) == &Air {
                         *chunk.get_mut(coord) = BlueFlower

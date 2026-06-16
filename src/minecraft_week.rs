@@ -67,11 +67,7 @@ impl application::Application for MinecraftWeek {
         world.spawn_worker();
 
         let pipeline = "terrain_pipe".into();
-        let avaliable_pipelines = vec![
-            "terrain_pipe".into(),
-            "wireframe_pipe".into(),
-            "culledframe_pipe".into(),
-        ];
+        let avaliable_pipelines = vec!["terrain_pipe".into(), "wireframe_pipe".into()];
         let tick = 0;
         let instant = time::Instant::now();
         let time = instant.elapsed().as_secs_f32();

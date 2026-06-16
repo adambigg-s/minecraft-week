@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     atlas, block,
-    engine::storage::buffer,
+    engine::{kinematics, storage::buffer},
     mesher,
     render::{self, mesh},
     terrain::{self},
@@ -73,6 +73,14 @@ impl Chunk {
         let offset = self.offset;
 
         ChunkRawMesh { vertices, indices, offset }
+    }
+}
+
+impl kinematics::Collision for Chunk {
+    type Collider = kinematics::BoxCollider;
+
+    fn collides(&self, collider: Self::Collider) -> bool {
+        todo!()
     }
 }
 
@@ -355,5 +363,13 @@ impl ChunkManager {
                 }
             }
         });
+    }
+}
+
+impl kinematics::Collision for ChunkManager {
+    type Collider = kinematics::BoxCollider;
+
+    fn collides(&self, collider: Self::Collider) -> bool {
+        todo!()
     }
 }
