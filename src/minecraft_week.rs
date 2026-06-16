@@ -44,7 +44,7 @@ impl application::Application for MinecraftWeek {
         let terrain_gen = sync::Arc::new(terrain::TerrainGenerator::new(1));
 
         let camera = camera::Camera::builder()
-            .inner(transform::Transform::from_position(glam::vec3(0.0, 200.0, 0.0)))
+            .inner(transform::Transform::from_position(glam::vec3(0.0, 150.0, 0.0)))
             .fov(70.0)
             .znear(0.1)
             .zfear(1000.0)
@@ -53,7 +53,7 @@ impl application::Application for MinecraftWeek {
 
         let mut world = chunk::ChunkManager::builder()
             .atlas(sync::Arc::clone(&texture_atlas))
-            .view_distance(10)
+            .view_distance(12)
             .terrain(sync::Arc::clone(&terrain_gen))
             .chunk_width(32)
             .chunk_height(128)

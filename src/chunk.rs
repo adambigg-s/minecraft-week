@@ -35,6 +35,11 @@ impl Chunk {
         coord.to_array().map(|ele| ele as usize)
     }
 
+    pub fn check_index(&self, coord: glam::IVec3) -> bool {
+        let index = self.to_index(coord);
+        self.blocks.surrounds(index)
+    }
+
     pub fn get(&self, coord: glam::IVec3) -> &block::Block {
         self.blocks.get(self.to_index(coord))
     }
