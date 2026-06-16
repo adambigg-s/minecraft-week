@@ -2,6 +2,7 @@ use noise::NoiseFn;
 
 use crate::{block, chunk};
 
+#[derive(Debug)]
 pub enum Biome {
     Ocean,
     Beach,
@@ -11,12 +12,12 @@ pub enum Biome {
     Badlands,
 }
 
+#[derive(bon::Builder, Debug)]
 pub struct GeologyRules {}
 
 #[derive(bon::Builder, Debug)]
 pub struct TerrainGenerator {
     pub noise: noise::Perlin,
-    // pub rng: rngs::SmallRng,
 }
 
 pub fn integer_weighted_sum<const N: usize>(values: [f64; N], weights: [i32; N]) -> f64 {
@@ -35,9 +36,8 @@ pub fn integer_weighted_sum<const N: usize>(values: [f64; N], weights: [i32; N])
 impl TerrainGenerator {
     pub fn new(seed: u32) -> Self {
         let noise = noise::Perlin::new(seed);
-        // let rng = rngs::SmallRng::seed_from_u64(seed as u64);
 
-        Self { noise /* rng */ }
+        Self { noise }
     }
 
     pub fn generate_tree(&self, chunk: &mut chunk::Chunk, x: i32, y: i32, z: i32) {

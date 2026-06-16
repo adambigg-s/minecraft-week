@@ -258,7 +258,6 @@ impl ChunkMeshingAssisant {
 
 #[derive(bon::Builder, Debug)]
 pub struct ChunkMesher<'c> {
-    // pub chunk: &'c chunk::Chunk,
     pub chunks: ChunkMeshingAssisant,
     pub atlas: &'c atlas::TextureAtlas,
 }
@@ -303,22 +302,6 @@ impl<'c> ChunkMesher<'c> {
                             continue;
                         }
 
-                        // if neighbor.visibility() != block::Visibility::Transparent {
-                        //     continue;
-                        // }
-                        // let offset = face.neighbor_offset();
-                        // let neighbor = self.chunks.chunk.blocks.try_get([
-                        //     (x as i32 + offset.x) as usize,
-                        //     (y as i32 + offset.y) as usize,
-                        //     (z as i32 + offset.z) as usize,
-                        // ]);
-
-                        // if let Some(neighbor) = neighbor
-                        //     && neighbor != &block::Block::Air
-                        // {
-                        //     continue;
-                        // }
-
                         quads.push(Quad {
                             position: glam::ivec3(x as i32, y as i32, z as i32) + global,
                             face,
@@ -340,52 +323,3 @@ impl<'c> ChunkMesher<'c> {
         });
     }
 }
-
-// impl<'c> ChunkMesher<'c> {
-//     pub fn to_rectilinear(&self) -> RectilinearMesh {
-//         let mut quads = Vec::new();
-//         let global = self.chunk.offset * glam::ivec3(self.chunk.width as i32, 0, self.chunk.width as i32);
-//         for z in 0..self.chunk.width {
-//             for y in 0..self.chunk.height {
-//                 for x in 0..self.chunk.width {
-//                     let block = self.chunk.blocks.get([x, y, z]);
-
-//                     if block == &block::Block::Air {
-//                         continue;
-//                     }
-
-//                     for face in Face::ALL {
-//                         let offset = face.neighbor_offset();
-//                         let neighbor = self.chunk.blocks.try_get([
-//                             (x as i32 + offset.x) as usize,
-//                             (y as i32 + offset.y) as usize,
-//                             (z as i32 + offset.z) as usize,
-//                         ]);
-
-//                         if let Some(neighbor) = neighbor
-//                             && neighbor != &block::Block::Air
-//                         {
-//                             continue;
-//                         }
-
-//                         quads.push(Quad {
-//                             position: glam::ivec3(x as i32, y as i32, z as i32) + global,
-//                             face,
-//                         });
-//                     }
-//                 }
-//             }
-//         }
-//         RectilinearMesh::from_quads(&quads)
-//     }
-
-//     pub fn map_uvs(&self, rectilinear: &mut RectilinearMesh) {
-//         (0..rectilinear.size).for_each(|index| {
-//             let RectilinearMeshSlice { face, integer_position, uvs, .. } = rectilinear.quad_slice(index);
-
-//             let position = self.chunk.to_chunk_coords(integer_position);
-//             let block = self.chunk.get(position);
-//             self.atlas.conform_uvs(uvs, block.name(), face);
-//         });
-//     }
-// }

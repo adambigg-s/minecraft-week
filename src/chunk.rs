@@ -223,8 +223,12 @@ impl ChunkManager {
     }
 
     fn chunk_in_range(&self, coord: glam::IVec3) -> bool {
-        (coord.saturating_sub(self.center_chunk)).length_squared()
-            < (self.view_distance * self.view_distance) as i32
+        let rel = coord.saturating_sub(self.center_chunk);
+        let rel_sq_length = (rel.x.saturating_mul(rel.x))
+            .saturating_add(rel.y.saturating_mul(rel.y))
+            .saturating_add(rel.z.saturating_mul(rel.z)) as usize;
+
+        rel_sq_length < (self.view_distance * self.view_distance)
     }
 
     fn chunk_surrounding(&mut self, center: glam::Vec3) -> glam::IVec3 {
