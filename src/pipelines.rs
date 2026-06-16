@@ -67,17 +67,6 @@ impl render::GfxPipeline for CulledFrame {
     }
 }
 
-pub struct Highlight;
-impl render::GfxPipeline for Highlight {
-    #[allow(unused)]
-    fn pipeline(
-        context: &render::GfxContext,
-        layouts: &[Option<&wgpu::BindGroupLayout>],
-    ) -> wgpu::RenderPipeline {
-        todo!()
-    }
-}
-
 pub struct Skybox;
 impl render::GfxPipeline for Skybox {
     fn pipeline(
@@ -252,6 +241,28 @@ impl render::GfxPipeline for WireFrame {
             multiview_mask: None,
             cache: None,
         })
+    }
+}
+
+pub struct Highlight;
+impl render::GfxPipeline for Highlight {
+    #[allow(unused)]
+    fn pipeline(
+        context: &render::GfxContext,
+        layouts: &[Option<&wgpu::BindGroupLayout>],
+    ) -> wgpu::RenderPipeline {
+        todo!()
+    }
+}
+
+pub struct WaterPipeline;
+impl render::GfxPipeline for WaterPipeline {
+    #[allow(unused)]
+    fn pipeline(
+        context: &render::GfxContext,
+        layouts: &[Option<&wgpu::BindGroupLayout>],
+    ) -> wgpu::RenderPipeline {
+        todo!()
     }
 }
 

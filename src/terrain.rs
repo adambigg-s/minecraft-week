@@ -97,8 +97,9 @@ impl TerrainGenerator {
 
                 let mut terrain_height = integer_weighted_sum([continent, detail, mountain], [3, 4, 1]);
 
-                let decorator = self.sample_fbm_2d([gcoord.x + 99000.0, gcoord.z + 99000.0], 1, 0.5);
-                let decorator2 = self.sample_fbm_2d([gcoord.x + 89000.0, gcoord.z + 89000.0], 1, 0.5);
+                let decorator = self.sample_2d([gcoord.x + 99000.0, gcoord.z + 99000.0], 1.1);
+                let decorator2 = self.sample_2d([gcoord.x + 89000.0, gcoord.z + 89000.0], 1.1);
+                let decorator3 = self.sample_2d([gcoord.x + -300.0, gcoord.z + -300.0], 1.1);
 
                 let cliff_subtrator = self.sample_fbm_2d([gcoord.x + 5000.0, gcoord.z + 5000.0], 1, 0.03);
                 if cliff_subtrator > 0.75 {
@@ -144,19 +145,52 @@ impl TerrainGenerator {
                     }
                 }
 
-                if decorator > 0.997 {
+                if decorator > 0.98 {
                     let coord = glam::ivec3(x, height as i32, z);
-                    if chunk.get(coord) == &Grass {
+                    if chunk.get(coord) == &Grass && chunk.get(coord.with_y(height as i32 + 1)) == &Air {
                         self.generate_tree(chunk, x, height as i32 + 1, z);
                     }
                 }
 
-                if decorator2 > 0.99 {
+                if decorator2 > 0.97 && decorator > 0.5 {
                     let coord = glam::ivec3(x, height as i32 + 1, z);
-                    *chunk.get_mut(coord) = RedFlower
+                    if chunk.get(coord) == &Air {
+                        *chunk.get_mut(coord) = RedFlower
+                    }
+                }
+                if decorator2 > 0.97 && decorator < 0.5 {
+                    let coord = glam::ivec3(x, height as i32 + 1, z);
+                    if chunk.get(coord) == &Air {
+                        *chunk.get_mut(coord) = BlueFlower
+                    }
+                }
+
+                if decorator3 > 0.85 {
+                    let coord = glam::ivec3(x, height as i32 + 1, z);
+                    if chunk.get(coord) == &Air {
+                        *chunk.get_mut(coord) = Shrub
+                    }
+                }
+
+                for y in sea_level..height as i32 {
+                    let ore = self.sample_3d([gcoord.x, y as f64, gcoord.z], 0.1);
+                    if ore > 0.75 {
+                        let coord = glam::ivec3(x, y, z);
+                        if chunk.get(coord) == &Stone {
+                            *chunk.get_mut(coord) = Gravel
+                        }
+                    }
                 }
             }
         }
+    }
+
+    fn sample_2d(&self, point: [f64; 2], freq: f64) -> f64 {
+        (self.noise.get(point.map(|val| val * freq)) + 1.0) * 0.5
+    }
+
+    fn sample_3d(&self, point: [f64; 3], freq: f64) -> f64 {
+        (self.noise.get(point.map(|val| val * freq)) + 1.0) * 0.5
     }
 
     fn sample_fbm_2d(&self, point: [f64; 2], octaves: usize, freq: f64) -> f64 {

@@ -37,6 +37,8 @@ pub enum Block {
     Plank,
     Quartz,
     RedFlower,
+    BlueFlower,
+    Shrub,
     BlockCounter,
 }
 
@@ -55,24 +57,27 @@ impl Block {
         Block::Plank,
         Block::Quartz,
         Block::RedFlower,
+        Block::BlueFlower,
+        Block::Shrub,
     ];
 
-    #[rustfmt::skip]
     pub fn name(&self) -> &'static str {
         match self {
-            | Block::Air          => "air",
-            | Block::Dirt         => "dirt",
-            | Block::Grass        => "grass",
-            | Block::Sand         => "sand",
-            | Block::Water        => "water",
-            | Block::Lava         => "lava",
-            | Block::Log          => "log",
-            | Block::Leaf         => "leaf",
-            | Block::Stone        => "stone",
-            | Block::Gravel       => "gravel",
-            | Block::Plank        => "plank",
-            | Block::Quartz       => "quartz",
-            | Block::RedFlower    => "redflower",
+            | Block::Air => "air",
+            | Block::Dirt => "dirt",
+            | Block::Grass => "grass",
+            | Block::Sand => "sand",
+            | Block::Water => "water",
+            | Block::Lava => "lava",
+            | Block::Log => "log",
+            | Block::Leaf => "leaf",
+            | Block::Stone => "stone",
+            | Block::Gravel => "gravel",
+            | Block::Plank => "plank",
+            | Block::Quartz => "quartz",
+            | Block::RedFlower => "redflower",
+            | Block::BlueFlower => "blueflower",
+            | Block::Shrub => "shrub",
             | Block::BlockCounter => "",
         }
     }
@@ -91,13 +96,13 @@ impl Block {
             | Block::BlockCounter => Visibility::Opaque,
             | Block::Air => Visibility::Invisible,
             | Block::Water => Visibility::Transparent,
-            | Block::Leaf | Block::RedFlower => Visibility::PartialOpaque,
+            | Block::Leaf | Block::RedFlower | Block::BlueFlower | Block::Shrub => Visibility::PartialOpaque,
         }
     }
 
     pub fn mesh_style(&self) -> EmittedMesh {
         match self {
-            | Block::RedFlower => EmittedMesh::Decorator,
+            | Block::RedFlower | Block::BlueFlower | Block::Shrub => EmittedMesh::Decorator,
             | _ => EmittedMesh::RectilinearFull,
         }
     }

@@ -15,10 +15,14 @@ pub enum Face {
     Right,
     Back,
     Front,
+    DiagPosFront,
+    DiagPosBack,
+    DiagNegFront,
+    DiagNegBack,
 }
 
 impl Face {
-    pub const ALL: [Face; 6] = [
+    pub const CARDINALS: [Face; 6] = [
         Face::Top,
         Face::Bottom,
         Face::Left,
@@ -26,28 +30,37 @@ impl Face {
         Face::Front,
         Face::Back,
     ];
+    pub const DIAGONALS: [Face; 4] = [
+        Face::DiagPosFront,
+        Face::DiagPosBack,
+        Face::DiagNegFront,
+        Face::DiagNegBack,
+    ];
 
-    #[rustfmt::skip]
     pub fn neighbor_offset(&self) -> glam::IVec3 {
         match self {
-            | Face::Top    => glam::ivec3(0, 1, 0),
+            | Face::Top => glam::ivec3(0, 1, 0),
             | Face::Bottom => glam::ivec3(0, -1, 0),
-            | Face::Left   => glam::ivec3(-1, 0, 0),
-            | Face::Right  => glam::ivec3(1, 0, 0),
-            | Face::Back   => glam::ivec3(0, 0, 1),
-            | Face::Front  => glam::ivec3(0, 0, -1),
+            | Face::Left => glam::ivec3(-1, 0, 0),
+            | Face::Right => glam::ivec3(1, 0, 0),
+            | Face::Back => glam::ivec3(0, 0, 1),
+            | Face::Front => glam::ivec3(0, 0, -1),
+            | _ => glam::IVec3::ZERO,
         }
     }
 
-    #[rustfmt::skip]
     pub fn normal(&self) -> glam::Vec3 {
         match self {
-            | Face::Top    => glam::Vec3::Y,
+            | Face::Top => glam::Vec3::Y,
             | Face::Bottom => glam::Vec3::NEG_Y,
-            | Face::Left   => glam::Vec3::X,
-            | Face::Right  => glam::Vec3::NEG_X,
-            | Face::Back   => glam::Vec3::Z,
-            | Face::Front  => glam::Vec3::NEG_Z,
+            | Face::Left => glam::Vec3::X,
+            | Face::Right => glam::Vec3::NEG_X,
+            | Face::Back => glam::Vec3::Z,
+            | Face::Front => glam::Vec3::NEG_Z,
+            | Face::DiagPosFront => glam::ivec3(1, 0, -1).as_vec3().normalize(),
+            | Face::DiagPosBack => glam::ivec3(1, 0, 1).as_vec3().normalize(),
+            | Face::DiagNegFront => glam::ivec3(-1, 0, -1).as_vec3().normalize(),
+            | Face::DiagNegBack => glam::ivec3(-1, 0, 1).as_vec3().normalize(),
         }
     }
 
@@ -91,6 +104,30 @@ impl Face {
                 (ivec3(1, 1, 0), ivec2(1, 0)),
                 (ivec3(1, 0, 0), ivec2(1, 1)),
             ],
+            | Face::DiagPosFront => [
+                (ivec3(0, 1, 0), ivec2(0, 0)),
+                (ivec3(0, 0, 0), ivec2(0, 1)),
+                (ivec3(1, 1, 1), ivec2(1, 0)),
+                (ivec3(1, 0, 1), ivec2(1, 1)),
+            ],
+            | Face::DiagPosBack => [
+                (ivec3(1, 1, 1), ivec2(0, 0)),
+                (ivec3(1, 0, 1), ivec2(0, 1)),
+                (ivec3(0, 1, 0), ivec2(1, 0)),
+                (ivec3(0, 0, 0), ivec2(1, 1)),
+            ],
+            | Face::DiagNegFront => [
+                (ivec3(1, 1, 0), ivec2(0, 0)),
+                (ivec3(1, 0, 0), ivec2(0, 1)),
+                (ivec3(0, 1, 1), ivec2(1, 0)),
+                (ivec3(0, 0, 1), ivec2(1, 1)),
+            ],
+            | Face::DiagNegBack => [
+                (ivec3(0, 1, 1), ivec2(0, 0)),
+                (ivec3(0, 0, 1), ivec2(0, 1)),
+                (ivec3(1, 1, 0), ivec2(1, 0)),
+                (ivec3(1, 0, 0), ivec2(1, 1)),
+            ],
         }
     }
 }
@@ -103,7 +140,7 @@ pub struct Quad {
 
 impl Quad {
     pub fn cube() -> [Self; 6] {
-        Face::ALL.map(|face| Self { position: glam::IVec3::ZERO, face })
+        Face::CARDINALS.map(|face| Self { position: glam::IVec3::ZERO, face })
     }
 
     pub fn positions(&self) -> [glam::Vec3; 4] {
@@ -248,7 +285,6 @@ impl ChunkMeshingAssisant {
         };
 
         let local_coord = self.chunk.to_chunk_coords(coord);
-
         match target_chunk {
             | Some(neighbor) => *neighbor.get(local_coord),
             | None => Self::EMPTY,
@@ -278,7 +314,7 @@ impl<'c> ChunkMesher<'c> {
                         continue;
                     }
 
-                    for face in Face::ALL {
+                    for face in Face::CARDINALS {
                         let offset = face.neighbor_offset();
                         let neighbor = self.chunks.get_adjacent(glam::ivec3(
                             x as i32 + offset.x,
@@ -302,10 +338,16 @@ impl<'c> ChunkMesher<'c> {
                             continue;
                         }
 
-                        quads.push(Quad {
-                            position: glam::ivec3(x as i32, y as i32, z as i32) + global,
-                            face,
-                        });
+                        let position = glam::ivec3(x as i32, y as i32, z as i32) + global;
+                        match block.mesh_style() {
+                            | block::EmittedMesh::RectilinearFull => {
+                                quads.push(Quad { position, face });
+                            }
+                            | block::EmittedMesh::RectilinearPartial => todo!(),
+                            | block::EmittedMesh::Decorator => {
+                                quads.extend(Face::DIAGONALS.map(|face| Quad { position, face }));
+                            }
+                        }
                     }
                 }
             }
