@@ -132,7 +132,7 @@ pub struct ChunkManager {
 
 impl ChunkManager {
     pub fn spawn_worker(&mut self) {
-        let (send_tx, send_rx) = mpsc::sync_channel(4 * self.view_distance * self.view_distance);
+        let (send_tx, send_rx) = mpsc::sync_channel(4 * /* self.view_distance * */ self.view_distance);
         let (recv_tx, recv_rx) = mpsc::channel();
 
         self.async_chunk_response(send_rx, recv_tx);
@@ -165,24 +165,52 @@ impl ChunkManager {
             }
         }
 
+        // self.center_chunk = self.chunk_surrounding(center);
+        // let range = self.view_distance as i32;
+        // for dz in -range..=range {
+        //     for dx in -range..=range {
+        //         let coord = self.center_chunk + glam::ivec3(dx, 0, dz);
+        //         if !self.chunk_in_range(coord) {
+        //             continue;
+        //         }
+
+        //         if !self.pending_chunks.contains(&coord) && !self.chunks.contains_key(&coord) {
+        //             self.request_chunk_generation(coord);
+        //         }
+
+        //         if !self.render_chunks.contains(&coord)
+        //             && !self.pending_render_chunks.contains(&coord)
+        //             && self.chunks.contains_key(&coord)
+        //         {
+        //             self.request_chunk_meshing(coord);
+        //         }
+        //     }
+        // }
+        const NEIGHBORS: [(i32, i32); 4] = [(1, 0), (-1, 0), (0, 1), (0, -1)];
         self.center_chunk = self.chunk_surrounding(center);
-        let range = self.view_distance as i32;
-        for dz in -range..=range {
-            for dx in -range..=range {
-                let coord = self.center_chunk + glam::ivec3(dx, 0, dz);
-                if !self.chunk_in_range(coord) {
-                    continue;
-                }
+        let mut queue = collections::VecDeque::from_iter([self.center_chunk]);
+        let mut visited = collections::HashSet::from([self.center_chunk]);
+        while let Some(coord) = queue.pop_front() {
+            if !self.chunk_in_range(coord) {
+                continue;
+            }
 
-                if !self.pending_chunks.contains(&coord) && !self.chunks.contains_key(&coord) {
-                    self.request_chunk_generation(coord);
-                }
+            if !self.pending_chunks.contains(&coord) && !self.chunks.contains_key(&coord) {
+                self.request_chunk_generation(coord);
+            }
 
-                if !self.render_chunks.contains(&coord)
-                    && !self.pending_render_chunks.contains(&coord)
-                    && self.chunks.contains_key(&coord)
-                {
-                    self.request_chunk_meshing(coord);
+            if !self.render_chunks.contains(&coord)
+                && !self.pending_render_chunks.contains(&coord)
+                && self.chunks.contains_key(&coord)
+            {
+                self.request_chunk_meshing(coord);
+            }
+
+            for (dx, dz) in NEIGHBORS {
+                let neighbor = coord + glam::ivec3(dx, 0, dz);
+                if !visited.contains(&neighbor) {
+                    visited.insert(neighbor);
+                    queue.push_back(neighbor);
                 }
             }
         }
