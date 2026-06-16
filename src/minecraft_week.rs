@@ -3,7 +3,7 @@ use std::{sync, time};
 use crate::{
     application::{self, input},
     atlas, chunk,
-    engine::{camera, transform},
+    engine::{aabb, camera, transform},
     pipelines, player,
     render::{self, GfxCamera, resource, util},
     skybox, terrain,
@@ -51,7 +51,11 @@ impl application::Application for MinecraftWeek {
             .znear(0.1)
             .zfear(1000.0)
             .build();
-        let player = player::PlayerController::builder().movespeed(0.5).lookspeed(0.0025).build();
+        let player = player::PlayerController::builder()
+            .movespeed(0.5)
+            .lookspeed(0.0025)
+            .collider(aabb::AaBb::point_sides(camera.inner.position.to_array(), [0.5, 1.0, 0.5]))
+            .build();
 
         let mut world = chunk::ChunkManager::builder()
             .atlas(sync::Arc::clone(&texture_atlas))

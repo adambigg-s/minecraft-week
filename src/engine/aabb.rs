@@ -1,4 +1,4 @@
-use std::cmp;
+use std::{cmp, ops};
 
 use crate::engine::kinematics;
 
@@ -14,6 +14,7 @@ pub enum Axis {
     Undefined,
 }
 
+#[derive(bon::Builder, Debug)]
 pub struct AaBb<T, const N: usize> {
     pub lo: [T; N],
     pub hi: [T; N],
@@ -25,6 +26,19 @@ impl<T, const N: usize> AaBb<T, N> {
         T: cmp::PartialOrd,
     {
         (0..N).all(|dim| self.lo[dim] <= other.hi[dim] && self.hi[dim] >= other.lo[dim])
+    }
+
+    pub fn point_sides(point: [T; N], sides: [T; N]) -> Self
+    where
+        T: ops::Add<T, Output = T> + ops::Sub<T, Output = T> + Copy,
+    {
+        let mut lo = point;
+        let mut hi = point;
+        (0..N).for_each(|dim| {
+            lo[dim] = lo[dim] - sides[dim];
+            hi[dim] = hi[dim] + sides[dim];
+        });
+        Self { lo, hi }
     }
 }
 
