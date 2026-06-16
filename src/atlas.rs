@@ -132,6 +132,10 @@ impl TextureAtlas {
                 .split_once('_')
                 .ok_or_else(|| anyhow::anyhow!("File name has no '_' separator: {:?}", path))?;
 
+            if tile_type == "atlas" {
+                continue;
+            }
+
             let face = match tile_type {
                 | "top" | "t" => BlockTextureFace::Top,
                 | "side" | "s" => BlockTextureFace::Side,

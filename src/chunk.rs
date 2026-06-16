@@ -12,9 +12,6 @@ use crate::{
     terrain::{self},
 };
 
-pub const CHUNK_WIDTH: usize = 32;
-pub const CHUNK_HEIGHT: usize = 128;
-
 #[derive(bon::Builder, Debug)]
 pub struct Chunk {
     pub blocks: buffer::Buffer<block::Block, 3>,
@@ -141,7 +138,9 @@ impl ChunkManager {
 
     pub fn update_chunks(&mut self, center: glam::Vec3) {
         if let Some(recv) = &self.chunk_recv {
+            let mut count = 0;
             while let Ok(response) = recv.try_recv() {
+                count += 1;
                 match response {
                     | ChunkResponse::Generated { coord, chunk } => {
                         if self.chunk_in_range(coord) {
@@ -156,11 +155,13 @@ impl ChunkManager {
                     }
                 }
             }
+            if count > 0 {
+                log::debug!("{} requests fulfilled", count);
+            }
         }
 
         self.center_chunk = self.chunk_surrounding(center);
         let range = self.view_distance as i32;
-
         for dz in -range..=range {
             for dx in -range..=range {
                 let coord = self.center_chunk + glam::ivec3(dx, 0, dz);
@@ -300,6 +301,7 @@ impl ChunkManager {
                             log::error!("Chunk terrain recieving error: {}", err);
                             return;
                         }
+                        log::debug!("Chunk generated for {}", coord);
                     }
                     | ChunkRequest::Mesh { chunk, assistant } => {
                         let mesh = chunk.raw_mesh(&atlas, assistant);
@@ -308,6 +310,7 @@ impl ChunkManager {
                             log::error!("Chunk mesh recieving error: {}", err);
                             return;
                         }
+                        log::debug!("Chunk mesh generated for {}", chunk.offset);
                     }
                     | ChunkRequest::Cleanup => {
                         return;

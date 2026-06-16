@@ -44,10 +44,7 @@ impl application::Application for MinecraftWeek {
         let terrain_gen = sync::Arc::new(terrain::TerrainGenerator::new(1));
 
         let camera = camera::Camera::builder()
-            .inner(transform::Transform::from_position(
-                glam::usizevec3(chunk::CHUNK_WIDTH / 2, chunk::CHUNK_HEIGHT, chunk::CHUNK_WIDTH / 2)
-                    .as_vec3(),
-            ))
+            .inner(transform::Transform::from_position(glam::vec3(0.0, 128.0, 0.0)))
             .fov(70.0)
             .znear(0.1)
             .zfear(1000.0)
@@ -58,8 +55,8 @@ impl application::Application for MinecraftWeek {
             .atlas(sync::Arc::clone(&texture_atlas))
             .view_distance(16)
             .terrain(sync::Arc::clone(&terrain_gen))
-            .chunk_width(chunk::CHUNK_WIDTH)
-            .chunk_height(chunk::CHUNK_HEIGHT)
+            .chunk_width(32)
+            .chunk_height(128)
             .build();
         world.spawn_worker();
 
@@ -115,11 +112,13 @@ impl application::Application for MinecraftWeek {
             cam_view.write(context, &self.camera.view());
         }
 
-        render.queue(render::GfxDrawCall {
-            mesh: "skybox_mesh".into(),
-            pipe: "skybox_pipe".into(),
-            bind_groups: vec!["global_bg".into(), "skybox_bg".into()],
-        });
+        if &self.pipeline == "terrain_pipe" {
+            render.queue(render::GfxDrawCall {
+                mesh: "skybox_mesh".into(),
+                pipe: "skybox_pipe".into(),
+                bind_groups: vec!["global_bg".into(), "skybox_bg".into()],
+            });
+        }
 
         self.world.render_chunks.iter().for_each(|&coord| {
             render.queue(render::GfxDrawCall {
@@ -128,12 +127,6 @@ impl application::Application for MinecraftWeek {
                 bind_groups: vec!["global_bg".into()],
             });
         });
-        if self.tick.is_multiple_of(100) {
-            log::info!("Number of draws calls: {}", render.render_queue.len());
-            log::info!("Number of meshes in renderer: {}", render.meshes.len());
-            log::info!("Number of chunks in chunkmanager: {}", self.world.chunks.len());
-            log::info!("Number of renders in chunkmanager: {}", self.world.render_chunks.len());
-        }
     }
 }
 
@@ -170,7 +163,7 @@ fn register_resources(
 
 fn create_atlas() -> Result<atlas::TextureAtlas, anyhow::Error> {
     let atlas = atlas::TextureAtlas::new("./res/", 16)?;
-    atlas.save("./res/atlas/texture_atlas.png")?;
+    atlas.save("./res/texture_atlas.png")?;
     Ok(atlas)
 }
 
@@ -179,7 +172,7 @@ fn create_skybox(
     render: &mut render::GfxRenderer,
 ) -> Result<skybox::Skybox, anyhow::Error> {
     let mut skybox = skybox::Skybox::new("./res/skybox/", 32, 500.0)?;
-    skybox.texture.save("./res/atlas/skybox_atlas.png")?;
+    skybox.texture.save("./res/skybox_atlas.png")?;
     render.register_mesh("skybox_mesh", skybox.create_gfx_mesh(context));
     Ok(skybox)
 }
@@ -241,6 +234,10 @@ impl MinecraftWeek {
         if input.consume_key_press("minus") {
             self.world.view_distance = self.world.view_distance.saturating_sub(1);
             self.world.center_chunk = glam::IVec3::MAX;
+        }
+        if input.consume_key_press("keyg") {
+            self.world.chunks.clear();
+            self.world.render_chunks.clear();
         }
     }
 
