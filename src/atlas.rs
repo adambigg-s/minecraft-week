@@ -36,7 +36,7 @@ impl TextureAtlas {
             &String,
             &collections::HashMap<BlockTextureFace, image::ImageBuffer<image::Rgba<u8>, Vec<u8>>>,
         )>>();
-        images.sort_unstable_by_key(|(a, _)| *a);
+        images.sort_unstable_by_key(|(name_alphabetical, _)| *name_alphabetical);
 
         let index_assistant = buffer::Buffer::<(), 2>::new([tiles_per_side as usize; 2]);
         let mut current_tile = 0;
@@ -44,7 +44,7 @@ impl TextureAtlas {
             let mut faces = faces
                 .iter()
                 .collect::<Vec<(&BlockTextureFace, &image::ImageBuffer<image::Rgba<u8>, Vec<u8>>)>>();
-            faces.sort_unstable_by_key(|(a, _)| *a);
+            faces.sort_unstable_by_key(|(name_alphabetical, _)| *name_alphabetical);
 
             for (&face, image) in faces {
                 let [x, y] = index_assistant.delinearize(current_tile).map(|val| val as u32 * tile_size);

@@ -21,6 +21,10 @@ pub struct AaBb<T, const N: usize> {
 }
 
 impl<T, const N: usize> AaBb<T, N> {
+    pub fn new(lo: [T; N], hi: [T; N]) -> Self {
+        Self { lo, hi }
+    }
+
     pub fn overlaps(&self, other: &Self) -> bool
     where
         T: cmp::PartialOrd,

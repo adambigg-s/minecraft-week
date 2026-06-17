@@ -55,6 +55,7 @@ impl Kinematics {
         else {
             curr = x;
         }
+
         let y = curr + glam::vec3(0.0, delta.y, 0.0);
         if world.collides(y) {
             self.velocity.y = 0.0;
@@ -62,6 +63,7 @@ impl Kinematics {
         else {
             curr = y;
         }
+
         let z = curr + glam::vec3(0.0, 0.0, delta.z);
         if world.collides(z) {
             self.velocity.z = 0.0;

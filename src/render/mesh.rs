@@ -30,16 +30,24 @@ impl GfxMesh {
         Self { vertex, index, size }
     }
 
-    pub fn write<Vertex, Index>(&self, context: &render::GfxContext, vertices: &[Vertex], indices: &[Index])
-    where
+    pub fn write<Vertex, Index>(
+        &mut self,
+        context: &render::GfxContext,
+        vertices: &[Vertex],
+        indices: &[Index],
+    ) where
         Vertex: render::GfxVertex,
         Index: Into<u32> + Copy,
     {
-        context.queue.write_buffer(&self.vertex, 0, bytemuck::cast_slice(vertices));
-        context.queue.write_buffer(
-            &self.index,
-            0,
-            bytemuck::cast_slice(&indices.iter().map(|&index| index.into()).collect::<Vec<u32>>()),
-        );
+        if self.size >= indices.len() as u32 {
+            context.queue.write_buffer(&self.vertex, 0, bytemuck::cast_slice(vertices));
+            context.queue.write_buffer(
+                &self.index,
+                0,
+                bytemuck::cast_slice(&indices.iter().map(|&index| index.into()).collect::<Vec<u32>>()),
+            );
+            return;
+        }
+        *self = Self::new(context, vertices, indices);
     }
 }

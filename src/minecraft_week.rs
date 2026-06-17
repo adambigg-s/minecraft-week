@@ -1,4 +1,4 @@
-use std::{sync, time};
+use std::{range, sync, time};
 
 use crate::{
     application::{self, input},
@@ -6,6 +6,7 @@ use crate::{
     engine::{
         aabb, camera,
         kinematics::{self},
+        ray::{self, Cast},
         transform,
     },
     pipelines, player,
@@ -279,6 +280,18 @@ impl MinecraftWeek {
             self.player.movespeed *= 2.0;
         }
 
+        if input.consume_mouse_left_release() {
+            let ray = ray::Ray {
+                origin: self.camera.inner.position,
+                direction: self.camera.inner.forward(),
+                tspan: range::Range { start: 0.0, end: 4.0 },
+            };
+
+            if let Some(_) = self.world.cast(ray) {
+                log::info!("The ray hit something.");
+            }
+        }
+
         let [mut dy, mut dx] = input.consume_mouse_delta().into();
         [dy, dx] = (glam::vec2(dy, dx) * self.player.lookspeed).to_array();
         self.camera.yaw -= dy;
@@ -290,6 +303,7 @@ impl MinecraftWeek {
 
         match self.player.collisions {
             | true => {
+                let mut frame_ms = self.player.movespeed;
                 let [mut dx, _, mut dz] = [0.0; 3];
                 if input.get_key_pres("keyw") {
                     dz += 1.0;
@@ -306,15 +320,18 @@ impl MinecraftWeek {
                 if input.get_key_pres("space") {
                     self.player.kinematics.jump(12.0);
                 }
+                if input.get_key_pres("shiftleft") {
+                    frame_ms *= 1.7;
+                }
                 let forward = self.camera.inner.forward().with_y(0.0).normalize_or_zero();
                 let right = self.camera.inner.right().with_y(0.0).normalize_or_zero();
                 let movement = (right * dx + forward * dz).normalize_or_zero();
-                self.player.kinematics.velocity.x = movement.x * self.player.movespeed;
-                self.player.kinematics.velocity.z = movement.z * self.player.movespeed;
-                self.player.kinematics.apply_gravity(0.5);
+                self.player.kinematics.velocity.x = movement.x * frame_ms;
+                self.player.kinematics.velocity.z = movement.z * frame_ms;
+                self.player.kinematics.apply_gravity(0.45);
                 self.player.collider =
                     self.player.kinematics.translate(self.player.collider, &self.world, self.frame_delta);
-                self.camera.inner.position = self.player.collider.center() + glam::vec3(0.0, 0.5, 0.0);
+                self.camera.inner.position = self.player.collider.center() + glam::vec3(0.0, 0.55, 0.0);
             }
             | false => {
                 let [mut dx, mut dy, mut dz] = [0.0; 3];

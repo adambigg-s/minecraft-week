@@ -140,12 +140,8 @@ where
             }
             | event::WindowEvent::KeyboardInput { event, .. } => {
                 log::debug!("Keyboard input: {:?}", event);
-                let keycode = match event.physical_key {
-                    | keyboard::PhysicalKey::Code(key_code) => key_code,
-                    | keyboard::PhysicalKey::Unidentified(native_key_code) => {
-                        log::error!("Unidentified keycode: {:?}", native_key_code);
-                        return;
-                    }
+                let keyboard::PhysicalKey::Code(keycode) = event.physical_key else {
+                    return;
                 };
 
                 let name = input::keycode_name(&keycode);

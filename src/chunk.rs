@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     atlas, block,
-    engine::{kinematics, storage::buffer},
+    engine::{kinematics, ray, storage::buffer},
     mesher,
     render::{self, mesh},
     terrain::{self},
@@ -111,6 +111,86 @@ impl kinematics::Collision for Chunk {
 }
 
 #[derive(bon::Builder, Debug)]
+pub struct ChunkHit {
+    pub block: block::Block,
+    pub pos: glam::IVec3,
+}
+
+impl ray::Cast for Chunk {
+    type Hit = ChunkHit;
+
+    fn cast(&self, ray: ray::Ray) -> Option<Self::Hit> {
+        let (dir, pos) = (ray.direction, ray.origin);
+        let step = dir.signum().as_ivec3();
+        let delta = glam::vec3(
+            if dir.x != 0.0 { dir.x.recip().abs() } else { f32::INFINITY },
+            if dir.y != 0.0 { dir.y.recip().abs() } else { f32::INFINITY },
+            if dir.z != 0.0 { dir.z.recip().abs() } else { f32::INFINITY },
+        );
+
+        let mut idx = pos
+            .floor()
+            .as_ivec3()
+            .clamp(glam::IVec3::ZERO, glam::IVec3::from_slice(&self.blocks.size().map(|ele| ele as i32 - 1)));
+        let mut time = 0.0;
+        let mut side_dist = glam::vec3(
+            if dir.x > 0.0 {
+                ((idx.x + 1) as f32 - pos.x) * delta.x
+            }
+            else {
+                (pos.x - idx.x as f32) * delta.x
+            },
+            if dir.y > 0.0 {
+                ((idx.y + 1) as f32 - pos.y) * delta.y
+            }
+            else {
+                (pos.y - idx.y as f32) * delta.y
+            },
+            if dir.z > 0.0 {
+                ((idx.z + 1) as f32 - pos.z) * delta.z
+            }
+            else {
+                (pos.z - idx.z as f32) * delta.z
+            },
+        );
+        loop {
+            if time > ray.tspan.end || !self.check_index(idx) {
+                return None;
+            }
+
+            if self.get(idx) != &block::Block::Air {
+                return Some(ChunkHit { block: *self.get(idx), pos: idx });
+            }
+
+            if side_dist.x < side_dist.y {
+                if side_dist.x < side_dist.z {
+                    time += side_dist.x;
+                    side_dist.x += delta.x;
+                    idx.x += step.x;
+                }
+                else {
+                    time += side_dist.z;
+                    side_dist.z += delta.z;
+                    idx.z += step.z;
+                }
+            }
+            else {
+                if side_dist.y < side_dist.z {
+                    time += side_dist.y;
+                    side_dist.y += delta.y;
+                    idx.y += step.y;
+                }
+                else {
+                    time += side_dist.z;
+                    side_dist.z += delta.z;
+                    idx.z += step.z;
+                }
+            }
+        }
+    }
+}
+
+#[derive(bon::Builder, Debug)]
 pub struct ChunkRawMesh {
     pub vertices: Vec<mesher::TerrainVertex>,
     pub indices: Vec<u32>,
@@ -166,7 +246,7 @@ pub struct ChunkManager {
 
 impl ChunkManager {
     pub fn spawn_worker(&mut self) {
-        let (send_tx, send_rx) = mpsc::sync_channel(4 * /* self.view_distance * */ self.view_distance);
+        let (send_tx, send_rx) = mpsc::sync_channel(4 * self.view_distance);
         let (recv_tx, recv_rx) = mpsc::channel();
 
         self.async_chunk_response(send_rx, recv_tx);
@@ -199,28 +279,6 @@ impl ChunkManager {
             }
         }
 
-        // self.center_chunk = self.chunk_surrounding(center);
-        // let range = self.view_distance as i32;
-        // for dz in -range..=range {
-        //     for dx in -range..=range {
-        //         let coord = self.center_chunk + glam::ivec3(dx, 0, dz);
-        //         if !self.chunk_in_range(coord) {
-        //             continue;
-        //         }
-
-        //         if !self.pending_chunks.contains(&coord) && !self.chunks.contains_key(&coord) {
-        //             self.request_chunk_generation(coord);
-        //         }
-
-        //         if !self.render_chunks.contains(&coord)
-        //             && !self.pending_render_chunks.contains(&coord)
-        //             && self.chunks.contains_key(&coord)
-        //         {
-        //             self.request_chunk_meshing(coord);
-        //         }
-        //     }
-        // }
-        const NEIGHBORS: [(i32, i32); 4] = [(1, 0), (-1, 0), (0, 1), (0, -1)];
         self.center_chunk = self.chunk_surrounding(center);
         let mut queue = collections::VecDeque::from_iter([self.center_chunk]);
         let mut visited = collections::HashSet::from([self.center_chunk]);
@@ -228,11 +286,9 @@ impl ChunkManager {
             if !self.chunk_in_range(coord) {
                 continue;
             }
-
             if !self.pending_chunks.contains(&coord) && !self.chunks.contains_key(&coord) {
                 self.request_chunk_generation(coord);
             }
-
             if !self.render_chunks.contains(&coord)
                 && !self.pending_render_chunks.contains(&coord)
                 && self.chunks.contains_key(&coord)
@@ -240,7 +296,7 @@ impl ChunkManager {
                 self.request_chunk_meshing(coord);
             }
 
-            for (dx, dz) in NEIGHBORS {
+            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
                 let neighbor = coord + glam::ivec3(dx, 0, dz);
                 if !visited.contains(&neighbor) {
                     visited.insert(neighbor);
@@ -414,6 +470,20 @@ impl kinematics::Collision for ChunkManager {
                 }
             }
         }
+
         false
+    }
+}
+
+impl ray::Cast for ChunkManager {
+    type Hit = ChunkHit;
+
+    fn cast(&self, ray: ray::Ray) -> Option<Self::Hit> {
+        let center_chunk = self.chunk_surrounding(ray.origin);
+        if let Some(chunk) = self.chunks.get(&center_chunk) {
+            return chunk.cast(ray);
+        }
+
+        None
     }
 }

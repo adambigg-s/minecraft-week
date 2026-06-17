@@ -10,8 +10,8 @@ pub enum Visibility {
     #[default]
     Invisible,
     Opaque,
-    Transparent,
     PartialOpaque,
+    Transparent,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -63,42 +63,34 @@ impl Block {
         Block::Shrub,
     ];
 
+        #[rustfmt::skip]
     pub fn name(&self) -> &'static str {
         match self {
-            | Block::Air => "air",
-            | Block::Dirt => "dirt",
-            | Block::Grass => "grass",
-            | Block::Sand => "sand",
-            | Block::Water => "water",
-            | Block::Lava => "lava",
-            | Block::Log => "log",
-            | Block::Leaf => "leaf",
-            | Block::Stone => "stone",
-            | Block::Gravel => "gravel",
-            | Block::Plank => "plank",
-            | Block::Quartz => "quartz",
-            | Block::RedFlower => "redflower",
-            | Block::BlueFlower => "blueflower",
-            | Block::Shrub => "shrub",
+            | Block::Air          => "air",
+            | Block::Dirt         => "dirt",
+            | Block::Grass        => "grass",
+            | Block::Sand         => "sand",
+            | Block::Water        => "water",
+            | Block::Lava         => "lava",
+            | Block::Log          => "log",
+            | Block::Leaf         => "leaf",
+            | Block::Stone        => "stone",
+            | Block::Gravel       => "gravel",
+            | Block::Plank        => "plank",
+            | Block::Quartz       => "quartz",
+            | Block::RedFlower    => "redflower",
+            | Block::BlueFlower   => "blueflower",
+            | Block::Shrub        => "shrub",
             | Block::BlockCounter => "",
         }
     }
 
     pub fn visibility(&self) -> Visibility {
         match self {
-            | Block::Dirt
-            | Block::Grass
-            | Block::Sand
-            | Block::Lava
-            | Block::Log
-            | Block::Stone
-            | Block::Gravel
-            | Block::Plank
-            | Block::Quartz
-            | Block::BlockCounter => Visibility::Opaque,
             | Block::Air => Visibility::Invisible,
             | Block::Water => Visibility::Transparent,
             | Block::Leaf | Block::RedFlower | Block::BlueFlower | Block::Shrub => Visibility::PartialOpaque,
+            | _ => Visibility::Opaque,
         }
     }
 
@@ -134,7 +126,12 @@ impl kinematics::Collision for Block {
 
     fn collides(&self, _: Self::Collider) -> bool {
         match self {
-            | Block::Air | Block::Water | Block::RedFlower | Block::BlueFlower | Block::Shrub => false,
+            | Block::Air
+            | Block::Water
+            | Block::RedFlower
+            | Block::BlueFlower
+            | Block::Shrub
+            | Block::Lava => false,
             | _ => true,
         }
     }

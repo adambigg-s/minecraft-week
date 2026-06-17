@@ -17,17 +17,15 @@ Minecraft inspired voxel game made in one week with Rust and wgpu
 
 ##### Files that are in disarray
 - terrain.rs
-- mesher.rs
+- minecraft_week.rs - the main file is so bad
 
 ##### Blocks to add
 - ores (coal, iron etc.)
-- flower
 
 ###### Goals for today
-- make terrain generation look nice
-  - this is the last thing that needs to be done, basically
 - add a screenshot tool
 - add voxel AO
-- fix meshes with transparency and add flower 
+- fix structures generating over chunk borders
+- refactor terrain so that the file is readable
 
 

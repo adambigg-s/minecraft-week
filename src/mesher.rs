@@ -37,30 +37,32 @@ impl Face {
         Face::DiagNegBack,
     ];
 
+    #[rustfmt::skip]
     pub fn neighbor_offset(&self) -> glam::IVec3 {
         match self {
-            | Face::Top => glam::ivec3(0, 1, 0),
+            | Face::Top    => glam::ivec3(0, 1, 0),
             | Face::Bottom => glam::ivec3(0, -1, 0),
-            | Face::Left => glam::ivec3(-1, 0, 0),
-            | Face::Right => glam::ivec3(1, 0, 0),
-            | Face::Back => glam::ivec3(0, 0, 1),
-            | Face::Front => glam::ivec3(0, 0, -1),
+            | Face::Left   => glam::ivec3(-1, 0, 0),
+            | Face::Right  => glam::ivec3(1, 0, 0),
+            | Face::Back   => glam::ivec3(0, 0, 1),
+            | Face::Front  => glam::ivec3(0, 0, -1),
             | _ => glam::IVec3::ZERO,
         }
     }
 
+    #[rustfmt::skip]
     pub fn normal(&self) -> glam::Vec3 {
         match self {
-            | Face::Top => glam::Vec3::Y,
-            | Face::Bottom => glam::Vec3::NEG_Y,
-            | Face::Left => glam::Vec3::X,
-            | Face::Right => glam::Vec3::NEG_X,
-            | Face::Back => glam::Vec3::Z,
-            | Face::Front => glam::Vec3::NEG_Z,
+            | Face::Top          => glam::Vec3::Y,
+            | Face::Bottom       => glam::Vec3::NEG_Y,
+            | Face::Left         => glam::Vec3::X,
+            | Face::Right        => glam::Vec3::NEG_X,
+            | Face::Back         => glam::Vec3::Z,
+            | Face::Front        => glam::Vec3::NEG_Z,
             | Face::DiagPosFront => glam::ivec3(1, 0, -1).as_vec3().normalize(),
-            | Face::DiagPosBack => glam::ivec3(1, 0, 1).as_vec3().normalize(),
+            | Face::DiagPosBack  => glam::ivec3(1, 0, 1).as_vec3().normalize(),
             | Face::DiagNegFront => glam::ivec3(-1, 0, -1).as_vec3().normalize(),
-            | Face::DiagNegBack => glam::ivec3(-1, 0, 1).as_vec3().normalize(),
+            | Face::DiagNegBack  => glam::ivec3(-1, 0, 1).as_vec3().normalize(),
         }
     }
 
@@ -323,17 +325,16 @@ impl<'c> ChunkMesher<'c> {
                         ));
 
                         let emit = match (block.visibility(), neighbor.visibility()) {
-                            | (Opaque, PartialOpaque) => true,
-                            | (Opaque, Transparent) => true,
-                            | (Opaque, Invisible) => true,
-                            | (PartialOpaque, PartialOpaque) => true,
-                            | (PartialOpaque, Transparent) => true,
-                            | (PartialOpaque, Invisible) => true,
-                            | (Transparent, Invisible) => true,
+                            | (Opaque, PartialOpaque)
+                            | (Opaque, Transparent)
+                            | (Opaque, Invisible)
+                            | (PartialOpaque, PartialOpaque)
+                            | (PartialOpaque, Transparent)
+                            | (PartialOpaque, Invisible)
+                            | (Transparent, Invisible)
                             | (Transparent, PartialOpaque) => true,
                             | _ => false,
                         };
-
                         if !emit {
                             continue;
                         }
@@ -343,10 +344,10 @@ impl<'c> ChunkMesher<'c> {
                             | block::EmittedMesh::RectilinearFull => {
                                 quads.push(Quad { position, face });
                             }
-                            | block::EmittedMesh::RectilinearPartial => todo!(),
                             | block::EmittedMesh::Decorator => {
                                 quads.extend(Face::DIAGONALS.map(|face| Quad { position, face }));
                             }
+                            | block::EmittedMesh::RectilinearPartial => todo!(),
                         }
                     }
                 }
