@@ -15,17 +15,37 @@ use crate::{
 };
 
 #[derive(bon::Builder, Debug)]
+pub struct GfxConfiguration {
+    pub pipeline: String,
+    pub avaliable_pipes: Vec<String>,
+    pub ao_strength: f32,
+}
+
+#[derive(bon::Builder, Debug)]
+pub struct FrameData {
+    pub dt: f32,
+    pub time: f32,
+    pub instant: time::Instant,
+    pub tick: usize,
+}
+
+impl FrameData {
+    pub fn update(&mut self) {
+        self.dt = self.instant.elapsed().as_secs_f32();
+        self.time += self.dt;
+        self.instant = time::Instant::now();
+        self.tick += 1;
+    }
+}
+
+#[derive(bon::Builder, Debug)]
 pub struct MinecraftWeek {
     pub camera: camera::Camera,
     pub player: player::PlayerController,
     pub world: chunk::ChunkManager,
-    pub pipeline: String,
-    pub avaliable_pipelines: Vec<String>,
+    pub gfx_config: GfxConfiguration,
+    pub frame_data: FrameData,
     pub block_selection: usize,
-    pub tick: usize,
-    pub time: f32,
-    pub frame_delta: f32,
-    pub instant: time::Instant,
 }
 
 impl application::Application for MinecraftWeek {
@@ -74,25 +94,29 @@ impl application::Application for MinecraftWeek {
             .build();
         world.spawn_worker();
 
-        let pipeline = "terrain_pipe".into();
-        let avaliable_pipelines = vec!["terrain_pipe".into(), "wireframe_pipe".into()];
-        let tick = 0;
+        let gfx_config = GfxConfiguration {
+            pipeline: "terrain_pipe".into(),
+            avaliable_pipes: vec!["terrain_pipe".into(), "wireframe_pipe".into()],
+            ao_strength: 2.0,
+        };
+
         let instant = time::Instant::now();
-        let frame_delta = 0.0;
+        let frame_data = FrameData {
+            tick: 0,
+            time: instant.elapsed().as_secs_f32(),
+            dt: 0.0,
+            instant: time::Instant::now(),
+        };
+
         let block_selection = 0;
-        let time = instant.elapsed().as_secs_f32();
 
         Ok(Self {
             camera,
             player,
             world,
-            pipeline,
-            avaliable_pipelines,
+            gfx_config,
+            frame_data,
             block_selection,
-            tick,
-            time,
-            frame_delta,
-            instant,
         })
     }
 
@@ -109,10 +133,7 @@ impl application::Application for MinecraftWeek {
         self.handle_interaction_input(input);
 
         self.world.update_chunks(self.camera.inner.position);
-        self.tick += 1;
-        self.frame_delta = self.instant.elapsed().as_secs_f32();
-        self.time += self.frame_delta;
-        self.instant = time::Instant::now();
+        self.frame_data.update();
     }
 
     fn gfx_frame(
@@ -129,7 +150,7 @@ impl application::Application for MinecraftWeek {
 
         self.update_resources(context, render);
 
-        if &self.pipeline == "terrain_pipe" {
+        if &self.gfx_config.pipeline == "terrain_pipe" {
             render.queue(render::GfxDrawCall {
                 mesh: "skybox_mesh".into(),
                 pipe: "skybox_pipe".into(),
@@ -140,7 +161,7 @@ impl application::Application for MinecraftWeek {
         self.world.render_chunks.iter().for_each(|&coord| {
             render.queue(render::GfxDrawCall {
                 mesh: chunk::ChunkManager::chunk_key(coord),
-                pipe: self.pipeline.to_owned(),
+                pipe: self.gfx_config.pipeline.to_owned(),
                 bind_groups: vec!["global_bg".into()],
             });
         });
@@ -161,6 +182,7 @@ fn register_bind_groups(
             "texture_atlas",
             "sampler",
             "time_uni",
+            "ao_uni",
         ],
     )?;
     render.register_bind_group(context, "skybox_bg", "skybox_layout", &["skybox_atlas", "sampler"])?;
@@ -182,6 +204,7 @@ fn register_resources(
     render.register_resource("camera_uni", util::uniform::<glam::Mat4>(context, "Camera"));
     render.register_resource("camera_view_uni", util::uniform::<glam::Mat4>(context, "Camera view"));
     render.register_resource("time_uni", util::uniform::<f32>(context, "Global time"));
+    render.register_resource("ao_uni", util::uniform::<f32>(context, "Global AO strength"));
     Ok((atlas, skybox))
 }
 
@@ -213,6 +236,7 @@ fn register_pipelines(
             resource::GfxBindingLayout::Uniform,
             resource::GfxBindingLayout::Texture,
             resource::GfxBindingLayout::Sampler,
+            resource::GfxBindingLayout::Uniform,
             resource::GfxBindingLayout::Uniform,
         ],
     )?;
@@ -251,10 +275,11 @@ impl MinecraftWeek {
             input.request_grab = !input.request_grab;
         }
         if input.consume_key_press("keyr") {
-            for (index, pipe) in self.avaliable_pipelines.iter().enumerate() {
-                if pipe == &self.pipeline {
-                    self.pipeline =
-                        self.avaliable_pipelines[(index + 1) % self.avaliable_pipelines.len()].to_owned();
+            for (index, pipe) in self.gfx_config.avaliable_pipes.iter().enumerate() {
+                if pipe == &self.gfx_config.pipeline {
+                    self.gfx_config.pipeline = self.gfx_config.avaliable_pipes
+                        [(index + 1) % self.gfx_config.avaliable_pipes.len()]
+                    .to_owned();
                     break;
                 }
             }
@@ -272,6 +297,13 @@ impl MinecraftWeek {
         }
         if input.consume_key_press("keyf") {
             self.block_selection += 1;
+        }
+
+        if input.consume_key_press("keyo") {
+            self.gfx_config.ao_strength -= 0.5;
+        }
+        if input.consume_key_press("keyp") {
+            self.gfx_config.ao_strength += 0.5;
         }
     }
 
@@ -321,7 +353,7 @@ impl MinecraftWeek {
                 self.player.kinematics.velocity.z = movement.z * frame_ms;
                 self.player.kinematics.apply_gravity(0.45);
                 self.player.collider =
-                    self.player.kinematics.translate(self.player.collider, &self.world, self.frame_delta);
+                    self.player.kinematics.translate(self.player.collider, &self.world, self.frame_data.dt);
                 self.camera.inner.position = self.player.collider.center() + glam::vec3(0.0, 0.55, 0.0);
             }
             | false => {
@@ -345,7 +377,7 @@ impl MinecraftWeek {
                     dy -= 1.0;
                 }
                 [dx, dy, dz] =
-                    (glam::vec3(dx, dy, dz).normalize_or_zero() * self.player.movespeed * self.frame_delta)
+                    (glam::vec3(dx, dy, dz).normalize_or_zero() * self.player.movespeed * self.frame_data.dt)
                         .to_array();
                 self.camera.update_position(dx, dy, dz);
                 self.player.collider =
@@ -362,7 +394,10 @@ impl MinecraftWeek {
             cam_view.write(context, &self.camera.view());
         }
         if let Some(resource::GfxResource::Uniform(global_time)) = render.resources.get("time_uni") {
-            global_time.write(context, &self.time);
+            global_time.write(context, &self.frame_data.time);
+        }
+        if let Some(resource::GfxResource::Uniform(ao_strength)) = render.resources.get("ao_uni") {
+            ao_strength.write(context, &self.gfx_config.ao_strength);
         }
     }
 

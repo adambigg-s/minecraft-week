@@ -1,19 +1,24 @@
 # minecraft-week
 Minecraft inspired voxel game made in one week with Rust and wgpu
 
-### Current state
+## Current state
 ![screenshot](images/trees.png)
 ![screenshot](images/meshing.png)
 
-### Goals
+## Goals
 - Infinite world generation
-- Player collision
 - World interaction
 - Async chunk generation
 - Sun shadows
 - Voxel lighting
 
-#### Notes
+## Building
+You will need:
+- Rust v1.9 or later
+- Cargo-nightly toolchain (unlikely to build w/o)
+
+Run the project:
+$ cargo run --release -- <seed>
 
 ##### Files that are in disarray
 - terrain.rs

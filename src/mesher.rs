@@ -136,8 +136,8 @@ impl Face {
 
 #[derive(bon::Builder, Debug)]
 pub struct Quad {
-    position: glam::IVec3,
-    face: Face,
+    pub position: glam::IVec3,
+    pub face: Face,
 }
 
 impl Quad {
@@ -163,12 +163,34 @@ impl Quad {
 }
 
 #[derive(bon::Builder, Debug)]
+pub struct MeshQuad {
+    pub quad: Quad,
+    pub ao: [f32; 4],
+}
+
+impl MeshQuad {
+    pub fn cube() -> [Self; 6] {
+        Quad::cube().map(|quad| Self { quad, ao: [1.0; 4] })
+    }
+
+    pub fn indices(&self, start: u32) -> [u32; 6] {
+        if self.ao[0] + self.ao[3] < self.ao[1] + self.ao[2] {
+            [start, start + 2, start + 1, start + 1, start + 2, start + 3]
+        }
+        else {
+            [start, start + 2, start + 3, start, start + 3, start + 1]
+        }
+    }
+}
+
+#[derive(bon::Builder, Debug)]
 pub struct RectilinearMeshSlice<'r> {
     pub face: Face,
     pub integer_position: glam::IVec3,
     pub pos: &'r mut [glam::Vec3],
     pub nor: &'r mut [glam::Vec3],
     pub uvs: &'r mut [glam::Vec2],
+    pub aos: &'r mut [f32],
 }
 
 #[derive(bon::Builder, Debug, Default)]
@@ -176,6 +198,7 @@ pub struct RectilinearMesh {
     pub positions: Vec<glam::Vec3>,
     pub normals: Vec<glam::Vec3>,
     pub uvs: Vec<glam::Vec2>,
+    pub aos: Vec<f32>,
     pub indices: Vec<u32>,
     pub integer_positions: Vec<glam::IVec3>,
     pub faces: Vec<Face>,
@@ -183,16 +206,17 @@ pub struct RectilinearMesh {
 }
 
 impl RectilinearMesh {
-    pub fn from_quads(quads: &[Quad]) -> Self {
+    pub fn from_quads(quads: &[MeshQuad]) -> Self {
         let mut out = Self { size: quads.len(), ..Default::default() };
         quads.iter().for_each(|quad| {
             let len = out.positions.len();
-            out.positions.extend_from_slice(&quad.positions());
-            out.normals.extend_from_slice(&quad.normals());
-            out.uvs.extend_from_slice(&quad.texture_uvs());
+            out.positions.extend_from_slice(&quad.quad.positions());
+            out.normals.extend_from_slice(&quad.quad.normals());
+            out.uvs.extend_from_slice(&quad.quad.texture_uvs());
+            out.aos.extend_from_slice(&quad.ao);
             out.indices.extend_from_slice(&quad.indices(len as u32));
-            out.faces.push(quad.face);
-            out.integer_positions.push(quad.position);
+            out.faces.push(quad.quad.face);
+            out.integer_positions.push(quad.quad.position);
         });
         out
     }
@@ -205,11 +229,12 @@ impl RectilinearMesh {
             pos: &mut self.positions[offset..offset + 4],
             nor: &mut self.normals[offset..offset + 4],
             uvs: &mut self.uvs[offset..offset + 4],
+            aos: &mut self.aos[offset..offset + 4],
         }
     }
 
     pub fn unit_cube() -> Self {
-        Self::from_quads(&Quad::cube())
+        Self::from_quads(&MeshQuad::cube())
     }
 
     pub fn scale(&mut self, scale: glam::Vec3) {
@@ -321,8 +346,10 @@ impl<'c> ChunkMesher<'c> {
         for z in 0..self.chunks.chunk.width {
             for y in 0..self.chunks.chunk.height {
                 for x in 0..self.chunks.chunk.width {
-                    let block = self.chunks.chunk.blocks.get([x, y, z]);
+                    let coord = glam::ivec3(x as i32, y as i32, z as i32);
+                    let position = coord + global;
 
+                    let block = self.chunks.chunk.get(coord);
                     if block == &Air {
                         continue;
                     }
@@ -350,13 +377,16 @@ impl<'c> ChunkMesher<'c> {
                             continue;
                         }
 
-                        let position = glam::ivec3(x as i32, y as i32, z as i32) + global;
+                        let ao = self.map_ao(coord, face);
                         match block.mesh_style() {
                             | block::EmittedMesh::RectilinearFull => {
-                                quads.push(Quad { position, face });
+                                quads.push(MeshQuad { quad: Quad { position, face }, ao });
                             }
                             | block::EmittedMesh::Decorator => {
-                                quads.extend(Face::DIAGONALS.map(|face| Quad { position, face }));
+                                quads.extend(
+                                    Face::DIAGONALS
+                                        .map(|face| MeshQuad { quad: Quad { position, face }, ao: [1.0; 4] }),
+                                );
                             }
                             | block::EmittedMesh::RectilinearPartial => todo!(),
                         }
@@ -375,5 +405,37 @@ impl<'c> ChunkMesher<'c> {
             let block = self.chunks.chunk.get(position);
             self.atlas.conform_uvs(uvs, block.name(), face);
         });
+    }
+
+    pub fn map_ao(&self, coord: glam::IVec3, face: Face) -> [f32; 4] {
+        let normal = face.neighbor_offset();
+        let adjacent = coord + normal;
+
+        face.corners().map(|(offset, _)| {
+            let direction = offset * 2 - glam::IVec3::ONE;
+            let tangent_candidate = direction * (glam::IVec3::ONE - normal.abs());
+
+            let (tan, bitan) = if normal.x != 0 {
+                (glam::ivec3(0, tangent_candidate.y, 0), glam::ivec3(0, 0, tangent_candidate.z))
+            }
+            else if normal.y != 0 {
+                (glam::ivec3(tangent_candidate.x, 0, 0), glam::ivec3(0, 0, tangent_candidate.z))
+            }
+            else {
+                (glam::ivec3(tangent_candidate.x, 0, 0), glam::ivec3(0, tangent_candidate.y, 0))
+            };
+
+            let side1 = self.chunks.get_adjacent(adjacent + tan).visibility() == block::Visibility::Opaque;
+            let side2 = self.chunks.get_adjacent(adjacent + bitan).visibility() == block::Visibility::Opaque;
+            let corner =
+                self.chunks.get_adjacent(adjacent + tan + bitan).visibility() == block::Visibility::Opaque;
+
+            let occlusion = match (side1, side2) {
+                | (true, true) => 0,
+                | _ => 3 - (side1 as i32 + side2 as i32 + corner as i32),
+            };
+
+            (occlusion as f32 + 1.0) * 0.25
+        })
     }
 }

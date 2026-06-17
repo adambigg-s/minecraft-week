@@ -63,15 +63,15 @@ impl Chunk {
 
         let mut vertices = Vec::new();
         (0..rectilinear.size).for_each(|index| {
-            let mesher::RectilinearMeshSlice { pos, nor, uvs, .. } = rectilinear.quad_slice(index);
+            let mesher::RectilinearMeshSlice { pos, nor, uvs, aos, .. } = rectilinear.quad_slice(index);
 
             (0..4).for_each(|vertex| {
                 vertices.push(mesher::TerrainVertex {
                     pos: pos[vertex],
                     nor: nor[vertex],
                     tex: uvs[vertex],
-                    lum: 1.0,
-                    ao: 1.0,
+                    ao: aos[vertex],
+                    ..Default::default()
                 });
             });
         });

@@ -46,6 +46,8 @@ struct FragmentOutput {
 
 @group(0) @binding(2) var texture_atlas: texture_2d<f32>;
 @group(0) @binding(3) var sample_atlas: sampler;
+@group(0) @binding(4) var<uniform> global_time: f32;
+@group(0) @binding(5) var<uniform> global_ao: f32;
 
 @fragment
 fn fs_main(in: VertexOut) -> FragmentOutput {
@@ -57,7 +59,8 @@ fn fs_main(in: VertexOut) -> FragmentOutput {
 
     let abs_nor = abs(in.nor);
     let light = dot(abs_nor, FACE_LIGHTING);
-    let diffuse_color = color * light;
+    let ao = pow(in.ao, global_ao);
+    let diffuse_color = color * light * ao;
 
     let depth = -in.world_pos.z;
     let fog_factor = pow(clamp((depth - FOG_START) / (FOG_END - FOG_START), 0.0, 1.0), FOG_EXP);

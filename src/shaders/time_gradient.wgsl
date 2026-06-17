@@ -24,6 +24,7 @@ fn vs_main(in: VertexIn) -> VertexOut {
 @group(0) @binding(2) var texture_atlas: texture_2d<f32>;
 @group(0) @binding(3) var sample_atlas: sampler;
 @group(0) @binding(4) var<uniform> global_time: f32;
+
 @group(1) @binding(0) var<uniform> gen_time: f32;
 
 fn rainbow(time: f32) -> vec3<f32> {
