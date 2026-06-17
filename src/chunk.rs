@@ -15,6 +15,7 @@ use crate::{
 #[derive(bon::Builder, Debug, Clone)]
 pub struct Chunk {
     pub blocks: buffer::Buffer<block::Block, 3>,
+    pub lights: buffer::Buffer<u8, 3>,
     pub offset: glam::IVec3,
     pub height: usize,
     pub width: usize,
@@ -23,8 +24,9 @@ pub struct Chunk {
 impl Chunk {
     pub fn new(offset: glam::IVec3, width: usize, height: usize) -> Self {
         let blocks = buffer::Buffer::new_zeroed([width, height, width]);
+        let lights = buffer::Buffer::new_zeroed([width, height, width]);
 
-        Self { blocks, offset, height, width }
+        Self { blocks, lights, offset, height, width }
     }
 
     pub fn size(&self) -> glam::IVec3 {
@@ -63,15 +65,15 @@ impl Chunk {
 
         let mut vertices = Vec::new();
         (0..rectilinear.size).for_each(|index| {
-            let mesher::RectilinearMeshSlice { pos, nor, uvs, aos, .. } = rectilinear.quad_slice(index);
+            let mesher::RectilinearMeshSlice { pos, nor, uvs, lum, aos, .. } = rectilinear.quad_slice(index);
 
             (0..4).for_each(|vertex| {
                 vertices.push(mesher::TerrainVertex {
                     pos: pos[vertex],
                     nor: nor[vertex],
                     tex: uvs[vertex],
+                    lum: lum[vertex],
                     ao: aos[vertex],
-                    ..Default::default()
                 });
             });
         });

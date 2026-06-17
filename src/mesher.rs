@@ -166,11 +166,12 @@ impl Quad {
 pub struct MeshQuad {
     pub quad: Quad,
     pub ao: [f32; 4],
+    pub lum: [f32; 4],
 }
 
 impl MeshQuad {
     pub fn cube() -> [Self; 6] {
-        Quad::cube().map(|quad| Self { quad, ao: [1.0; 4] })
+        Quad::cube().map(|quad| Self { quad, ao: [1.0; 4], lum: [1.0; 4] })
     }
 
     pub fn indices(&self, start: u32) -> [u32; 6] {
@@ -190,6 +191,7 @@ pub struct RectilinearMeshSlice<'r> {
     pub pos: &'r mut [glam::Vec3],
     pub nor: &'r mut [glam::Vec3],
     pub uvs: &'r mut [glam::Vec2],
+    pub lum: &'r mut [f32],
     pub aos: &'r mut [f32],
 }
 
@@ -198,6 +200,7 @@ pub struct RectilinearMesh {
     pub positions: Vec<glam::Vec3>,
     pub normals: Vec<glam::Vec3>,
     pub uvs: Vec<glam::Vec2>,
+    pub lum: Vec<f32>,
     pub aos: Vec<f32>,
     pub indices: Vec<u32>,
     pub integer_positions: Vec<glam::IVec3>,
@@ -212,6 +215,7 @@ impl RectilinearMesh {
             let len = out.positions.len();
             out.positions.extend_from_slice(&quad.quad.positions());
             out.normals.extend_from_slice(&quad.quad.normals());
+            out.lum.extend_from_slice(&quad.lum);
             out.uvs.extend_from_slice(&quad.quad.texture_uvs());
             out.aos.extend_from_slice(&quad.ao);
             out.indices.extend_from_slice(&quad.indices(len as u32));
@@ -229,6 +233,7 @@ impl RectilinearMesh {
             pos: &mut self.positions[offset..offset + 4],
             nor: &mut self.normals[offset..offset + 4],
             uvs: &mut self.uvs[offset..offset + 4],
+            lum: &mut self.lum[offset..offset + 4],
             aos: &mut self.aos[offset..offset + 4],
         }
     }
@@ -380,13 +385,14 @@ impl<'c> ChunkMesher<'c> {
                         let ao = self.map_ao(coord, face);
                         match block.mesh_style() {
                             | block::EmittedMesh::RectilinearFull => {
-                                quads.push(MeshQuad { quad: Quad { position, face }, ao });
+                                quads.push(MeshQuad { quad: Quad { position, face }, ao, lum: [1.0; 4] });
                             }
                             | block::EmittedMesh::Decorator => {
-                                quads.extend(
-                                    Face::DIAGONALS
-                                        .map(|face| MeshQuad { quad: Quad { position, face }, ao: [1.0; 4] }),
-                                );
+                                quads.extend(Face::DIAGONALS.map(|face| MeshQuad {
+                                    quad: Quad { position, face },
+                                    ao: [1.0; 4],
+                                    lum: [1.0; 4],
+                                }));
                             }
                             | block::EmittedMesh::RectilinearPartial => todo!(),
                         }
