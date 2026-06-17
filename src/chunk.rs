@@ -1,7 +1,7 @@
 use std::{
     collections,
     sync::{self, mpsc},
-    thread,
+    thread, time,
 };
 
 use crate::{
@@ -339,6 +339,7 @@ impl ChunkManager {
             while let Ok(request) = chunk_request.recv() {
                 match request {
                     | ChunkRequest::Generate { coord } => {
+                        let start = time::Instant::now();
                         let mut chunk = Chunk::new(coord, width, height);
                         terrain.form_chunk(&mut chunk);
                         let response = ChunkResponse::Generated { coord, chunk };
@@ -346,16 +347,21 @@ impl ChunkManager {
                             log::error!("Chunk terrain recieving error: {}", err);
                             return;
                         }
-                        log::debug!("Chunk generated for {}", coord);
+                        log::debug!("Chunk generated for {}: {} ms", coord, start.elapsed().as_millis());
                     }
                     | ChunkRequest::Mesh { chunk, assistant } => {
+                        let start = time::Instant::now();
                         let mesh = chunk.raw_mesh(&atlas, assistant);
                         let response = ChunkResponse::Meshed { coord: mesh.offset, raw_mesh: mesh };
                         if let Err(err) = chunk_response.send(response) {
                             log::error!("Chunk mesh recieving error: {}", err);
                             return;
                         }
-                        log::debug!("Chunk mesh generated for {}", chunk.offset);
+                        log::debug!(
+                            "Chunk mesh generated for {}: {} ms",
+                            chunk.offset,
+                            start.elapsed().as_millis()
+                        );
                     }
                     | ChunkRequest::Cleanup => {
                         return;

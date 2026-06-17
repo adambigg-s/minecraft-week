@@ -33,25 +33,34 @@ fn vs_main(in: VertexIn) -> VertexOut {
     return out;
 }
 
+struct FragmentOutput {
+    @builtin(frag_depth) depth: f32,
+    @location(0) color: vec4<f32>,
+};
+
 @group(0) @binding(2) var texture_atlas: texture_2d<f32>;
 @group(0) @binding(3) var sample_atlas: sampler;
 
 @fragment
-fn fs_main(out: VertexOut) -> @location(0) vec4<f32> {
-    let color = textureSample(texture_atlas, sample_atlas, out.tex);
+fn fs_main(in: VertexOut) -> FragmentOutput {
+    let color = textureSample(texture_atlas, sample_atlas, in.tex);
 
     if color.a < EPS {
         discard;
     }
 
-    let abs_nor = abs(out.nor);
+    let abs_nor = abs(in.nor);
     let light = dot(abs_nor, FACE_LIGHTING);
     let diffuse_color = color * light;
 
-    let depth = -out.world_pos.z;
+    let depth = -in.world_pos.z;
     let fog_factor = pow(clamp((depth - FOG_START) / (FOG_END - FOG_START), 0.0, 1.0), FOG_EXP);
 
     let final_color = mix(diffuse_color, FADE_COLOR, fog_factor);
 
-    return final_color;
+    var output: FragmentOutput;
+    output.color = vec4<f32>(final_color.rgb * color.a, color.a);
+    output.depth = in.pos.z;
+
+    return output;
 }
