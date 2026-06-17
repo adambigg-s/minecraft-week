@@ -1,6 +1,6 @@
 use std::{mem, ops};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Buffer<T, const N: usize> {
     size: [usize; N],
     items: Box<[T]>,

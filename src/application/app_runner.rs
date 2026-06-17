@@ -113,34 +113,43 @@ where
             }
             | event::WindowEvent::MouseInput { state: ele_state, button, .. } => {
                 log::debug!("Mouse pressed: {:?}", button);
+                let (left_press, right_press) = &mut state.input.mouse_pressed;
+                let (left_release, right_release) = &mut state.input.mouse_released;
                 match ele_state {
-                    | event::ElementState::Pressed => {
-                        let (left, right) = &mut state.input.mouse_pressed;
-                        match button {
-                            | event::MouseButton::Left     => *left = true,
-                            | event::MouseButton::Right    => *right = true,
-                            | event::MouseButton::Middle   => todo!(),
-                            | event::MouseButton::Back     => todo!(),
-                            | event::MouseButton::Forward  => todo!(),
-                            | event::MouseButton::Other(_) => todo!(),
+                    | event::ElementState::Pressed => match button {
+                        | event::MouseButton::Left => {
+                            *left_press = true;
+                            *left_release = false
                         }
-                    }
-                    | event::ElementState::Released => {
-                        let (left, right) = &mut state.input.mouse_released;
-                        match button {
-                            | event::MouseButton::Left     => *left = true,
-                            | event::MouseButton::Right    => *right = true,
-                            | event::MouseButton::Middle   => todo!(),
-                            | event::MouseButton::Back     => todo!(),
-                            | event::MouseButton::Forward  => todo!(),
-                            | event::MouseButton::Other(_) => todo!(),
+                        | event::MouseButton::Right => {
+                            *right_press = true;
+                            *right_release = false
                         }
-                    }
+                        | event::MouseButton::Middle   => todo!(),
+                        | event::MouseButton::Back     => todo!(),
+                        | event::MouseButton::Forward  => todo!(),
+                        | event::MouseButton::Other(_) => todo!(),
+                    },
+                    | event::ElementState::Released => match button {
+                        | event::MouseButton::Left => {
+                            *left_release = true;
+                            *left_press = false;
+                        }
+                        | event::MouseButton::Right => {
+                            *right_release = true;
+                            *right_press = false;
+                        }
+                        | event::MouseButton::Middle   => todo!(),
+                        | event::MouseButton::Back     => todo!(),
+                        | event::MouseButton::Forward  => todo!(),
+                        | event::MouseButton::Other(_) => todo!(),
+                    },
                 }
             }
             | event::WindowEvent::KeyboardInput { event, .. } => {
                 log::debug!("Keyboard input: {:?}", event);
-                let keyboard::PhysicalKey::Code(keycode) = event.physical_key else {
+                let keyboard::PhysicalKey::Code(keycode) = event.physical_key
+                else {
                     return;
                 };
 

@@ -12,7 +12,7 @@ use crate::{
     terrain::{self},
 };
 
-#[derive(bon::Builder, Debug)]
+#[derive(bon::Builder, Debug, Clone)]
 pub struct Chunk {
     pub blocks: buffer::Buffer<block::Block, 3>,
     pub offset: glam::IVec3,
@@ -107,86 +107,6 @@ impl kinematics::Collision for Chunk {
         }
 
         false
-    }
-}
-
-#[derive(bon::Builder, Debug)]
-pub struct ChunkHit {
-    pub block: block::Block,
-    pub pos: glam::IVec3,
-}
-
-impl ray::Cast for Chunk {
-    type Hit = ChunkHit;
-
-    fn cast(&self, ray: ray::Ray) -> Option<Self::Hit> {
-        let (dir, pos) = (ray.direction, ray.origin);
-        let step = dir.signum().as_ivec3();
-        let delta = glam::vec3(
-            if dir.x != 0.0 { dir.x.recip().abs() } else { f32::INFINITY },
-            if dir.y != 0.0 { dir.y.recip().abs() } else { f32::INFINITY },
-            if dir.z != 0.0 { dir.z.recip().abs() } else { f32::INFINITY },
-        );
-
-        let mut idx = pos
-            .floor()
-            .as_ivec3()
-            .clamp(glam::IVec3::ZERO, glam::IVec3::from_slice(&self.blocks.size().map(|ele| ele as i32 - 1)));
-        let mut time = 0.0;
-        let mut side_dist = glam::vec3(
-            if dir.x > 0.0 {
-                ((idx.x + 1) as f32 - pos.x) * delta.x
-            }
-            else {
-                (pos.x - idx.x as f32) * delta.x
-            },
-            if dir.y > 0.0 {
-                ((idx.y + 1) as f32 - pos.y) * delta.y
-            }
-            else {
-                (pos.y - idx.y as f32) * delta.y
-            },
-            if dir.z > 0.0 {
-                ((idx.z + 1) as f32 - pos.z) * delta.z
-            }
-            else {
-                (pos.z - idx.z as f32) * delta.z
-            },
-        );
-        loop {
-            if time > ray.tspan.end || !self.check_index(idx) {
-                return None;
-            }
-
-            if self.get(idx) != &block::Block::Air {
-                return Some(ChunkHit { block: *self.get(idx), pos: idx });
-            }
-
-            if side_dist.x < side_dist.y {
-                if side_dist.x < side_dist.z {
-                    time += side_dist.x;
-                    side_dist.x += delta.x;
-                    idx.x += step.x;
-                }
-                else {
-                    time += side_dist.z;
-                    side_dist.z += delta.z;
-                    idx.z += step.z;
-                }
-            }
-            else {
-                if side_dist.y < side_dist.z {
-                    time += side_dist.y;
-                    side_dist.y += delta.y;
-                    idx.y += step.y;
-                }
-                else {
-                    time += side_dist.z;
-                    side_dist.z += delta.z;
-                    idx.z += step.z;
-                }
-            }
-        }
     }
 }
 
@@ -336,6 +256,36 @@ impl ChunkManager {
         });
     }
 
+    pub fn modify(&mut self, coord: glam::IVec3, block: block::Block) {
+        let chunk_coord = self.chunk_surrounding(coord.as_vec3());
+        let mut remesh = Vec::new();
+
+        if let Some(chunk) = self.chunks.get_mut(&chunk_coord) {
+            let chunk = sync::Arc::make_mut(chunk);
+            let coord = chunk.to_chunk_coords(coord);
+
+            *chunk.get_mut(coord) = block;
+            remesh.push(chunk_coord);
+
+            if coord.x == 0 {
+                remesh.push(chunk_coord + glam::ivec3(-1, 0, 0));
+            }
+            if coord.z == 0 {
+                remesh.push(chunk_coord + glam::ivec3(0, 0, -1));
+            }
+            if coord.x == chunk.width as i32 - 1 {
+                remesh.push(chunk_coord + glam::ivec3(1, 0, 0));
+            }
+            if coord.z == chunk.width as i32 - 1 {
+                remesh.push(chunk_coord + glam::ivec3(0, 0, 1));
+            }
+        }
+
+        remesh.into_iter().rev().for_each(|chunk| {
+            self.request_chunk_meshing(chunk);
+        });
+    }
+
     pub fn chunk_key(coord: glam::IVec3) -> String {
         format!("ch{}x{}x{}_mesh", coord.x, coord.y, coord.z)
     }
@@ -475,15 +425,79 @@ impl kinematics::Collision for ChunkManager {
     }
 }
 
+#[derive(bon::Builder, Debug)]
+pub struct ChunkHit {
+    pub block: block::Block,
+    pub position: glam::IVec3,
+    pub normal: glam::IVec3,
+}
+
 impl ray::Cast for ChunkManager {
     type Hit = ChunkHit;
 
     fn cast(&self, ray: ray::Ray) -> Option<Self::Hit> {
-        let center_chunk = self.chunk_surrounding(ray.origin);
-        if let Some(chunk) = self.chunks.get(&center_chunk) {
-            return chunk.cast(ray);
-        }
+        let (dir, pos) = (ray.direction, ray.origin);
+        let step = dir.signum().as_ivec3();
+        let delta = glam::vec3(
+            if dir.x != 0.0 { dir.x.recip().abs() } else { f32::INFINITY },
+            if dir.y != 0.0 { dir.y.recip().abs() } else { f32::INFINITY },
+            if dir.z != 0.0 { dir.z.recip().abs() } else { f32::INFINITY },
+        );
 
-        None
+        let mut idx = pos.floor().as_ivec3();
+        let mut time = 0.0;
+        #[rustfmt::skip]
+        let mut side_dist = glam::vec3(
+            if dir.x > 0.0 { ((idx.x + 1) as f32 - pos.x) * delta.x } else { (pos.x - idx.x as f32) * delta.x },
+            if dir.y > 0.0 { ((idx.y + 1) as f32 - pos.y) * delta.y } else { (pos.y - idx.y as f32) * delta.y },
+            if dir.z > 0.0 { ((idx.z + 1) as f32 - pos.z) * delta.z } else { (pos.z - idx.z as f32) * delta.z },
+        );
+        let mut normal = glam::IVec3::ZERO;
+
+        loop {
+            if time > ray.tspan.end {
+                return None;
+            }
+
+            let chunk_coords = self.chunk_surrounding(idx.as_vec3());
+            if let Some(chunk) = self.chunks.get(&chunk_coords) {
+                let local_coord = chunk.to_chunk_coords(idx);
+                if chunk.check_index(local_coord) {
+                    let block = *chunk.get(local_coord);
+                    if block != block::Block::Air {
+                        return Some(ChunkHit { block, position: idx, normal });
+                    }
+                }
+            }
+
+            if side_dist.x < side_dist.y {
+                if side_dist.x < side_dist.z {
+                    time += side_dist.x;
+                    side_dist.x += delta.x;
+                    idx.x += step.x;
+                    normal = glam::ivec3(-step.x, 0, 0);
+                }
+                else {
+                    time += side_dist.z;
+                    side_dist.z += delta.z;
+                    idx.z += step.z;
+                    normal = glam::ivec3(0, 0, -step.z);
+                }
+            }
+            else {
+                if side_dist.y < side_dist.z {
+                    time += side_dist.y;
+                    side_dist.y += delta.y;
+                    idx.y += step.y;
+                    normal = glam::ivec3(0, -step.y, 0);
+                }
+                else {
+                    time += side_dist.z;
+                    side_dist.z += delta.z;
+                    idx.z += step.z;
+                    normal = glam::ivec3(0, 0, -step.z);
+                }
+            }
+        }
     }
 }

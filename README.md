@@ -22,8 +22,7 @@ Minecraft inspired voxel game made in one week with Rust and wgpu
 ##### Blocks to add
 - ores (coal, iron etc.)
 
-###### Goals for today
-- add a screenshot tool
+###### Goals for today (last day)
 - add voxel AO
 - fix structures generating over chunk borders
 - refactor terrain so that the file is readable

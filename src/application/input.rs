@@ -26,6 +26,26 @@ impl Input {
         self.key_released.contains(name)
     }
 
+    pub fn get_mouse_left_press(&self) -> bool {
+        let (click, _) = self.mouse_pressed;
+        click
+    }
+
+    pub fn get_mouse_right_press(&self) -> bool {
+        let (_, click) = self.mouse_pressed;
+        click
+    }
+
+    pub fn get_mouse_left_release(&self) -> bool {
+        let (click, _) = self.mouse_released;
+        click
+    }
+
+    pub fn get_mouse_right_release(&self) -> bool {
+        let (_, click) = self.mouse_released;
+        click
+    }
+
     pub fn consume_key_press(&mut self, name: &str) -> bool {
         self.key_pressed.remove(name)
     }

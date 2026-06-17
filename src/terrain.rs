@@ -174,10 +174,20 @@ impl TerrainGenerator {
 
                 for y in sea_level..height as i32 {
                     let ore = self.sample_3d([gcoord.x, y as f64, gcoord.z], 0.1);
-                    if ore > 0.75 {
+                    let ore_type = self.sample_2d([gcoord.x, gcoord.y], 0.1);
+                    let ore_type = if ore_type < 0.25 {
+                        Coal
+                    }
+                    else if ore_type < 0.5 {
+                        Copper
+                    }
+                    else {
+                        Tin
+                    };
+                    if ore > 0.6 {
                         let coord = glam::ivec3(x, y, z);
                         if chunk.get(coord) == &Stone {
-                            *chunk.get_mut(coord) = Gravel
+                            *chunk.get_mut(coord) = ore_type
                         }
                     }
                 }

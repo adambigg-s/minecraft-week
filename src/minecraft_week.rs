@@ -2,7 +2,7 @@ use std::{range, sync, time};
 
 use crate::{
     application::{self, input},
-    atlas, chunk,
+    atlas, block, chunk,
     engine::{
         aabb, camera,
         kinematics::{self},
@@ -53,7 +53,7 @@ impl application::Application for MinecraftWeek {
 
         let camera = camera::Camera::builder()
             .inner(transform::Transform::from_position(glam::vec3(0.0, 127.0, 0.0)))
-            .fov(70.0)
+            .fov(93.0)
             .znear(0.1)
             .zfear(1000.0)
             .build();
@@ -103,6 +103,7 @@ impl application::Application for MinecraftWeek {
 
         self.handle_logistics_input(input);
         self.handle_movement_input(input);
+        self.handle_interaction_input(input);
 
         self.world.update_chunks(self.camera.inner.position);
         self.tick += 1;
@@ -280,18 +281,6 @@ impl MinecraftWeek {
             self.player.movespeed *= 2.0;
         }
 
-        if input.consume_mouse_left_release() {
-            let ray = ray::Ray {
-                origin: self.camera.inner.position,
-                direction: self.camera.inner.forward(),
-                tspan: range::Range { start: 0.0, end: 4.0 },
-            };
-
-            if let Some(_) = self.world.cast(ray) {
-                log::info!("The ray hit something.");
-            }
-        }
-
         let [mut dy, mut dx] = input.consume_mouse_delta().into();
         [dy, dx] = (glam::vec2(dy, dx) * self.player.lookspeed).to_array();
         self.camera.yaw -= dy;
@@ -372,6 +361,26 @@ impl MinecraftWeek {
         }
         if let Some(resource::GfxResource::Uniform(global_time)) = render.resources.get("time_uni") {
             global_time.write(context, &self.time);
+        }
+    }
+
+    fn handle_interaction_input(&mut self, input: &mut input::Input) {
+        let ray = ray::Ray {
+            origin: self.camera.inner.position,
+            direction: self.camera.inner.forward(),
+            tspan: range::Range { start: 0.0, end: 10.0 },
+        };
+
+        if input.consume_mouse_left_press()
+            && let Some(hit) = self.world.cast(ray)
+        {
+            self.world.modify(hit.position, block::Block::Air);
+        }
+
+        if input.consume_mouse_right_press()
+            && let Some(hit) = self.world.cast(ray)
+        {
+            self.world.modify(hit.position + hit.normal, block::Block::Log);
         }
     }
 }

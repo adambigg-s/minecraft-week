@@ -41,6 +41,9 @@ pub enum Block {
     RedFlower,
     BlueFlower,
     Shrub,
+    Coal,
+    Copper,
+    Tin,
     BlockCounter,
 }
 
@@ -61,6 +64,9 @@ impl Block {
         Block::RedFlower,
         Block::BlueFlower,
         Block::Shrub,
+        Block::Coal,
+        Block::Copper,
+        Block::Tin,
     ];
 
         #[rustfmt::skip]
@@ -81,6 +87,9 @@ impl Block {
             | Block::RedFlower    => "redflower",
             | Block::BlueFlower   => "blueflower",
             | Block::Shrub        => "shrub",
+            | Block::Coal         => "coal",
+            | Block::Copper       => "copper",
+            | Block::Tin          => "tin",
             | Block::BlockCounter => "",
         }
     }
