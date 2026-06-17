@@ -5,7 +5,7 @@ use crate::{
     atlas, chunk,
     engine::{
         aabb, camera,
-        kinematics::{self, Collision},
+        kinematics::{self},
         transform,
     },
     pipelines, player,
@@ -59,7 +59,7 @@ impl application::Application for MinecraftWeek {
         let player = player::PlayerController::builder()
             .movespeed(8.0)
             .lookspeed(0.0025)
-            .collider(aabb::AaBb::point_sides(camera.inner.position.to_array(), [0.45, 1.5, 0.45]))
+            .collider(aabb::AaBb::point_sides(camera.inner.position.to_array(), [0.45, 0.90, 0.45]))
             .kinematics(kinematics::Kinematics::builder().up(glam::Vec3::Y).build())
             .build();
 
@@ -108,11 +108,6 @@ impl application::Application for MinecraftWeek {
         self.frame_delta = self.instant.elapsed().as_secs_f32();
         self.time += self.frame_delta;
         self.instant = time::Instant::now();
-
-        if self.world.collides(self.player.collider) {
-            log::info!("we have collision");
-            log::info!("{:?}", self.player.collider);
-        }
     }
 
     fn gfx_frame(
@@ -311,18 +306,15 @@ impl MinecraftWeek {
                 if input.get_key_pres("space") {
                     self.player.kinematics.jump(12.0);
                 }
-                // if input.get_key_pres("shiftleft") {
-                //     dy -= 1.0;
-                // }
-                let forward = self.camera.inner.forward();
-                let right = self.camera.inner.right();
+                let forward = self.camera.inner.forward().with_y(0.0).normalize_or_zero();
+                let right = self.camera.inner.right().with_y(0.0).normalize_or_zero();
                 let movement = (right * dx + forward * dz).normalize_or_zero();
                 self.player.kinematics.velocity.x = movement.x * self.player.movespeed;
                 self.player.kinematics.velocity.z = movement.z * self.player.movespeed;
                 self.player.kinematics.apply_gravity(0.5);
                 self.player.collider =
                     self.player.kinematics.translate(self.player.collider, &self.world, self.frame_delta);
-                self.camera.inner.position = self.player.collider.center();
+                self.camera.inner.position = self.player.collider.center() + glam::vec3(0.0, 0.5, 0.0);
             }
             | false => {
                 let [mut dx, mut dy, mut dz] = [0.0; 3];

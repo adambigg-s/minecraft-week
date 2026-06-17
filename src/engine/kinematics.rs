@@ -18,6 +18,8 @@ pub struct Kinematics {
 }
 
 impl Kinematics {
+    pub const KINEMATIC_DELTA: f32 = 1e-2;
+
     pub fn jump(&mut self, impulse: f32) {
         if self.flying {
             return;
@@ -29,6 +31,14 @@ impl Kinematics {
 
     pub fn apply_gravity(&mut self, impulse: f32) {
         self.velocity -= self.up * impulse;
+    }
+
+    pub fn check_grounded<Collider>(&mut self, collider: BoxCollider, world: &Collider) -> bool
+    where
+        Collider: Collision<Collider = BoxCollider>,
+    {
+        let probe = collider - self.up * Self::KINEMATIC_DELTA;
+        world.collides(probe)
     }
 
     pub fn translate<Collider>(&mut self, start: BoxCollider, world: &Collider, dt: f32) -> BoxCollider
@@ -60,7 +70,9 @@ impl Kinematics {
             curr = z;
         }
 
-        self.flying = self.velocity.dot(self.up) != 0.0;
+        if self.check_grounded(curr, world) && self.up.dot(self.velocity).abs() < Self::KINEMATIC_DELTA {
+            self.flying = false;
+        }
 
         curr
     }

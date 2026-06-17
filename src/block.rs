@@ -3,6 +3,8 @@ use std::{
     mem,
 };
 
+use crate::engine::kinematics;
+
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Visibility {
     #[default]
@@ -124,5 +126,16 @@ where
 {
     fn from(value: T) -> Self {
         unsafe { mem::transmute(value.into()) }
+    }
+}
+
+impl kinematics::Collision for Block {
+    type Collider = ();
+
+    fn collides(&self, _: Self::Collider) -> bool {
+        match self {
+            | Block::Air | Block::Water | Block::RedFlower | Block::BlueFlower | Block::Shrub => false,
+            | _ => true,
+        }
     }
 }

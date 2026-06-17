@@ -85,11 +85,21 @@ impl kinematics::Collision for Chunk {
         for z in mins[2]..maxs[2] {
             for y in mins[1]..maxs[1] {
                 for x in mins[0]..maxs[0] {
-                    let coord = self.to_chunk_coords(glam::ivec3(x, y, z));
-                    if !self.check_index(coord) {
-                        return true;
+                    let coord = glam::ivec3(x, y, z);
+                    let target_chunk = glam::ivec3(
+                        (coord.x as f32 / self.width as f32).floor() as i32,
+                        0,
+                        (coord.z as f32 / self.width as f32).floor() as i32,
+                    );
+                    if target_chunk != self.offset {
+                        continue;
                     }
-                    if self.get(coord) != &block::Block::Air {
+
+                    let chunk_coord = self.to_chunk_coords(coord);
+                    if !self.check_index(chunk_coord) {
+                        continue;
+                    }
+                    if self.get(chunk_coord).collides(()) {
                         return true;
                     }
                 }
@@ -394,8 +404,15 @@ impl kinematics::Collision for ChunkManager {
     fn collides(&self, collider: Self::Collider) -> bool {
         let center = collider.center();
         let center_chunk = self.chunk_surrounding(center);
-        if let Some(chunk) = self.chunks.get(&center_chunk) {
-            return chunk.collides(collider);
+        for dx in -1..=1 {
+            for dz in -1..=1 {
+                let coord = center_chunk + glam::ivec3(dx, 0, dz);
+                if let Some(chunk) = self.chunks.get(&coord)
+                    && chunk.collides(collider)
+                {
+                    return true;
+                }
+            }
         }
         false
     }
