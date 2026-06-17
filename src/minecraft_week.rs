@@ -1,4 +1,4 @@
-use std::{range, sync, time};
+use std::{env, range, sync, time};
 
 use crate::{
     application::{self, input},
@@ -70,7 +70,12 @@ impl application::Application for MinecraftWeek {
 
         register_bind_groups(context, render)?;
 
-        let terrain_gen = sync::Arc::new(terrain::TerrainGenerator::new(1));
+        let seed = env::args()
+            .collect::<Vec<String>>()
+            .get(1)
+            .map(|val| val.parse::<u32>().unwrap_or(1))
+            .unwrap_or(1);
+        let terrain_gen = sync::Arc::new(terrain::TerrainGenerator::new(seed));
 
         let camera = camera::Camera::builder()
             .inner(transform::Transform::from_position(glam::vec3(0.0, 127.0, 0.0)))

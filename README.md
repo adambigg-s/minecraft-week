@@ -1,34 +1,52 @@
 # minecraft-week
+
 Minecraft inspired voxel game made in one week with Rust and wgpu
 
-## Current state
+### Current state
+
 ![screenshot](images/trees.png)
 ![screenshot](images/meshing.png)
 
-## Goals
+### Building
+
+You will need:
+- Rust v1.9 or later
+- Cargo-nightly toolchain (unlikely to build w/o)
+
+Run the project:
+`$ cargo run --release -- <seed>`
+
+### Goals
+
 - Infinite world generation
 - World interaction
 - Async chunk generation
 - Sun shadows
 - Voxel lighting
 
-## Building
-You will need:
-- Rust v1.9 or later
-- Cargo-nightly toolchain (unlikely to build w/o)
+#### Were they achieved?
 
-Run the project:
-$ cargo run --release -- <seed>
+Sun shadows weren't able to be added in the initial week.
+
+### Resources
+
+- https://sotrh.github.io/learn-wgpu/
+- https://playspacefarer.com/voxel-meshing/
+- https://github.com/jdah/minecraft-again.git
+- https://0fps.net/2013/07/03/ambient-occlusion-for-minecraft-like-worlds/
+- Reinventing Minecraft world generation by Henrik Kniberg
+
+### Examples
+
+There are some photos in `images/` that I took while making this
 
 ##### Files that are in disarray
+
 - terrain.rs
 - minecraft_week.rs - the main file is so bad
 
-##### Blocks to add
-- ores (coal, iron etc.)
-
 ###### Goals for today (last day)
-- add voxel AO
+
 - fix structures generating over chunk borders
 - refactor terrain so that the file is readable
 
