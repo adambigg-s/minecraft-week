@@ -14,7 +14,7 @@ pub enum Axis {
     Undefined,
 }
 
-#[derive(bon::Builder, Debug)]
+#[derive(bon::Builder, Debug, Clone, Copy)]
 pub struct AaBb<T, const N: usize> {
     pub lo: [T; N],
     pub hi: [T; N],

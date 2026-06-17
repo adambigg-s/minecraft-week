@@ -80,7 +80,23 @@ impl kinematics::Collision for Chunk {
     type Collider = kinematics::BoxCollider;
 
     fn collides(&self, collider: Self::Collider) -> bool {
-        todo!()
+        let mins = collider.lo.map(|val| val.floor() as i32);
+        let maxs = collider.hi.map(|val| val.ceil() as i32);
+        for z in mins[2]..maxs[2] {
+            for y in mins[1]..maxs[1] {
+                for x in mins[0]..maxs[0] {
+                    let coord = self.to_chunk_coords(glam::ivec3(x, y, z));
+                    if !self.check_index(coord) {
+                        return true;
+                    }
+                    if self.get(coord) != &block::Block::Air {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        false
     }
 }
 
@@ -267,7 +283,7 @@ impl ChunkManager {
         rel_sq_length < (self.view_distance * self.view_distance)
     }
 
-    fn chunk_surrounding(&mut self, center: glam::Vec3) -> glam::IVec3 {
+    fn chunk_surrounding(&self, center: glam::Vec3) -> glam::IVec3 {
         glam::ivec3(
             (center.x / self.chunk_width as f32).floor() as i32,
             0,
@@ -376,6 +392,11 @@ impl kinematics::Collision for ChunkManager {
     type Collider = kinematics::BoxCollider;
 
     fn collides(&self, collider: Self::Collider) -> bool {
-        todo!()
+        let center = collider.center();
+        let center_chunk = self.chunk_surrounding(center);
+        if let Some(chunk) = self.chunks.get(&center_chunk) {
+            return chunk.collides(collider);
+        }
+        false
     }
 }

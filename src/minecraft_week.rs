@@ -3,7 +3,11 @@ use std::{sync, time};
 use crate::{
     application::{self, input},
     atlas, chunk,
-    engine::{aabb, camera, transform},
+    engine::{
+        aabb, camera,
+        kinematics::{self, Collision},
+        transform,
+    },
     pipelines, player,
     render::{self, GfxCamera, resource, util},
     skybox, terrain,
@@ -18,6 +22,7 @@ pub struct MinecraftWeek {
     pub avaliable_pipelines: Vec<String>,
     pub tick: usize,
     pub time: f32,
+    pub frame_delta: f32,
     pub instant: time::Instant,
 }
 
@@ -46,15 +51,16 @@ impl application::Application for MinecraftWeek {
         let terrain_gen = sync::Arc::new(terrain::TerrainGenerator::new(1));
 
         let camera = camera::Camera::builder()
-            .inner(transform::Transform::from_position(glam::vec3(0.0, 150.0, 0.0)))
+            .inner(transform::Transform::from_position(glam::vec3(0.0, 127.0, 0.0)))
             .fov(70.0)
             .znear(0.1)
             .zfear(1000.0)
             .build();
         let player = player::PlayerController::builder()
-            .movespeed(0.5)
+            .movespeed(8.0)
             .lookspeed(0.0025)
-            .collider(aabb::AaBb::point_sides(camera.inner.position.to_array(), [0.5, 1.0, 0.5]))
+            .collider(aabb::AaBb::point_sides(camera.inner.position.to_array(), [0.45, 1.5, 0.45]))
+            .kinematics(kinematics::Kinematics::builder().up(glam::Vec3::Y).build())
             .build();
 
         let mut world = chunk::ChunkManager::builder()
@@ -70,6 +76,7 @@ impl application::Application for MinecraftWeek {
         let avaliable_pipelines = vec!["terrain_pipe".into(), "wireframe_pipe".into()];
         let tick = 0;
         let instant = time::Instant::now();
+        let frame_delta = 0.0;
         let time = instant.elapsed().as_secs_f32();
 
         Ok(Self {
@@ -80,6 +87,7 @@ impl application::Application for MinecraftWeek {
             avaliable_pipelines,
             tick,
             time,
+            frame_delta,
             instant,
         })
     }
@@ -97,8 +105,14 @@ impl application::Application for MinecraftWeek {
 
         self.world.update_chunks(self.camera.inner.position);
         self.tick += 1;
-        self.time += self.instant.elapsed().as_secs_f32();
+        self.frame_delta = self.instant.elapsed().as_secs_f32();
+        self.time += self.frame_delta;
         self.instant = time::Instant::now();
+
+        if self.world.collides(self.player.collider) {
+            log::info!("we have collision");
+            log::info!("{:?}", self.player.collider);
+        }
     }
 
     fn gfx_frame(
@@ -257,6 +271,9 @@ impl MinecraftWeek {
             self.world.chunks.clear();
             self.world.render_chunks.clear();
         }
+        if input.consume_key_release("keyy") {
+            self.player.collisions = !self.player.collisions;
+        }
     }
 
     fn handle_movement_input(&mut self, input: &mut input::Input) {
@@ -267,28 +284,6 @@ impl MinecraftWeek {
             self.player.movespeed *= 2.0;
         }
 
-        let [mut dx, mut dy, mut dz] = [0.0; 3];
-        if input.get_key_pres("keyw") {
-            dz += 1.0;
-        }
-        if input.get_key_pres("keys") {
-            dz -= 1.0;
-        }
-        if input.get_key_pres("keyd") {
-            dx += 1.0;
-        }
-        if input.get_key_pres("keya") {
-            dx -= 1.0;
-        }
-        if input.get_key_pres("space") {
-            dy += 1.0;
-        }
-        if input.get_key_pres("shiftleft") {
-            dy -= 1.0;
-        }
-        [dx, dy, dz] = (glam::vec3(dx, dy, dz).normalize_or_zero() * self.player.movespeed).to_array();
-        self.camera.update_position(dx, dy, dz);
-
         let [mut dy, mut dx] = input.consume_mouse_delta().into();
         [dy, dx] = (glam::vec2(dy, dx) * self.player.lookspeed).to_array();
         self.camera.yaw -= dy;
@@ -297,6 +292,66 @@ impl MinecraftWeek {
         self.camera.inner.rotation = glam::Quat::from_rotation_z(0.0)
             * glam::Quat::from_rotation_y(self.camera.yaw)
             * glam::Quat::from_rotation_x(self.camera.pitch);
+
+        match self.player.collisions {
+            | true => {
+                let [mut dx, _, mut dz] = [0.0; 3];
+                if input.get_key_pres("keyw") {
+                    dz += 1.0;
+                }
+                if input.get_key_pres("keys") {
+                    dz -= 1.0;
+                }
+                if input.get_key_pres("keyd") {
+                    dx += 1.0;
+                }
+                if input.get_key_pres("keya") {
+                    dx -= 1.0;
+                }
+                if input.get_key_pres("space") {
+                    self.player.kinematics.jump(12.0);
+                }
+                // if input.get_key_pres("shiftleft") {
+                //     dy -= 1.0;
+                // }
+                let forward = self.camera.inner.forward();
+                let right = self.camera.inner.right();
+                let movement = (right * dx + forward * dz).normalize_or_zero();
+                self.player.kinematics.velocity.x = movement.x * self.player.movespeed;
+                self.player.kinematics.velocity.z = movement.z * self.player.movespeed;
+                self.player.kinematics.apply_gravity(0.5);
+                self.player.collider =
+                    self.player.kinematics.translate(self.player.collider, &self.world, self.frame_delta);
+                self.camera.inner.position = self.player.collider.center();
+            }
+            | false => {
+                let [mut dx, mut dy, mut dz] = [0.0; 3];
+                if input.get_key_pres("keyw") {
+                    dz += 1.0;
+                }
+                if input.get_key_pres("keys") {
+                    dz -= 1.0;
+                }
+                if input.get_key_pres("keyd") {
+                    dx += 1.0;
+                }
+                if input.get_key_pres("keya") {
+                    dx -= 1.0;
+                }
+                if input.get_key_pres("space") {
+                    dy += 1.0;
+                }
+                if input.get_key_pres("shiftleft") {
+                    dy -= 1.0;
+                }
+                [dx, dy, dz] =
+                    (glam::vec3(dx, dy, dz).normalize_or_zero() * self.player.movespeed * self.frame_delta)
+                        .to_array();
+                self.camera.update_position(dx, dy, dz);
+                self.player.collider =
+                    self.player.collider + (self.camera.inner.position - self.player.collider.center());
+            }
+        }
     }
 
     fn update_resources(&mut self, context: &mut render::GfxContext, render: &mut render::GfxRenderer) {
