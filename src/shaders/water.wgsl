@@ -36,14 +36,14 @@ fn vs_main(in: VertexIn) -> VertexOut {
 @group(0) @binding(3) var sample_atlas: sampler;
 
 @fragment
-fn fs_main(out: VertexOut) -> @location(0) vec4<f32> {
-    let color = textureSample(texture_atlas, sample_atlas, out.tex);
+fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
+    let color = textureSample(texture_atlas, sample_atlas, in.tex);
 
     if color.a < EPS {
         discard;
     }
 
-    let depth = -out.world_pos.z;
+    let depth = -in.world_pos.z;
     let fog_factor = pow(clamp((depth - FOG_START) / (FOG_END - FOG_START), 0.0, 1.0), FOG_EXP);
 
     let final_color = mix(color, FADE_COLOR, fog_factor);

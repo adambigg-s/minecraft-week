@@ -231,6 +231,8 @@ pub struct TerrainVertex {
     pub pos: glam::Vec3,
     pub nor: glam::Vec3,
     pub tex: glam::Vec2,
+    pub lum: f32,
+    pub ao: f32,
 }
 
 impl render::GfxVertex for TerrainVertex {
@@ -239,6 +241,8 @@ impl render::GfxVertex for TerrainVertex {
             0 => Float32x3,
             1 => Float32x3,
             2 => Float32x2,
+            3 => Float32,
+            4 => Float32,
         ];
 
         wgpu::VertexBufferLayout {
@@ -247,6 +251,13 @@ impl render::GfxVertex for TerrainVertex {
             attributes: ATTRIBS,
         }
     }
+}
+
+#[derive(bon::Builder, Debug)]
+pub struct ChunkRawMesh {
+    pub vertices: Vec<TerrainVertex>,
+    pub indices: Vec<u32>,
+    pub offset: glam::IVec3,
 }
 
 #[derive(bon::Builder, Debug)]
@@ -305,8 +316,8 @@ impl<'c> ChunkMesher<'c> {
         use block::{Block::*, Visibility::*};
 
         let mut quads = Vec::new();
-        let global = self.chunks.chunk.offset
-            * glam::ivec3(self.chunks.chunk.width as i32, 0, self.chunks.chunk.width as i32);
+        let global = self.chunks.chunk.offset * self.chunks.chunk.size();
+
         for z in 0..self.chunks.chunk.width {
             for y in 0..self.chunks.chunk.height {
                 for x in 0..self.chunks.chunk.width {

@@ -22,6 +22,6 @@ fn vs_main(in: VertexIn) -> VertexOut {
 }
 
 @fragment
-fn fs_main(out: VertexOut) -> @location(0) vec4<f32> {
-    return vec4<f32>(out.col, 1.0);
+fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
+    return vec4<f32>(in.col, 1.0);
 }

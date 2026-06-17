@@ -21,6 +21,7 @@ pub struct MinecraftWeek {
     pub world: chunk::ChunkManager,
     pub pipeline: String,
     pub avaliable_pipelines: Vec<String>,
+    pub block_selection: usize,
     pub tick: usize,
     pub time: f32,
     pub frame_delta: f32,
@@ -78,6 +79,7 @@ impl application::Application for MinecraftWeek {
         let tick = 0;
         let instant = time::Instant::now();
         let frame_delta = 0.0;
+        let block_selection = 0;
         let time = instant.elapsed().as_secs_f32();
 
         Ok(Self {
@@ -86,6 +88,7 @@ impl application::Application for MinecraftWeek {
             world,
             pipeline,
             avaliable_pipelines,
+            block_selection,
             tick,
             time,
             frame_delta,
@@ -264,12 +267,11 @@ impl MinecraftWeek {
             self.world.view_distance = self.world.view_distance.saturating_sub(1);
             self.world.center_chunk = glam::IVec3::MAX;
         }
-        if input.consume_key_press("keyg") {
-            self.world.chunks.clear();
-            self.world.render_chunks.clear();
-        }
         if input.consume_key_release("keyy") {
             self.player.collisions = !self.player.collisions;
+        }
+        if input.consume_key_press("keyf") {
+            self.block_selection += 1;
         }
     }
 
@@ -368,7 +370,7 @@ impl MinecraftWeek {
         let ray = ray::Ray {
             origin: self.camera.inner.position,
             direction: self.camera.inner.forward(),
-            tspan: range::Range { start: 0.0, end: 10.0 },
+            tspan: range::Range { start: 0.0, end: 12.0 },
         };
 
         if input.consume_mouse_left_press()
@@ -380,7 +382,10 @@ impl MinecraftWeek {
         if input.consume_mouse_right_press()
             && let Some(hit) = self.world.cast(ray)
         {
-            self.world.modify(hit.position + hit.normal, block::Block::Log);
+            self.world.modify(
+                hit.position + hit.normal,
+                block::Block::from(self.block_selection as u8 % block::Block::BlockCounter as u8),
+            );
         }
     }
 }

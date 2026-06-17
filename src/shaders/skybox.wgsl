@@ -29,7 +29,7 @@ fn vs_main(in: VertexIn) -> VertexOut {
 @group(1) @binding(1) var sampler_skybox: sampler;
 
 @fragment
-fn fs_main(out: VertexOut) -> @location(0) vec4<f32> {
-    return textureSample(texture_skybox, sampler_skybox, out.tex);
+fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
+    return textureSample(texture_skybox, sampler_skybox, in.tex);
 }
 

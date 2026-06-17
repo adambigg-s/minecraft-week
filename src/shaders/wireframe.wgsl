@@ -25,7 +25,7 @@ fn vs_main(in: VertexIn) -> VertexOut {
 @group(0) @binding(3) var sample_atlas: sampler;
 
 @fragment
-fn fs_main(out: VertexOut) -> @location(0) vec4<f32> {
-    return vec4<f32>(abs(out.nor + vec3<f32>(0.33)), 1.0);
+fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
+    return vec4<f32>(abs(in.nor + vec3<f32>(0.33)), 1.0);
 }
 

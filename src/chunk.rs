@@ -56,7 +56,7 @@ impl Chunk {
         &self,
         atlas: &atlas::TextureAtlas,
         assistant: mesher::ChunkMeshingAssisant,
-    ) -> ChunkRawMesh {
+    ) -> mesher::ChunkRawMesh {
         let mesher = mesher::ChunkMesher { chunks: assistant, atlas };
         let mut rectilinear = mesher.to_rectilinear();
         mesher.map_uvs(&mut rectilinear);
@@ -66,13 +66,19 @@ impl Chunk {
             let mesher::RectilinearMeshSlice { pos, nor, uvs, .. } = rectilinear.quad_slice(index);
 
             (0..4).for_each(|vertex| {
-                vertices.push(mesher::TerrainVertex { pos: pos[vertex], nor: nor[vertex], tex: uvs[vertex] });
+                vertices.push(mesher::TerrainVertex {
+                    pos: pos[vertex],
+                    nor: nor[vertex],
+                    tex: uvs[vertex],
+                    lum: 1.0,
+                    ao: 1.0,
+                });
             });
         });
         let indices = rectilinear.indices;
         let offset = self.offset;
 
-        ChunkRawMesh { vertices, indices, offset }
+        mesher::ChunkRawMesh { vertices, indices, offset }
     }
 }
 
@@ -110,13 +116,6 @@ impl kinematics::Collision for Chunk {
     }
 }
 
-#[derive(bon::Builder, Debug)]
-pub struct ChunkRawMesh {
-    pub vertices: Vec<mesher::TerrainVertex>,
-    pub indices: Vec<u32>,
-    pub offset: glam::IVec3,
-}
-
 #[derive(Debug, Default)]
 pub enum ChunkRequest {
     Generate {
@@ -133,7 +132,7 @@ pub enum ChunkRequest {
 #[derive(Debug)]
 pub enum ChunkResponse {
     Generated { coord: glam::IVec3, chunk: Chunk },
-    Meshed { coord: glam::IVec3, raw_mesh: ChunkRawMesh },
+    Meshed { coord: glam::IVec3, raw_mesh: mesher::ChunkRawMesh },
 }
 
 #[derive(bon::Builder, Debug)]
@@ -156,7 +155,7 @@ pub struct ChunkManager {
     pub pending_render_chunks: collections::HashSet<glam::IVec3>,
 
     #[builder(default)]
-    pub gfx_insert_queue: Vec<ChunkRawMesh>,
+    pub gfx_insert_queue: Vec<mesher::ChunkRawMesh>,
     #[builder(default)]
     pub gfx_remove_queue: Vec<glam::IVec3>,
 
