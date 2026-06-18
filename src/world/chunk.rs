@@ -5,11 +5,13 @@ use std::{
 };
 
 use crate::{
-    atlas, block,
     engine::{kinematics, ray, storage::buffer},
-    mesher,
     render::{self, mesh},
-    terrain::{self},
+    visual::{atlas, mesher},
+    world::{
+        block,
+        terrain::{self},
+    },
 };
 
 #[derive(bon::Builder, Debug, Clone)]
@@ -77,7 +79,7 @@ impl Chunk {
                 });
             });
         });
-        let indices = rectilinear.indices;
+        let indices = rectilinear.index;
         let offset = self.offset;
 
         mesher::ChunkRawMesh { vertices, indices, offset }
@@ -291,6 +293,14 @@ impl ChunkManager {
         format!("ch{}x{}x{}_mesh", coord.x, coord.y, coord.z)
     }
 
+    pub fn chunk_surrounding(&self, center: glam::Vec3) -> glam::IVec3 {
+        glam::ivec3(
+            (center.x / self.chunk_width as f32).floor() as i32,
+            0,
+            (center.z / self.chunk_width as f32).floor() as i32,
+        )
+    }
+
     fn chunk_in_range(&self, coord: glam::IVec3) -> bool {
         let rel = coord.saturating_sub(self.center_chunk);
         let rel_sq_length = (rel.x.saturating_mul(rel.x))
@@ -298,14 +308,6 @@ impl ChunkManager {
             .saturating_add(rel.z.saturating_mul(rel.z)) as usize;
 
         rel_sq_length < (self.view_distance * self.view_distance)
-    }
-
-    fn chunk_surrounding(&self, center: glam::Vec3) -> glam::IVec3 {
-        glam::ivec3(
-            (center.x / self.chunk_width as f32).floor() as i32,
-            0,
-            (center.z / self.chunk_width as f32).floor() as i32,
-        )
     }
 
     fn request_chunk_generation(&mut self, coord: glam::IVec3) {

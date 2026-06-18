@@ -3,8 +3,9 @@ use std::{mem, sync};
 use wgpu::vertex_attr_array;
 
 use crate::{
-    atlas, block, chunk,
     render::{self},
+    visual::atlas,
+    world::{block, chunk},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -197,14 +198,14 @@ pub struct RectilinearMeshSlice<'r> {
 
 #[derive(bon::Builder, Debug, Default)]
 pub struct RectilinearMesh {
-    pub positions: Vec<glam::Vec3>,
-    pub normals: Vec<glam::Vec3>,
+    pub pos: Vec<glam::Vec3>,
+    pub nor: Vec<glam::Vec3>,
     pub uvs: Vec<glam::Vec2>,
     pub lum: Vec<f32>,
     pub aos: Vec<f32>,
-    pub indices: Vec<u32>,
-    pub integer_positions: Vec<glam::IVec3>,
-    pub faces: Vec<Face>,
+    pub index: Vec<u32>,
+    pub integer_pos: Vec<glam::IVec3>,
+    pub face: Vec<Face>,
     pub size: usize,
 }
 
@@ -212,15 +213,15 @@ impl RectilinearMesh {
     pub fn from_quads(quads: &[MeshQuad]) -> Self {
         let mut out = Self { size: quads.len(), ..Default::default() };
         quads.iter().for_each(|quad| {
-            let len = out.positions.len();
-            out.positions.extend_from_slice(&quad.quad.positions());
-            out.normals.extend_from_slice(&quad.quad.normals());
+            let len = out.pos.len();
+            out.pos.extend_from_slice(&quad.quad.positions());
+            out.nor.extend_from_slice(&quad.quad.normals());
             out.lum.extend_from_slice(&quad.lum);
             out.uvs.extend_from_slice(&quad.quad.texture_uvs());
             out.aos.extend_from_slice(&quad.ao);
-            out.indices.extend_from_slice(&quad.indices(len as u32));
-            out.faces.push(quad.quad.face);
-            out.integer_positions.push(quad.quad.position);
+            out.index.extend_from_slice(&quad.indices(len as u32));
+            out.face.push(quad.quad.face);
+            out.integer_pos.push(quad.quad.position);
         });
         out
     }
@@ -228,10 +229,10 @@ impl RectilinearMesh {
     pub fn quad_slice<'r>(&'r mut self, index: usize) -> RectilinearMeshSlice<'r> {
         let offset = index * 4;
         RectilinearMeshSlice {
-            face: self.faces[index],
-            integer_position: self.integer_positions[index],
-            pos: &mut self.positions[offset..offset + 4],
-            nor: &mut self.normals[offset..offset + 4],
+            face: self.face[index],
+            integer_position: self.integer_pos[index],
+            pos: &mut self.pos[offset..offset + 4],
+            nor: &mut self.nor[offset..offset + 4],
             uvs: &mut self.uvs[offset..offset + 4],
             lum: &mut self.lum[offset..offset + 4],
             aos: &mut self.aos[offset..offset + 4],
@@ -243,13 +244,13 @@ impl RectilinearMesh {
     }
 
     pub fn scale(&mut self, scale: glam::Vec3) {
-        self.positions.iter_mut().for_each(|pos| {
+        self.pos.iter_mut().for_each(|pos| {
             *pos *= scale;
         });
     }
 
     pub fn shift(&mut self, shift: glam::Vec3) {
-        self.positions.iter_mut().for_each(|pos| {
+        self.pos.iter_mut().for_each(|pos| {
             *pos += shift;
         });
     }
@@ -305,7 +306,7 @@ impl ChunkMeshingAssisant {
 
     pub fn get_adjacent(&self, coord: glam::IVec3) -> block::Block {
         let width = (self.chunk.width - 1) as i32;
-        let height = self.chunk.height as i32;
+        let height = (self.chunk.height - 1) as i32;
 
         if coord.y < 0 || coord.y >= height {
             return Self::EMPTY;
@@ -383,15 +384,16 @@ impl<'c> ChunkMesher<'c> {
                         }
 
                         let ao = self.map_ao(coord, face);
+                        let lum = [1.0; 4];
                         match block.mesh_style() {
                             | block::EmittedMesh::RectilinearFull => {
-                                quads.push(MeshQuad { quad: Quad { position, face }, ao, lum: [1.0; 4] });
+                                quads.push(MeshQuad { quad: Quad { position, face }, ao, lum });
                             }
                             | block::EmittedMesh::Decorator => {
                                 quads.extend(Face::DIAGONALS.map(|face| MeshQuad {
                                     quad: Quad { position, face },
                                     ao: [1.0; 4],
-                                    lum: [1.0; 4],
+                                    lum,
                                 }));
                             }
                             | block::EmittedMesh::RectilinearPartial => todo!(),
@@ -414,27 +416,26 @@ impl<'c> ChunkMesher<'c> {
     }
 
     pub fn map_ao(&self, coord: glam::IVec3, face: Face) -> [f32; 4] {
-        let normal = face.neighbor_offset();
-        let adjacent = coord + normal;
+        let nor = face.neighbor_offset();
+        let adj = coord + nor;
 
         face.corners().map(|(offset, _)| {
-            let direction = offset * 2 - glam::IVec3::ONE;
-            let tangent_candidate = direction * (glam::IVec3::ONE - normal.abs());
+            let dir = offset * 2 - glam::IVec3::ONE;
+            let tn_cand = dir * (glam::IVec3::ONE - nor.abs());
 
-            let (tan, bitan) = if normal.x != 0 {
-                (glam::ivec3(0, tangent_candidate.y, 0), glam::ivec3(0, 0, tangent_candidate.z))
+            let (tn, btn) = if nor.x != 0 {
+                (glam::ivec3(0, tn_cand.y, 0), glam::ivec3(0, 0, tn_cand.z))
             }
-            else if normal.y != 0 {
-                (glam::ivec3(tangent_candidate.x, 0, 0), glam::ivec3(0, 0, tangent_candidate.z))
+            else if nor.y != 0 {
+                (glam::ivec3(tn_cand.x, 0, 0), glam::ivec3(0, 0, tn_cand.z))
             }
             else {
-                (glam::ivec3(tangent_candidate.x, 0, 0), glam::ivec3(0, tangent_candidate.y, 0))
+                (glam::ivec3(tn_cand.x, 0, 0), glam::ivec3(0, tn_cand.y, 0))
             };
 
-            let side1 = self.chunks.get_adjacent(adjacent + tan).visibility() == block::Visibility::Opaque;
-            let side2 = self.chunks.get_adjacent(adjacent + bitan).visibility() == block::Visibility::Opaque;
-            let corner =
-                self.chunks.get_adjacent(adjacent + tan + bitan).visibility() == block::Visibility::Opaque;
+            let side1 = self.chunks.get_adjacent(adj + tn).visibility() == block::Visibility::Opaque;
+            let side2 = self.chunks.get_adjacent(adj + btn).visibility() == block::Visibility::Opaque;
+            let corner = self.chunks.get_adjacent(adj + tn + btn).visibility() == block::Visibility::Opaque;
 
             let occlusion = match (side1, side2) {
                 | (true, true) => 0,

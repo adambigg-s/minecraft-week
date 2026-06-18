@@ -38,16 +38,9 @@ Sun shadows weren't able to be added in the initial week.
 
 ### Examples
 
-There are some photos in `images/` that I took while making this
+There are some photos in `images/` that I took while making this.
 
-##### Files that are in disarray
+### License
 
-- terrain.rs
-- minecraft_week.rs - the main file is so bad
-
-###### Goals for today (last day)
-
-- fix structures generating over chunk borders
-- refactor terrain so that the file is readable
-
+Use any part for whatever you want.
 

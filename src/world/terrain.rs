@@ -1,6 +1,6 @@
 use noise::NoiseFn;
 
-use crate::{block, chunk};
+use crate::world::{block, chunk};
 
 #[derive(Debug)]
 pub enum Biome {

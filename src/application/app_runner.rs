@@ -173,11 +173,16 @@ where
                 }
 
                 match state.input.request_grab {
-                    | true => {
+                    input::MouseMode::None => {
+                        state.window.set_cursor_grab(window::CursorGrabMode::None).unwrap();
+                        state.window.set_cursor_visible(true);
+                        state.input.consume_mouse_delta();
+                    }
+                    | input::MouseMode::Grab => {
                         state.window.set_cursor_grab(window::CursorGrabMode::Confined).unwrap();
                         state.window.set_cursor_visible(false);
                     }
-                    | false => {
+                    | input::MouseMode::Free => {
                         state.window.set_cursor_grab(window::CursorGrabMode::None).unwrap();
                         state.window.set_cursor_visible(true);
                     }

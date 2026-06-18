@@ -3,8 +3,8 @@ use std::mem;
 use wgpu::vertex_attr_array;
 
 use crate::{
-    atlas, mesher,
     render::{self, mesh},
+    visual::{atlas, mesher},
 };
 
 #[repr(C)]
@@ -55,7 +55,7 @@ impl Skybox {
                 vertices.push(SkyboxVertex { pos: pos[vertex], tex: uvs[vertex] });
             });
         });
-        let indices = &self.mesh.indices;
+        let indices = &self.mesh.index;
 
         mesh::GfxMesh::new(context, &vertices, indices)
     }

@@ -2,7 +2,7 @@ use std::{collections, fs};
 
 use image::GenericImage;
 
-use crate::{engine::storage::buffer, mesher};
+use crate::{engine::storage::buffer, visual::mesher};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum BlockTextureFace {

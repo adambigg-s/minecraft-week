@@ -3,9 +3,8 @@ use std::mem;
 use wgpu::vertex_attr_array;
 
 use crate::{
-    mesher,
     render::{self, GfxVertex},
-    skybox,
+    visual::{mesher, skybox},
 };
 
 pub struct TimeGradient;
@@ -16,7 +15,7 @@ impl render::GfxPipeline for TimeGradient {
     ) -> wgpu::RenderPipeline {
         let shader = context.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Time gradient shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("./shaders/time_gradient.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!(".././shaders/time_gradient.wgsl").into()),
         });
 
         let layout = context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -75,7 +74,7 @@ impl render::GfxPipeline for CulledFrame {
     ) -> wgpu::RenderPipeline {
         let shader = context.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Culledframe shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("./shaders/culledframe.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!(".././shaders/culledframe.wgsl").into()),
         });
 
         let layout = context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -134,7 +133,7 @@ impl render::GfxPipeline for Skybox {
     ) -> wgpu::RenderPipeline {
         let shader = context.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Skybox shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("./shaders/skybox.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!(".././shaders/skybox.wgsl").into()),
         });
 
         let layout = context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -193,7 +192,7 @@ impl render::GfxPipeline for Terrain {
     ) -> wgpu::RenderPipeline {
         let shader = context.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Terrain shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("./shaders/terrain.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!(".././shaders/terrain.wgsl").into()),
         });
 
         let layout = context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -252,7 +251,7 @@ impl render::GfxPipeline for WireFrame {
     ) -> wgpu::RenderPipeline {
         let shader = context.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Wireframe shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("./shaders/wireframe.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!(".././shaders/wireframe.wgsl").into()),
         });
 
         let layout = context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -376,7 +375,7 @@ impl render::GfxPipeline for Rainbow {
     ) -> wgpu::RenderPipeline {
         let shader = context.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Rainbow shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../src/shaders/rainbow.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!(".././shaders/rainbow.wgsl").into()),
         });
 
         let layout = context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {

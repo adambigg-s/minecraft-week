@@ -44,6 +44,7 @@ pub enum Block {
     Coal,
     Copper,
     Tin,
+    Glass,
     BlockCounter,
 }
 
@@ -67,9 +68,10 @@ impl Block {
         Block::Coal,
         Block::Copper,
         Block::Tin,
+        Block::Glass,
     ];
 
-        #[rustfmt::skip]
+    #[rustfmt::skip]
     pub fn name(&self) -> &'static str {
         match self {
             | Block::Air          => "air",
@@ -90,6 +92,7 @@ impl Block {
             | Block::Coal         => "coal",
             | Block::Copper       => "copper",
             | Block::Tin          => "tin",
+            | Block::Glass        => "glass",
             | Block::BlockCounter => "",
         }
     }
@@ -98,7 +101,9 @@ impl Block {
         match self {
             | Block::Air => Visibility::Invisible,
             | Block::Water => Visibility::Transparent,
-            | Block::Leaf | Block::RedFlower | Block::BlueFlower | Block::Shrub => Visibility::PartialOpaque,
+            | Block::Leaf | Block::RedFlower | Block::BlueFlower | Block::Shrub | Block::Glass => {
+                Visibility::PartialOpaque
+            }
             | _ => Visibility::Opaque,
         }
     }

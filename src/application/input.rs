@@ -1,6 +1,32 @@
-use std::collections;
+use std::{collections, ops};
 
 use winit::keyboard;
+
+#[derive(Debug, Default, Clone, Copy)]
+pub enum MouseMode {
+    #[default]
+    None,
+    Free,
+    Grab,
+}
+
+impl MouseMode {
+    pub fn cycle(&self) -> Self {
+        match self {
+            | MouseMode::None => MouseMode::Free,
+            | MouseMode::Free => MouseMode::Grab,
+            | MouseMode::Grab => MouseMode::None,
+        }
+    }
+}
+
+impl ops::Not for MouseMode {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        self.cycle()
+    }
+}
 
 #[derive(bon::Builder, Debug, Default)]
 pub struct Input {
@@ -10,8 +36,8 @@ pub struct Input {
     pub mouse_released: (bool, bool),
     pub mouse_delta: (f32, f32),
     pub request_quit: bool,
-    pub request_grab: bool,
     pub request_screenshot: bool,
+    pub request_grab: MouseMode,
 }
 
 impl Input {

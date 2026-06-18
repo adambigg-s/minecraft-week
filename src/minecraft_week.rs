@@ -2,16 +2,16 @@ use std::{env, range, sync, time};
 
 use crate::{
     application::{self, input},
-    atlas, block, chunk,
     engine::{
         aabb, camera,
         kinematics::{self},
+        player,
         ray::{self, Cast},
         transform,
     },
-    pipelines, player,
     render::{self, GfxCamera, resource, util},
-    skybox, terrain,
+    visual::{atlas, pipelines, skybox},
+    world::{block, chunk, terrain},
 };
 
 #[derive(bon::Builder, Debug)]
@@ -78,7 +78,7 @@ impl application::Application for MinecraftWeek {
         let terrain_gen = sync::Arc::new(terrain::TerrainGenerator::new(seed));
 
         let camera = camera::Camera::builder()
-            .inner(transform::Transform::from_position(glam::vec3(0.0, 127.0, 0.0)))
+            .inner(transform::Transform::from_position(glam::vec3(0.0, 116.0, 0.0)))
             .fov(93.0)
             .znear(0.1)
             .zfear(1000.0)
@@ -92,7 +92,7 @@ impl application::Application for MinecraftWeek {
 
         let mut world = chunk::ChunkManager::builder()
             .atlas(sync::Arc::clone(&texture_atlas))
-            .view_distance(18)
+            .view_distance(16)
             .terrain(sync::Arc::clone(&terrain_gen))
             .chunk_width(32)
             .chunk_height(128)
@@ -107,10 +107,10 @@ impl application::Application for MinecraftWeek {
 
         let instant = time::Instant::now();
         let frame_data = FrameData {
-            tick: 0,
-            time: instant.elapsed().as_secs_f32(),
             dt: 0.0,
+            time: instant.elapsed().as_secs_f32(),
             instant: time::Instant::now(),
+            tick: 0,
         };
 
         let block_selection = 0;
@@ -203,14 +203,21 @@ impl MinecraftWeek {
             self.player.collisions = !self.player.collisions;
         }
         if input.consume_key_press("keyf") {
-            self.block_selection += 1;
+            self.block_selection = self.block_selection.wrapping_add(1);
+            log::info!("Block selection: {}", self.block_selection as u8 % block::Block::BlockCounter as u8);
+        }
+        if input.consume_key_press("keyg") {
+            self.block_selection = self.block_selection.wrapping_sub(1);
+            log::info!("Block selection: {}", self.block_selection as u8 % block::Block::BlockCounter as u8);
         }
 
         if input.consume_key_press("keyo") {
             self.gfx_config.ao_strength -= 0.5;
+            log::info!("AO strength: {}", self.gfx_config.ao_strength);
         }
         if input.consume_key_press("keyp") {
             self.gfx_config.ao_strength += 0.5;
+            log::info!("AO strength: {}", self.gfx_config.ao_strength);
         }
     }
 
@@ -291,6 +298,7 @@ impl MinecraftWeek {
                     self.player.collider + (self.camera.inner.position - self.player.collider.center());
             }
         }
+        log::debug!("Player is in: {}", self.world.chunk_surrounding(self.camera.inner.position));
     }
 
     fn update_resources(&mut self, context: &mut render::GfxContext, render: &mut render::GfxRenderer) {
