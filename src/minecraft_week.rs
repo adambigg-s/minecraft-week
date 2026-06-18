@@ -51,8 +51,8 @@ pub struct MinecraftWeek {
 impl application::Application for MinecraftWeek {
     fn config() -> application::Config {
         application::Config::builder()
-            .width(1920)
-            .height(1080)
+            .width(2560)
+            .height(1200)
             .title("Minecraft-week game")
             .build()
     }

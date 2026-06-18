@@ -2,10 +2,7 @@
 
 Minecraft inspired voxel game made in one week with Rust and wgpu
 
-### Current state
-
-![screenshot](images/development/trees.png)
-![screenshot](images/development/meshing.png)
+![screenshot](images/valley.png)
 
 ### Building
 
@@ -14,7 +11,10 @@ You will need:
 - Cargo-nightly toolchain (unlikely to build w/o)
 
 Run the project:
-`$ cargo run --release -- <seed>`
+`$ cargo +nightly run --release -- <seed>`
+
+Seed optional:
+`$ cargo +nightly run --release`
 
 ### Goals
 
@@ -23,10 +23,15 @@ Run the project:
 - Asynchronous chunk forming & meshing
 - Sun shadows
 - Voxel lighting & ambient occlusion
+- Physics and collision detection
 
 #### Were they achieved?
 
-Sun shadows weren't able to be added in the initial week.
+Sun shadows weren't able to be added in the initial week
+
+Terrain generation was brought to a satisfactory point (visually) but the module
+responsible for generating terrain is a mess and not scalable for biomes, which
+was a goal
 
 ### Resources
 
@@ -43,4 +48,6 @@ There are some photos in `images/` that I took while making this.
 ### License
 
 Use any part for whatever you want.
+
+![screenshot](images/flying.gif)
 

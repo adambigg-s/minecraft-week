@@ -5,6 +5,73 @@ use crate::{
     world::{block, chunk},
 };
 
+#[derive(bon::Builder, Debug)]
+pub struct TerrainConfig {
+    pub sea_level: f64,
+    pub shift: f64,
+
+    pub temperature: NoiseLayer,
+    pub humidity: NoiseLayer,
+
+    pub continent: NoiseLayer,
+    pub detail: NoiseLayer,
+    pub mountain: NoiseLayer,
+    pub cliff_subtract: NoiseLayer,
+    pub cliff_threshold: f64,
+
+    pub cave: NoiseLayer,
+    pub cave_threshold: f64,
+}
+
+impl Default for TerrainConfig {
+    fn default() -> Self {
+        Self {
+            sea_level: 0.5,
+            shift: 0.25,
+            temperature: NoiseLayer {
+                freq: 0.02,
+                offset: [9999.9 + 3434.3, 9999.9 + 3434.3, 9999.9 + 3434.3],
+                ..Default::default()
+            },
+            humidity: NoiseLayer {
+                freq: 0.05,
+                offset: [9999.9 + 19.3, 9999.9 + 19.3, 9999.9 + 19.3],
+                ..Default::default()
+            },
+            continent: NoiseLayer {
+                freq: 0.001,
+                offset: [9999.9 + 7.3, 9999.9 + 7.3, 9999.9 + 7.3],
+                octaves: 4,
+                ..Default::default()
+            },
+            detail: NoiseLayer {
+                freq: 0.005,
+                offset: [9999.9 + 9123.3, 9999.9 + 9123.3, 9999.9 + 9123.3],
+                octaves: 6,
+                ..Default::default()
+            },
+            mountain: NoiseLayer {
+                freq: 0.01,
+                offset: [9999.9 + 2934.3, 9999.9 + 2934.3, 9999.9 + 2934.3],
+                octaves: 8,
+                ..Default::default()
+            },
+            cliff_subtract: NoiseLayer {
+                freq: 0.01,
+                offset: [9999.9 + -23424.3, 9999.9 + -23424.3, 9999.9 + -23424.3],
+                ..Default::default()
+            },
+            cliff_threshold: 0.75,
+            cave: NoiseLayer {
+                freq: 0.05,
+                offset: [9999.9 + -99984.3, 9999.9 + -99984.3, 9999.9 + -99984.3],
+                ..Default::default()
+            },
+            cave_threshold: 0.70,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum Biome {
     Ocean,
@@ -15,25 +82,133 @@ pub enum Biome {
     Badlands,
 }
 
-pub struct NoiseLayer {
-    pub octaves: usize,
-    pub freq: f64,
-    pub amp: f64,
-    pub offset: [f64; 3],
+impl Biome {
+    pub fn terrain_rules(&self) -> TerrainRules {
+        match self {
+            | Biome::Ocean => todo!(),
+            | Biome::Beach => todo!(),
+            | Biome::Meadow => todo!(),
+            | Biome::Forest => todo!(),
+            | Biome::Mountain => todo!(),
+            | Biome::Badlands => todo!(),
+        }
+    }
 }
 
 #[derive(bon::Builder, Debug)]
-pub struct GeologyRules {}
+pub struct NoiseLayer {
+    #[builder(default = 1)]
+    pub octaves: usize,
+    pub freq: f64,
+    #[builder(default = 1.0)]
+    pub amp: f64,
+    #[builder(default = 0.5)]
+    pub persistence: f64,
+    #[builder(default = 2.0)]
+    pub lacunarity: f64,
+    pub offset: [f64; 3],
+}
+
+impl Default for NoiseLayer {
+    fn default() -> Self {
+        Self {
+            octaves: 1,
+            freq: 0.5,
+            amp: 1.0,
+            persistence: 0.5,
+            lacunarity: 2.0,
+            offset: [0.0, 0.0, 0.0],
+        }
+    }
+}
+
+#[allow(unused)]
+impl NoiseLayer {
+    fn sample_2d<Noise>(&self, noise: &Noise, x: f64, y: f64) -> f64
+    where
+        Noise: noise::NoiseFn<f64, 2> + noise::NoiseFn<f64, 3>,
+    {
+        let mut total = 0.0;
+        let mut max = 0.0;
+        let mut amp = 1.0;
+        let mut freq = self.freq;
+
+        (0..self.octaves).for_each(|_| {
+            let x = (x + self.offset[0]) * freq;
+            let y = (y + self.offset[1]) * freq;
+
+            total += noise.get([x, y]) * amp;
+            max += amp;
+            amp *= self.persistence;
+            freq *= self.lacunarity;
+        });
+
+        ((total / max) + 1.0) * 0.5
+    }
+
+    fn sample_3d<Noise>(&self, noise: &Noise, x: f64, y: f64, z: f64) -> f64
+    where
+        Noise: noise::NoiseFn<f64, 2> + noise::NoiseFn<f64, 3>,
+    {
+        let mut total = 0.0;
+        let mut max = 0.0;
+        let mut amp = 1.0;
+        let mut freq = self.freq;
+
+        (0..self.octaves).for_each(|_| {
+            let x = (x + self.offset[0]) * freq;
+            let y = (y + self.offset[1]) * freq;
+            let z = (z + self.offset[2]) * freq;
+
+            total += noise.get([x, y, z]) * amp;
+            max += amp;
+            amp *= self.persistence;
+            freq *= self.lacunarity;
+        });
+
+        ((total / max) + 1.0) * 0.5
+    }
+}
+
+#[derive(bon::Builder, Debug)]
+pub struct TerrainRules {
+    pub surface_depth: f64,
+    pub surface_block: block::Block,
+    pub subsurface: block::Block,
+    pub decorator: block::Block,
+}
+
+// #[derive(bon::Builder, Debug)]
+// pub struct TerrainGenerator {
+//     pub noise: noise::Perlin,
+//     pub config: TerrainConfig,
+// }
+
+// impl TerrainGenerator {
+//     pub fn new(seed: u32) -> Self {
+//         let noise = noise::Perlin::new(seed);
+//         let config = TerrainConfig::default();
+
+//         Self { noise, config }
+//     }
+
+//     pub fn form_chunk(&self, chunk: &mut chunk::Chunk) {
+//         let mut base_heightmap = self.base_heightmap(chunk);
+//         let continent_heightmap = self.continent_heightmap(chunk);
+
+//         self.apply_cliff_subtraction(chunk, &mut base_heightmap);
+
+//         self.apply_base_terrain(chunk, &base_heightmap, &continent_heightmap);
+//         self.apply_cave_carving(chunk, &base_heightmap, &continent_heightmap);
+//         self.apply_water_fill(chunk, &base_heightmap);
+//     }
+// }
 
 #[derive(bon::Builder, Debug)]
 pub struct TerrainGenerator {
     pub noise: noise::Perlin,
 }
 
-// terrain shaping
-// water filling
-// surface replacement
-// decorators
 impl TerrainGenerator {
     pub fn new(seed: u32) -> Self {
         let noise = noise::Perlin::new(seed);
