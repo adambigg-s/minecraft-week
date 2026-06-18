@@ -1,6 +1,9 @@
 use noise::NoiseFn;
 
-use crate::world::{block, chunk};
+use crate::{
+    engine::util,
+    world::{block, chunk},
+};
 
 #[derive(Debug)]
 pub enum Biome {
@@ -12,21 +15,19 @@ pub enum Biome {
     Badlands,
 }
 
+pub struct NoiseLayer {
+    pub octaves: usize,
+    pub freq: f64,
+    pub amp: f64,
+    pub offset: [f64; 3],
+}
+
 #[derive(bon::Builder, Debug)]
 pub struct GeologyRules {}
 
 #[derive(bon::Builder, Debug)]
 pub struct TerrainGenerator {
     pub noise: noise::Perlin,
-}
-
-pub fn integer_weighted_sum<const N: usize>(values: [f64; N], weights: [i32; N]) -> f64 {
-    let total_weight = weights.iter().sum::<i32>() as f64;
-    values
-        .iter()
-        .zip(weights.iter())
-        .map(|(&val, &weight)| val * (weight as f64) / total_weight)
-        .sum()
 }
 
 // terrain shaping
@@ -95,7 +96,8 @@ impl TerrainGenerator {
                 let mountain =
                     self.sample_fbm_2d([gcoord.x + 10000.0, gcoord.z + 10000.0], 8, 0.04).powf(5.0);
 
-                let mut terrain_height = integer_weighted_sum([continent, detail, mountain], [3, 4, 1]);
+                let mut terrain_height =
+                    util::weighted_sum_relative([continent, detail, mountain], [3.0, 4.0, 1.0]);
 
                 let decorator = self.sample_2d([gcoord.x + 99000.0, gcoord.z + 99000.0], 1.1);
                 let decorator2 = self.sample_2d([gcoord.x + 89000.0, gcoord.z + 89000.0], 1.1);
