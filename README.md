@@ -4,8 +4,8 @@ Minecraft inspired voxel game made in one week with Rust and wgpu
 
 ### Current state
 
-![screenshot](images/trees.png)
-![screenshot](images/meshing.png)
+![screenshot](images/development/trees.png)
+![screenshot](images/development/meshing.png)
 
 ### Building
 
@@ -18,11 +18,11 @@ Run the project:
 
 ### Goals
 
-- Infinite world generation
-- World interaction
-- Async chunk generation
+- Infinite procedural generation
+- Player-world interaction
+- Asynchronous chunk forming & meshing
 - Sun shadows
-- Voxel lighting
+- Voxel lighting & ambient occlusion
 
 #### Were they achieved?
 

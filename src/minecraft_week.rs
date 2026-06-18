@@ -381,8 +381,8 @@ fn register_resources(
 }
 
 fn create_atlas() -> Result<atlas::TextureAtlas, anyhow::Error> {
-    let atlas = atlas::TextureAtlas::new("./res/", 16)?;
-    atlas.save("./res/atlas/atlas.png")?;
+    let atlas = atlas::TextureAtlas::new("./res/blocks/", 16)?;
+    atlas.save("./res/block_atlas.png")?;
     Ok(atlas)
 }
 
@@ -391,7 +391,7 @@ fn create_skybox(
     render: &mut render::GfxRenderer,
 ) -> Result<skybox::Skybox, anyhow::Error> {
     let mut skybox = skybox::Skybox::new("./res/skybox/", 32, 500.0)?;
-    skybox.texture.save("./res/atlas/skybox_atlas.png")?;
+    skybox.texture.save("./res/skybox_atlas.png")?;
     render.register_mesh("skybox_mesh", skybox.create_gfx_mesh(context));
     Ok(skybox)
 }
