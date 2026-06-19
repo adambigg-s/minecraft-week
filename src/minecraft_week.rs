@@ -11,7 +11,7 @@ use crate::{
     },
     render::{self, GfxCamera, resource, util},
     visual::{atlas, pipelines, skybox},
-    world::{block, chunk, terrain},
+    world::{self, block, terrain},
 };
 
 #[derive(bon::Builder, Debug)]
@@ -42,7 +42,7 @@ impl FrameData {
 pub struct MinecraftWeek {
     pub camera: camera::Camera,
     pub player: player::PlayerController,
-    pub world: chunk::ChunkManager,
+    pub world: world::ChunkManager,
     pub gfx_config: GfxConfiguration,
     pub frame_data: FrameData,
     pub block_selection: usize,
@@ -79,20 +79,21 @@ impl application::Application for MinecraftWeek {
 
         let camera = camera::Camera::builder()
             .inner(transform::Transform::from_position(glam::vec3(0.0, 116.0, 0.0)))
-            .fov(93.0)
+            .fov(85.0)
             .znear(0.1)
             .zfear(1000.0)
             .build();
+
         let player = player::PlayerController::builder()
             .movespeed(8.0)
-            .lookspeed(0.0025)
+            .lookspeed(0.002)
             .collider(aabb::AaBb::point_sides(camera.inner.position.to_array(), [0.45, 0.85, 0.45]))
             .kinematics(kinematics::Kinematics::builder().up(glam::Vec3::Y).build())
             .build();
 
-        let mut world = chunk::ChunkManager::builder()
+        let mut world = world::ChunkManager::builder()
             .atlas(sync::Arc::clone(&texture_atlas))
-            .view_distance(16)
+            .view_distance(8)
             .terrain(sync::Arc::clone(&terrain_gen))
             .chunk_width(32)
             .chunk_height(128)
@@ -133,12 +134,13 @@ impl application::Application for MinecraftWeek {
     ) {
         let (_, _) = (gfx_context, gfx_render);
 
+        self.frame_data.update();
+
         self.handle_logistics_input(input);
         self.handle_movement_input(input);
         self.handle_interaction_input(input);
 
         self.world.update_chunks(self.camera.inner.position);
-        self.frame_data.update();
     }
 
     fn gfx_frame(
@@ -165,7 +167,7 @@ impl application::Application for MinecraftWeek {
 
         self.world.render_chunks.iter().for_each(|&coord| {
             render.queue(render::GfxDrawCall {
-                mesh: chunk::ChunkManager::chunk_key(coord),
+                mesh: world::ChunkManager::chunk_key(coord),
                 pipe: self.gfx_config.pipeline.to_owned(),
                 bind_groups: vec!["global_bg".into()],
             });
@@ -204,13 +206,18 @@ impl MinecraftWeek {
         }
         if input.consume_key_press("keyf") {
             self.block_selection = self.block_selection.wrapping_add(1);
-            log::info!("Block selection: {}", self.block_selection as u8 % block::Block::BlockCounter as u8);
+            log::info!(
+                "Block selection: {}",
+                block::Block::from(self.block_selection as u8 % block::Block::BlockCounter as u8)
+            );
         }
         if input.consume_key_press("keyg") {
             self.block_selection = self.block_selection.wrapping_sub(1);
-            log::info!("Block selection: {}", self.block_selection as u8 % block::Block::BlockCounter as u8);
+            log::info!(
+                "Block selection: {}",
+                block::Block::from(self.block_selection as u8 % block::Block::BlockCounter as u8)
+            );
         }
-
         if input.consume_key_press("keyo") {
             self.gfx_config.ao_strength -= 0.5;
             log::info!("AO strength: {}", self.gfx_config.ao_strength);
@@ -322,13 +329,11 @@ impl MinecraftWeek {
             direction: self.camera.inner.forward(),
             tspan: range::Range { start: 0.0, end: 12.0 },
         };
-
         if input.consume_mouse_left_press()
             && let Some(hit) = self.world.cast(ray)
         {
             self.world.modify(hit.position, block::Block::Air);
         }
-
         if input.consume_mouse_right_press()
             && let Some(hit) = self.world.cast(ray)
         {

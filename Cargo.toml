@@ -7,6 +7,7 @@ edition = "2024"
 anyhow = "1.0.102"
 bon = "3.9.2"
 bytemuck = "1.25.0"
+dashmap = "6.2.1"
 env_logger = "0.11.10"
 glam = { version = "0.33.1", features = ["bytemuck"] }
 image = "0.25.10"
@@ -18,7 +19,7 @@ wgpu = "29.0.3"
 winit = "0.30.13"
 
 [profile.dev.package."*"]
-opt-level = 1
+opt-level = 3
 
 [profile.dev]
 lto = false

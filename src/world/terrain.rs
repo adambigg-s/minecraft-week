@@ -258,11 +258,11 @@ impl TerrainGenerator {
     pub fn form_chunk(&self, chunk: &mut chunk::Chunk) {
         use block::Block::*;
 
-        let height = chunk.height as f64;
+        let height = chunk.height() as f64;
         let sea_level = (height * 0.45) as i32;
-        let chunk_offset = chunk.offset * chunk.size();
-        for z in 0..chunk.width as i32 {
-            for x in 0..chunk.width as i32 {
+        let chunk_offset = chunk.world_position();
+        for z in 0..chunk.width() as i32 {
+            for x in 0..chunk.width() as i32 {
                 let gcoord = (glam::ivec3(x, 0, z) + chunk_offset).as_dvec3();
 
                 let continent = self.sample_fbm_2d([gcoord.x, gcoord.z], 4, 0.002);

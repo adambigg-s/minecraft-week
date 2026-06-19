@@ -70,6 +70,7 @@ impl Block {
         Block::Tin,
         Block::Glass,
     ];
+    pub const EMPTY: Block = Block::Air;
 
     #[rustfmt::skip]
     pub fn name(&self) -> &'static str {
@@ -94,6 +95,27 @@ impl Block {
             | Block::Tin          => "tin",
             | Block::Glass        => "glass",
             | Block::BlockCounter => "",
+        }
+    }
+
+    #[rustfmt::skip]
+    pub fn occlusion(&self) -> u8 {
+        match self {
+            | Block::Dirt   => 1,
+            | Block::Grass  => 1,
+            | Block::Sand   => 1,
+            | Block::Water  => 1,
+            | Block::Lava   => 1,
+            | Block::Log    => 1,
+            | Block::Leaf   => 1,
+            | Block::Stone  => 1,
+            | Block::Gravel => 1,
+            | Block::Plank  => 1,
+            | Block::Quartz => 1,
+            | Block::Coal   => 1,
+            | Block::Copper => 1,
+            | Block::Tin    => 1,
+            | _             => 0,
         }
     }
 

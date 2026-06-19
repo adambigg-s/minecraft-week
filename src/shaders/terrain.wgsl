@@ -62,7 +62,7 @@ fn fs_main(in: VertexOut) -> FragmentOutput {
     let ao = pow(in.ao, global_ao);
     let diffuse_color = color * light * ao;
 
-    let depth = -in.world_pos.z;
+    let depth = length(in.world_pos.xyz);
     let fog_factor = pow(clamp((depth - FOG_START) / (FOG_END - FOG_START), 0.0, 1.0), FOG_EXP);
 
     let final_color = mix(diffuse_color, FADE_COLOR, fog_factor);

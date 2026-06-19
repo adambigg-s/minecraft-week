@@ -1,11 +1,11 @@
-use std::{mem, sync};
+use std::mem;
 
 use wgpu::vertex_attr_array;
 
 use crate::{
     render::{self},
     visual::atlas,
-    world::{block, chunk},
+    world::{self, block},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -292,81 +292,36 @@ pub struct ChunkRawMesh {
 }
 
 #[derive(bon::Builder, Debug)]
-pub struct ChunkMeshingAssisant {
-    pub chunk: sync::Arc<chunk::Chunk>,
-    pub neighbors: [Option<sync::Arc<chunk::Chunk>>; 4],
-}
-
-impl ChunkMeshingAssisant {
-    pub const EMPTY: block::Block = block::Block::Air;
-    pub const NORTH: usize = 0;
-    pub const SOUTH: usize = 1;
-    pub const EAST: usize = 2;
-    pub const WEST: usize = 3;
-
-    pub fn get_adjacent(&self, coord: glam::IVec3) -> block::Block {
-        let width = (self.chunk.width - 1) as i32;
-        let height = (self.chunk.height - 1) as i32;
-
-        if coord.y < 0 || coord.y >= height {
-            return Self::EMPTY;
-        }
-
-        let target_chunk = if coord.z > width {
-            &self.neighbors[Self::NORTH]
-        }
-        else if coord.z < 0 {
-            &self.neighbors[Self::SOUTH]
-        }
-        else if coord.x < 0 {
-            &self.neighbors[Self::EAST]
-        }
-        else if coord.x > width {
-            &self.neighbors[Self::WEST]
-        }
-        else {
-            return *self.chunk.get(coord);
-        };
-
-        let local_coord = self.chunk.to_chunk_coords(coord);
-        match target_chunk {
-            | Some(neighbor) => *neighbor.get(local_coord),
-            | None => Self::EMPTY,
-        }
-    }
-}
-
-#[derive(bon::Builder, Debug)]
 pub struct ChunkMesher<'c> {
-    pub chunks: ChunkMeshingAssisant,
+    pub view: &'c world::ChunkView,
     pub atlas: &'c atlas::TextureAtlas,
 }
 
 impl<'c> ChunkMesher<'c> {
     pub fn to_rectilinear(&self) -> RectilinearMesh {
-        use block::{Block::*, Visibility::*};
+        use block::Visibility::*;
 
         let mut quads = Vec::new();
-        let global = self.chunks.chunk.offset * self.chunks.chunk.size();
 
-        for z in 0..self.chunks.chunk.width {
-            for y in 0..self.chunks.chunk.height {
-                for x in 0..self.chunks.chunk.width {
-                    let coord = glam::ivec3(x as i32, y as i32, z as i32);
-                    let position = coord + global;
+        let chunk = &self.view.target_chunk;
+        let world_origin = chunk.world_position();
+        let width = self.view.chunk_width;
+        let height = self.view.chunk_height;
 
-                    let block = self.chunks.chunk.get(coord);
-                    if block == &Air {
+        for z in 0..width {
+            for y in 0..height {
+                for x in 0..width {
+                    let coord = glam::ivec3(x, y, z);
+                    let position = coord + world_origin;
+
+                    let block = chunk.get(coord);
+                    if block == &block::Block::EMPTY {
                         continue;
                     }
 
                     for face in Face::CARDINALS {
                         let offset = face.neighbor_offset();
-                        let neighbor = self.chunks.get_adjacent(glam::ivec3(
-                            x as i32 + offset.x,
-                            y as i32 + offset.y,
-                            z as i32 + offset.z,
-                        ));
+                        let neighbor = self.view.get_block(position + offset);
 
                         let emit = match (block.visibility(), neighbor.visibility()) {
                             | (Opaque, PartialOpaque)
@@ -383,7 +338,7 @@ impl<'c> ChunkMesher<'c> {
                             continue;
                         }
 
-                        let ao = self.map_ao(coord, face);
+                        let ao = self.map_ao(position, face);
                         let lum = [1.0; 4];
                         match block.mesh_style() {
                             | block::EmittedMesh::RectilinearFull => {
@@ -402,15 +357,18 @@ impl<'c> ChunkMesher<'c> {
                 }
             }
         }
+
         RectilinearMesh::from_quads(&quads)
     }
 
     pub fn map_uvs(&self, rectilinear: &mut RectilinearMesh) {
+        let chunk = &self.view.target_chunk;
+
         (0..rectilinear.size).for_each(|index| {
             let RectilinearMeshSlice { face, integer_position, uvs, .. } = rectilinear.quad_slice(index);
 
-            let position = self.chunks.chunk.to_chunk_coords(integer_position);
-            let block = self.chunks.chunk.get(position);
+            let position = chunk.to_chunk_coords(integer_position);
+            let block = chunk.get(position);
             self.atlas.conform_uvs(uvs, block.name(), face);
         });
     }
@@ -433,9 +391,9 @@ impl<'c> ChunkMesher<'c> {
                 (glam::ivec3(tn_cand.x, 0, 0), glam::ivec3(0, tn_cand.y, 0))
             };
 
-            let side1 = self.chunks.get_adjacent(adj + tn).visibility() == block::Visibility::Opaque;
-            let side2 = self.chunks.get_adjacent(adj + btn).visibility() == block::Visibility::Opaque;
-            let corner = self.chunks.get_adjacent(adj + tn + btn).visibility() == block::Visibility::Opaque;
+            let side1 = self.view.get_block(adj + tn).occlusion() != 0;
+            let side2 = self.view.get_block(adj + btn).occlusion() != 0;
+            let corner = self.view.get_block(adj + tn + btn).occlusion() != 0;
 
             let occlusion = match (side1, side2) {
                 | (true, true) => 0,

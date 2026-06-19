@@ -1,26 +1,16 @@
-use std::{
-    collections,
-    sync::{self, mpsc},
-    thread, time,
-};
-
 use crate::{
-    engine::{kinematics, ray, storage::buffer},
-    render::{self, mesh},
+    engine::{kinematics, storage::buffer},
     visual::{atlas, mesher},
-    world::{
-        block,
-        terrain::{self},
-    },
+    world::{self, block},
 };
 
 #[derive(bon::Builder, Debug, Clone)]
 pub struct Chunk {
-    pub blocks: buffer::Buffer<block::Block, 3>,
-    pub lights: buffer::Buffer<u8, 3>,
-    pub offset: glam::IVec3,
-    pub height: usize,
-    pub width: usize,
+    blocks: buffer::Buffer<block::Block, 3>,
+    lights: buffer::Buffer<u8, 3>,
+    offset: glam::IVec3,
+    height: usize,
+    width: usize,
 }
 
 impl Chunk {
@@ -31,8 +21,24 @@ impl Chunk {
         Self { blocks, lights, offset, height, width }
     }
 
+    pub fn width(&self) -> usize {
+        self.width
+    }
+
+    pub fn height(&self) -> usize {
+        self.height
+    }
+
+    pub fn offset(&self) -> glam::IVec3 {
+        self.offset
+    }
+
     pub fn size(&self) -> glam::IVec3 {
         glam::ivec3(self.width as i32, self.height as i32, self.width as i32)
+    }
+
+    pub fn world_position(&self) -> glam::IVec3 {
+        self.size() * self.offset
     }
 
     pub fn to_index(&self, coord: glam::IVec3) -> [usize; 3] {
@@ -44,6 +50,10 @@ impl Chunk {
         self.blocks.surrounds(index)
     }
 
+    pub fn to_chunk_coords(&self, coord: glam::IVec3) -> glam::IVec3 {
+        coord.rem_euclid(self.size())
+    }
+
     pub fn get(&self, coord: glam::IVec3) -> &block::Block {
         self.blocks.get(self.to_index(coord))
     }
@@ -52,16 +62,16 @@ impl Chunk {
         self.blocks.get_mut(self.to_index(coord))
     }
 
-    pub fn to_chunk_coords(&self, coord: glam::IVec3) -> glam::IVec3 {
-        coord.rem_euclid(self.size())
+    pub fn get_light(&self, coord: glam::IVec3) -> &u8 {
+        self.lights.get(self.to_index(coord))
     }
 
-    pub fn raw_mesh(
-        &self,
-        atlas: &atlas::TextureAtlas,
-        assistant: mesher::ChunkMeshingAssisant,
-    ) -> mesher::ChunkRawMesh {
-        let mesher = mesher::ChunkMesher { chunks: assistant, atlas };
+    pub fn get_light_mut(&mut self, coord: glam::IVec3) -> &mut u8 {
+        self.lights.get_mut(self.to_index(coord))
+    }
+
+    pub fn raw_mesh(&self, atlas: &atlas::TextureAtlas, view: &world::ChunkView) -> mesher::ChunkRawMesh {
+        let mesher = mesher::ChunkMesher { view, atlas };
         let mut rectilinear = mesher.to_rectilinear();
         mesher.map_uvs(&mut rectilinear);
 
@@ -117,390 +127,5 @@ impl kinematics::Collision for Chunk {
         }
 
         false
-    }
-}
-
-#[derive(Debug, Default)]
-pub enum ChunkRequest {
-    Generate {
-        coord: glam::IVec3,
-    },
-    Mesh {
-        chunk: sync::Arc<Chunk>,
-        assistant: mesher::ChunkMeshingAssisant,
-    },
-    #[default]
-    Cleanup,
-}
-
-#[derive(Debug)]
-pub enum ChunkResponse {
-    Generated { coord: glam::IVec3, chunk: Chunk },
-    Meshed { coord: glam::IVec3, raw_mesh: mesher::ChunkRawMesh },
-}
-
-#[derive(bon::Builder, Debug)]
-pub struct ChunkManager {
-    pub atlas: sync::Arc<atlas::TextureAtlas>,
-    pub terrain: sync::Arc<terrain::TerrainGenerator>,
-    pub view_distance: usize,
-    pub chunk_width: usize,
-    pub chunk_height: usize,
-    #[builder(default = glam::IVec3::MAX)]
-    pub center_chunk: glam::IVec3,
-
-    #[builder(default)]
-    pub chunks: collections::HashMap<glam::IVec3, sync::Arc<Chunk>>,
-    #[builder(default)]
-    pub pending_chunks: collections::HashSet<glam::IVec3>,
-    #[builder(default)]
-    pub render_chunks: collections::HashSet<glam::IVec3>,
-    #[builder(default)]
-    pub pending_render_chunks: collections::HashSet<glam::IVec3>,
-
-    #[builder(default)]
-    pub gfx_insert_queue: Vec<mesher::ChunkRawMesh>,
-    #[builder(default)]
-    pub gfx_remove_queue: Vec<glam::IVec3>,
-
-    pub chunk_send: Option<mpsc::SyncSender<ChunkRequest>>,
-    pub chunk_recv: Option<mpsc::Receiver<ChunkResponse>>,
-}
-
-impl ChunkManager {
-    pub fn spawn_worker(&mut self) {
-        let (send_tx, send_rx) = mpsc::sync_channel(4 * self.view_distance);
-        let (recv_tx, recv_rx) = mpsc::channel();
-
-        self.async_chunk_response(send_rx, recv_tx);
-
-        self.chunk_send = Some(send_tx);
-        self.chunk_recv = Some(recv_rx);
-    }
-
-    pub fn update_chunks(&mut self, center: glam::Vec3) {
-        if let Some(recv) = &self.chunk_recv {
-            let mut count = 0;
-            while let Ok(response) = recv.try_recv() {
-                count += 1;
-                match response {
-                    | ChunkResponse::Generated { coord, chunk } => {
-                        if self.chunk_in_range(coord) {
-                            self.chunks.insert(coord, sync::Arc::new(chunk));
-                        }
-                        self.pending_chunks.remove(&coord);
-                    }
-                    | ChunkResponse::Meshed { coord, raw_mesh } => {
-                        if self.chunks.contains_key(&coord) {
-                            self.gfx_insert_queue.push(raw_mesh);
-                        }
-                    }
-                }
-            }
-            if count > 0 {
-                log::debug!("{} requests fulfilled", count);
-            }
-        }
-
-        self.center_chunk = self.chunk_surrounding(center);
-        let mut queue = collections::VecDeque::from_iter([self.center_chunk]);
-        let mut visited = collections::HashSet::from([self.center_chunk]);
-        while let Some(coord) = queue.pop_front() {
-            if !self.chunk_in_range(coord) {
-                continue;
-            }
-            if !self.pending_chunks.contains(&coord) && !self.chunks.contains_key(&coord) {
-                self.request_chunk_generation(coord);
-            }
-            if !self.render_chunks.contains(&coord)
-                && !self.pending_render_chunks.contains(&coord)
-                && self.chunks.contains_key(&coord)
-            {
-                self.request_chunk_meshing(coord);
-            }
-
-            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
-                let neighbor = coord + glam::ivec3(dx, 0, dz);
-                if !visited.contains(&neighbor) {
-                    visited.insert(neighbor);
-                    queue.push_back(neighbor);
-                }
-            }
-        }
-
-        let removal = self
-            .chunks
-            .keys()
-            .copied()
-            .filter(|&coord| !self.chunk_in_range(coord))
-            .collect::<Vec<glam::IVec3>>();
-        removal.into_iter().for_each(|coord| {
-            self.chunks.remove(&coord);
-            self.pending_render_chunks.remove(&coord);
-            self.gfx_remove_queue.push(coord);
-        });
-    }
-
-    pub fn sync_gfx_chunks(&mut self, context: &mut render::GfxContext, render: &mut render::GfxRenderer) {
-        self.gfx_insert_queue
-            .drain(..)
-            .filter(|raw_mesh| self.chunks.contains_key(&raw_mesh.offset))
-            .for_each(|raw_mesh| {
-                let gfx_mesh = mesh::GfxMesh::new(context, &raw_mesh.vertices, &raw_mesh.indices);
-                render.register_mesh(&Self::chunk_key(raw_mesh.offset), gfx_mesh);
-                self.render_chunks.insert(raw_mesh.offset);
-                self.pending_render_chunks.remove(&raw_mesh.offset);
-            });
-
-        self.gfx_remove_queue.drain(..).for_each(|coord| {
-            render.unregister_mesh(&Self::chunk_key(coord));
-            self.render_chunks.remove(&coord);
-            self.pending_render_chunks.remove(&coord);
-        });
-    }
-
-    pub fn modify(&mut self, coord: glam::IVec3, block: block::Block) {
-        let chunk_coord = self.chunk_surrounding(coord.as_vec3());
-        let mut remesh = Vec::new();
-
-        if let Some(chunk) = self.chunks.get_mut(&chunk_coord) {
-            let chunk = sync::Arc::make_mut(chunk);
-            let coord = chunk.to_chunk_coords(coord);
-
-            *chunk.get_mut(coord) = block;
-            remesh.push(chunk_coord);
-
-            if coord.x == 0 {
-                remesh.push(chunk_coord + glam::ivec3(-1, 0, 0));
-            }
-            if coord.z == 0 {
-                remesh.push(chunk_coord + glam::ivec3(0, 0, -1));
-            }
-            if coord.x == chunk.width as i32 - 1 {
-                remesh.push(chunk_coord + glam::ivec3(1, 0, 0));
-            }
-            if coord.z == chunk.width as i32 - 1 {
-                remesh.push(chunk_coord + glam::ivec3(0, 0, 1));
-            }
-        }
-
-        remesh.into_iter().rev().for_each(|chunk| {
-            self.request_chunk_meshing(chunk);
-        });
-    }
-
-    pub fn chunk_key(coord: glam::IVec3) -> String {
-        format!("ch{}x{}x{}_mesh", coord.x, coord.y, coord.z)
-    }
-
-    pub fn chunk_surrounding(&self, center: glam::Vec3) -> glam::IVec3 {
-        glam::ivec3(
-            (center.x / self.chunk_width as f32).floor() as i32,
-            0,
-            (center.z / self.chunk_width as f32).floor() as i32,
-        )
-    }
-
-    fn chunk_in_range(&self, coord: glam::IVec3) -> bool {
-        let rel = coord.saturating_sub(self.center_chunk);
-        let rel_sq_length = (rel.x.saturating_mul(rel.x))
-            .saturating_add(rel.y.saturating_mul(rel.y))
-            .saturating_add(rel.z.saturating_mul(rel.z)) as usize;
-
-        rel_sq_length < (self.view_distance * self.view_distance)
-    }
-
-    fn request_chunk_generation(&mut self, coord: glam::IVec3) {
-        let Some(send) = &self.chunk_send
-        else {
-            log::error!("Chunk generation requested with no workers");
-            return;
-        };
-
-        let request = ChunkRequest::Generate { coord };
-
-        if let Err(err) = send.try_send(request) {
-            log::debug!("Chunk generation sending error: {}", err);
-            return;
-        }
-
-        self.pending_chunks.insert(coord);
-    }
-
-    fn request_chunk_meshing(&mut self, coord: glam::IVec3) {
-        let Some(send) = &self.chunk_send
-        else {
-            log::error!("Chunk meshing requested with no workers");
-            return;
-        };
-
-        let assistant = mesher::ChunkMeshingAssisant {
-            chunk: sync::Arc::clone(&self.chunks[&coord]),
-            neighbors: [
-                self.chunks.get(&coord.with_z(&coord.z + 1)).cloned(),
-                self.chunks.get(&coord.with_z(&coord.z - 1)).cloned(),
-                self.chunks.get(&coord.with_x(&coord.x - 1)).cloned(),
-                self.chunks.get(&coord.with_x(&coord.x + 1)).cloned(),
-            ],
-        };
-
-        if !assistant.neighbors.iter().all(|neighbor| neighbor.is_some()) {
-            return;
-        }
-
-        let request = ChunkRequest::Mesh {
-            chunk: sync::Arc::clone(&self.chunks[&coord]),
-            assistant,
-        };
-
-        if let Err(err) = send.try_send(request) {
-            log::debug!("Chunk mesh sending error: {}", err);
-            return;
-        }
-
-        self.pending_render_chunks.insert(coord);
-    }
-
-    fn async_chunk_response(
-        &self,
-        chunk_request: mpsc::Receiver<ChunkRequest>,
-        chunk_response: mpsc::Sender<ChunkResponse>,
-    ) {
-        let width = self.chunk_width;
-        let height = self.chunk_height;
-        let terrain = sync::Arc::clone(&self.terrain);
-        let atlas = sync::Arc::clone(&self.atlas);
-        thread::spawn(move || {
-            while let Ok(request) = chunk_request.recv() {
-                match request {
-                    | ChunkRequest::Generate { coord } => {
-                        let start = time::Instant::now();
-                        let mut chunk = Chunk::new(coord, width, height);
-                        terrain.form_chunk(&mut chunk);
-                        let response = ChunkResponse::Generated { coord, chunk };
-                        if let Err(err) = chunk_response.send(response) {
-                            log::error!("Chunk terrain recieving error: {}", err);
-                            return;
-                        }
-                        log::debug!("Chunk generated for {}: {} ms", coord, start.elapsed().as_millis());
-                    }
-                    | ChunkRequest::Mesh { chunk, assistant } => {
-                        let start = time::Instant::now();
-                        let mesh = chunk.raw_mesh(&atlas, assistant);
-                        let response = ChunkResponse::Meshed { coord: mesh.offset, raw_mesh: mesh };
-                        if let Err(err) = chunk_response.send(response) {
-                            log::error!("Chunk mesh recieving error: {}", err);
-                            return;
-                        }
-                        log::debug!(
-                            "Chunk mesh generated for {}: {} ms",
-                            chunk.offset,
-                            start.elapsed().as_millis()
-                        );
-                    }
-                    | ChunkRequest::Cleanup => {
-                        return;
-                    }
-                }
-            }
-        });
-    }
-}
-
-impl kinematics::Collision for ChunkManager {
-    type Collider = kinematics::BoxCollider;
-
-    fn collides(&self, collider: Self::Collider) -> bool {
-        let center = collider.center();
-        let center_chunk = self.chunk_surrounding(center);
-        for dx in -1..=1 {
-            for dz in -1..=1 {
-                let coord = center_chunk + glam::ivec3(dx, 0, dz);
-                if let Some(chunk) = self.chunks.get(&coord)
-                    && chunk.collides(collider)
-                {
-                    return true;
-                }
-            }
-        }
-
-        false
-    }
-}
-
-#[derive(bon::Builder, Debug)]
-pub struct ChunkHit {
-    pub block: block::Block,
-    pub position: glam::IVec3,
-    pub normal: glam::IVec3,
-}
-
-impl ray::Cast for ChunkManager {
-    type Hit = ChunkHit;
-
-    fn cast(&self, ray: ray::Ray) -> Option<Self::Hit> {
-        let (dir, pos) = (ray.direction, ray.origin);
-        let step = dir.signum().as_ivec3();
-        let delta = glam::vec3(
-            if dir.x != 0.0 { dir.x.recip().abs() } else { f32::INFINITY },
-            if dir.y != 0.0 { dir.y.recip().abs() } else { f32::INFINITY },
-            if dir.z != 0.0 { dir.z.recip().abs() } else { f32::INFINITY },
-        );
-
-        let mut idx = pos.floor().as_ivec3();
-        let mut time = 0.0;
-        #[rustfmt::skip]
-        let mut side_dist = glam::vec3(
-            if dir.x > 0.0 { ((idx.x + 1) as f32 - pos.x) * delta.x } else { (pos.x - idx.x as f32) * delta.x },
-            if dir.y > 0.0 { ((idx.y + 1) as f32 - pos.y) * delta.y } else { (pos.y - idx.y as f32) * delta.y },
-            if dir.z > 0.0 { ((idx.z + 1) as f32 - pos.z) * delta.z } else { (pos.z - idx.z as f32) * delta.z },
-        );
-        let mut normal = glam::IVec3::ZERO;
-
-        loop {
-            if time > ray.tspan.end {
-                return None;
-            }
-
-            let chunk_coords = self.chunk_surrounding(idx.as_vec3());
-            if let Some(chunk) = self.chunks.get(&chunk_coords) {
-                let local_coord = chunk.to_chunk_coords(idx);
-                if chunk.check_index(local_coord) {
-                    let block = *chunk.get(local_coord);
-                    if block != block::Block::Air {
-                        return Some(ChunkHit { block, position: idx, normal });
-                    }
-                }
-            }
-
-            if side_dist.x < side_dist.y {
-                if side_dist.x < side_dist.z {
-                    time += side_dist.x;
-                    side_dist.x += delta.x;
-                    idx.x += step.x;
-                    normal = glam::ivec3(-step.x, 0, 0);
-                }
-                else {
-                    time += side_dist.z;
-                    side_dist.z += delta.z;
-                    idx.z += step.z;
-                    normal = glam::ivec3(0, 0, -step.z);
-                }
-            }
-            else {
-                if side_dist.y < side_dist.z {
-                    time += side_dist.y;
-                    side_dist.y += delta.y;
-                    idx.y += step.y;
-                    normal = glam::ivec3(0, -step.y, 0);
-                }
-                else {
-                    time += side_dist.z;
-                    side_dist.z += delta.z;
-                    idx.z += step.z;
-                    normal = glam::ivec3(0, 0, -step.z);
-                }
-            }
-        }
     }
 }
