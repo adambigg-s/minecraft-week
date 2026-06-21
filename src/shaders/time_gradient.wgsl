@@ -37,7 +37,9 @@ fn rainbow(time: f32) -> vec3<f32> {
 
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
-    return vec4<f32>(rainbow(gen_time), 1.0);
+    let color = textureSample(texture_atlas, sample_atlas, in.tex);
+
+    return mix(color, vec4<f32>(rainbow(gen_time / 50.0), 1.0), 0.3);
 }
 
 

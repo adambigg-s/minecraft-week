@@ -1,6 +1,13 @@
 # minecraft-week
 
-Minecraft inspired voxel game made in one week with Rust and wgpu
+Minecraft inspired voxel game made in one week\*\* with Rust and wgpu
+
+### Status
+
+\*\* There were some things that I wasn't able to finish in the initial week
+that I wanted to keep working on. So, this version has more than 1 week of work.
+The 'one week' version is preserved in a [branch that can be found here.
+](https://github.com/adambigg-s/minecraft-week/tree/f239245b432c7842381b852e00c0bf91ffa11833)
 
 ![screenshot](images/valley.png)
 
@@ -11,9 +18,11 @@ You will need:
 - Cargo-nightly toolchain (unlikely to build w/o)
 
 Run the project:
+
 `$ cargo +nightly run --release -- <seed>`
 
 Seed optional:
+
 `$ cargo +nightly run --release`
 
 ### Goals

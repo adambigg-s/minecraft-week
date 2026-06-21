@@ -121,7 +121,11 @@ impl application::Application for MinecraftWeek
 
           let gfx_config = GfxConfiguration {
                pipeline: "terrain_pipe".into(),
-               avaliable_pipes: vec!["terrain_pipe".into(), "wireframe_pipe".into()],
+               avaliable_pipes: vec![
+                    "terrain_pipe".into(),
+                    "wireframe_pipe".into(),
+                    "time_gradient_pipe".into(),
+               ],
                ao_strength: 2.0,
           };
 
@@ -160,7 +164,7 @@ impl application::Application for MinecraftWeek
           self.handle_movement_input(input);
           self.handle_interaction_input(input);
 
-          self.world.update_chunks(self.camera.inner.position);
+          self.world.update_chunks(self.camera.inner.position, self.frame_data.time);
      }
 
      fn gfx_frame(
@@ -178,6 +182,12 @@ impl application::Application for MinecraftWeek
 
           self.update_resources(context, render);
 
+          render.queue(render::GfxDrawCall {
+               mesh: "crosshair_mesh".into(),
+               pipe: "crosshair_pipe".into(),
+               bind_groups: vec![],
+          });
+
           if &self.gfx_config.pipeline == "terrain_pipe"
           {
                render.queue(render::GfxDrawCall {
@@ -185,21 +195,37 @@ impl application::Application for MinecraftWeek
                     pipe: "skybox_pipe".into(),
                     bind_groups: vec!["global_bg".into(), "skybox_bg".into()],
                });
-          }
-
-          self.world.render_chunks.iter().for_each(|&coord| {
-               render.queue(render::GfxDrawCall {
-                    mesh: world::ChunkManager::chunk_key(coord),
-                    pipe: self.gfx_config.pipeline.to_owned(),
-                    bind_groups: vec!["global_bg".into()],
+               self.world.render_chunks.iter().for_each(|&coord| {
+                    render.queue(render::GfxDrawCall {
+                         mesh: world::ChunkManager::chunk_key(coord),
+                         pipe: self.gfx_config.pipeline.to_owned(),
+                         bind_groups: vec!["global_bg".into()],
+                    });
                });
-          });
-
-          render.queue(render::GfxDrawCall {
-               mesh: "crosshair_mesh".into(),
-               pipe: "crosshair_pipe".into(),
-               bind_groups: vec![],
-          });
+          }
+          else if &self.gfx_config.pipeline == "time_gradient_pipe"
+          {
+               self.world.render_chunks.iter().for_each(|&coord| {
+                    render.queue(render::GfxDrawCall {
+                         mesh: world::ChunkManager::chunk_key(coord),
+                         pipe: self.gfx_config.pipeline.to_owned(),
+                         bind_groups: vec![
+                              "global_bg".into(),
+                              format!("{}_time_bg", world::ChunkManager::chunk_key(coord)),
+                         ],
+                    });
+               });
+          }
+          else
+          {
+               self.world.render_chunks.iter().for_each(|&coord| {
+                    render.queue(render::GfxDrawCall {
+                         mesh: world::ChunkManager::chunk_key(coord),
+                         pipe: self.gfx_config.pipeline.to_owned(),
+                         bind_groups: vec!["global_bg".into()],
+                    });
+               });
+          }
      }
 }
 
@@ -389,6 +415,15 @@ impl MinecraftWeek
           if let Some(resource::GfxResource::Uniform(ao_strength)) = render.resources.get("ao_uni")
           {
                ao_strength.write(context, &self.gfx_config.ao_strength);
+          }
+
+          for (&chunk_coord, time) in self.world.chunk_map.update_times.iter()
+          {
+               if let Some(resource::GfxResource::Uniform(chunk_time)) =
+                    render.resources.get(&format!("{}_time_uni", world::ChunkManager::chunk_key(chunk_coord)))
+               {
+                    chunk_time.write(context, time);
+               }
           }
      }
 

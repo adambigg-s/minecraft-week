@@ -6,6 +6,7 @@ use std::thread;
 use crate::engine::kinematics;
 use crate::engine::ray;
 use crate::render::mesh;
+use crate::render::util;
 use crate::render::{self};
 use crate::visual::atlas;
 use crate::visual::mesher;
@@ -140,6 +141,7 @@ impl<T> ChunkDeltaMap<T>
 pub struct ChunkMap
 {
      pub chunks: sync::RwLock<collections::HashMap<glam::IVec3, ChunkEntry>>,
+     pub update_times: collections::HashMap<glam::IVec3, f32>,
 }
 
 impl ChunkMap
@@ -182,6 +184,20 @@ impl ChunkMap
           if let Some(chunk) = self.chunks.read().unwrap().get(coord)
           {
                return Some(chunk.stage);
+          }
+          None
+     }
+
+     pub fn set_time(&mut self, coord: &glam::IVec3, time: f32)
+     {
+          *self.update_times.entry(*coord).or_default() = time
+     }
+
+     pub fn get_time(&self, coord: &glam::IVec3) -> Option<f32>
+     {
+          if let Some(&curr_time) = self.update_times.get(coord)
+          {
+               return Some(curr_time);
           }
           None
      }
@@ -321,9 +337,9 @@ impl ChunkManager
           self.chunk_recv = Some(recv_rx);
      }
 
-     pub fn update_chunks(&mut self, center: glam::Vec3)
+     pub fn update_chunks(&mut self, center: glam::Vec3, time: f32)
      {
-          self.handle_response();
+          self.handle_response(time);
 
           self.update_good_chunks(center);
 
@@ -373,7 +389,7 @@ impl ChunkManager
           }
      }
 
-     pub fn handle_response(&mut self)
+     pub fn handle_response(&mut self, time: f32)
      {
           if let Some(recv) = &self.chunk_recv
           {
@@ -386,23 +402,27 @@ impl ChunkManager
                               self.pending_generated.remove(&coord);
                               self.chunk_map.insert(coord, chunk);
                               self.chunk_delta_map.merge(deltas);
+                              self.chunk_map.set_time(&coord, time);
                               self.chunk_map.set_stage(&coord, ChunkStage::TerrainGenerated);
                          }
                          | ChunkResponse::DecoratorsPlaced { coord } =>
                          {
                               self.pending_decorators.remove(&coord);
+                              self.chunk_map.set_time(&coord, time);
                               self.chunk_map.set_stage(&coord, ChunkStage::DecoratorsPlaced);
                          }
                          | ChunkResponse::LightingPropagated { coord, chunk } =>
                          {
                               self.pending_lighting.remove(&coord);
                               self.chunk_map.insert(coord, chunk);
+                              self.chunk_map.set_time(&coord, time);
                               self.chunk_map.set_stage(&coord, ChunkStage::LightingPropagated);
                          }
                          | ChunkResponse::Meshed { coord, raw_mesh } =>
                          {
                               self.pending_mesh.remove(&coord);
                               self.chunk_map.set_stage(&coord, ChunkStage::Meshed);
+                              self.chunk_map.set_time(&coord, time);
                               self.gfx_insert_queue.push(raw_mesh);
                          }
                     }
@@ -414,13 +434,28 @@ impl ChunkManager
      {
           self.gfx_insert_queue.drain(..).for_each(|raw_mesh| {
                let gfx_mesh = mesh::GfxMesh::new(context, &raw_mesh.vertices, &raw_mesh.indices);
-               render.register_mesh(&Self::chunk_key(raw_mesh.offset), gfx_mesh);
+               let name = Self::chunk_key(raw_mesh.offset);
+               render.register_mesh(&name, gfx_mesh);
+               render.register_resource(
+                    &format!("{}_time_uni", name),
+                    util::uniform::<f32>(context, "Timer uniform"),
+               );
+               render
+                    .register_bind_group(
+                         context,
+                         &format!("{}_time_bg", Self::chunk_key(raw_mesh.offset)),
+                         "time_layout",
+                         &[&format!("{}_time_uni", name)],
+                    )
+                    .unwrap();
                self.render_chunks.insert(raw_mesh.offset);
           });
 
           self.gfx_remove_queue.drain(..).for_each(|chunk_coord| {
+               let name = Self::chunk_key(chunk_coord);
                self.render_chunks.remove(&chunk_coord);
-               render.unregister_mesh(&Self::chunk_key(chunk_coord));
+               render.unregister_mesh(&name);
+               // render.unregister_resource(name);
           });
      }
 
