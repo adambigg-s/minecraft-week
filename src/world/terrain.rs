@@ -1,181 +1,193 @@
 use noise::NoiseFn;
 
-use crate::{
-    engine::util,
-    world::{block, chunk},
-};
+use crate::engine::util;
+use crate::world::block;
+use crate::world::chunk;
+use crate::world::{self};
 
 #[derive(bon::Builder, Debug)]
-pub struct TerrainConfig {
-    pub sea_level: f64,
-    pub shift: f64,
+pub struct TerrainConfig
+{
+     pub sea_level: f64,
+     pub shift: f64,
 
-    pub temperature: NoiseLayer,
-    pub humidity: NoiseLayer,
+     pub temperature: NoiseLayer,
+     pub humidity: NoiseLayer,
 
-    pub continent: NoiseLayer,
-    pub detail: NoiseLayer,
-    pub mountain: NoiseLayer,
-    pub cliff_subtract: NoiseLayer,
-    pub cliff_threshold: f64,
+     pub continent: NoiseLayer,
+     pub detail: NoiseLayer,
+     pub mountain: NoiseLayer,
+     pub cliff_subtract: NoiseLayer,
+     pub cliff_threshold: f64,
 
-    pub cave: NoiseLayer,
-    pub cave_threshold: f64,
+     pub cave: NoiseLayer,
+     pub cave_threshold: f64,
 }
 
-impl Default for TerrainConfig {
-    fn default() -> Self {
-        Self {
-            sea_level: 0.5,
-            shift: 0.25,
-            temperature: NoiseLayer {
-                freq: 0.02,
-                offset: [9999.9 + 3434.3, 9999.9 + 3434.3, 9999.9 + 3434.3],
-                ..Default::default()
-            },
-            humidity: NoiseLayer {
-                freq: 0.05,
-                offset: [9999.9 + 19.3, 9999.9 + 19.3, 9999.9 + 19.3],
-                ..Default::default()
-            },
-            continent: NoiseLayer {
-                freq: 0.001,
-                offset: [9999.9 + 7.3, 9999.9 + 7.3, 9999.9 + 7.3],
-                octaves: 4,
-                ..Default::default()
-            },
-            detail: NoiseLayer {
-                freq: 0.005,
-                offset: [9999.9 + 9123.3, 9999.9 + 9123.3, 9999.9 + 9123.3],
-                octaves: 6,
-                ..Default::default()
-            },
-            mountain: NoiseLayer {
-                freq: 0.01,
-                offset: [9999.9 + 2934.3, 9999.9 + 2934.3, 9999.9 + 2934.3],
-                octaves: 8,
-                ..Default::default()
-            },
-            cliff_subtract: NoiseLayer {
-                freq: 0.01,
-                offset: [9999.9 + -23424.3, 9999.9 + -23424.3, 9999.9 + -23424.3],
-                ..Default::default()
-            },
-            cliff_threshold: 0.75,
-            cave: NoiseLayer {
-                freq: 0.05,
-                offset: [9999.9 + -99984.3, 9999.9 + -99984.3, 9999.9 + -99984.3],
-                ..Default::default()
-            },
-            cave_threshold: 0.70,
-        }
-    }
+impl Default for TerrainConfig
+{
+     fn default() -> Self
+     {
+          Self {
+               sea_level: 0.5,
+               shift: 0.25,
+               temperature: NoiseLayer {
+                    freq: 0.02,
+                    offset: [9999.9 + 3434.3, 9999.9 + 3434.3, 9999.9 + 3434.3],
+                    ..Default::default()
+               },
+               humidity: NoiseLayer {
+                    freq: 0.05,
+                    offset: [9999.9 + 19.3, 9999.9 + 19.3, 9999.9 + 19.3],
+                    ..Default::default()
+               },
+               continent: NoiseLayer {
+                    freq: 0.001,
+                    offset: [9999.9 + 7.3, 9999.9 + 7.3, 9999.9 + 7.3],
+                    octaves: 4,
+                    ..Default::default()
+               },
+               detail: NoiseLayer {
+                    freq: 0.005,
+                    offset: [9999.9 + 9123.3, 9999.9 + 9123.3, 9999.9 + 9123.3],
+                    octaves: 6,
+                    ..Default::default()
+               },
+               mountain: NoiseLayer {
+                    freq: 0.01,
+                    offset: [9999.9 + 2934.3, 9999.9 + 2934.3, 9999.9 + 2934.3],
+                    octaves: 8,
+                    ..Default::default()
+               },
+               cliff_subtract: NoiseLayer {
+                    freq: 0.01,
+                    offset: [9999.9 + -23424.3, 9999.9 + -23424.3, 9999.9 + -23424.3],
+                    ..Default::default()
+               },
+               cliff_threshold: 0.75,
+               cave: NoiseLayer {
+                    freq: 0.05,
+                    offset: [9999.9 + -99984.3, 9999.9 + -99984.3, 9999.9 + -99984.3],
+                    ..Default::default()
+               },
+               cave_threshold: 0.70,
+          }
+     }
 }
 
 #[derive(Debug)]
-pub enum Biome {
-    Ocean,
-    Beach,
-    Meadow,
-    Forest,
-    Mountain,
-    Badlands,
+pub enum Biome
+{
+     Ocean,
+     Beach,
+     Meadow,
+     Forest,
+     Mountain,
+     Badlands,
 }
 
-impl Biome {
-    pub fn terrain_rules(&self) -> TerrainRules {
-        match self {
-            | Biome::Ocean => todo!(),
-            | Biome::Beach => todo!(),
-            | Biome::Meadow => todo!(),
-            | Biome::Forest => todo!(),
-            | Biome::Mountain => todo!(),
-            | Biome::Badlands => todo!(),
-        }
-    }
+impl Biome
+{
+     pub fn terrain_rules(&self) -> TerrainRules
+     {
+          match self
+          {
+               | Biome::Ocean => todo!(),
+               | Biome::Beach => todo!(),
+               | Biome::Meadow => todo!(),
+               | Biome::Forest => todo!(),
+               | Biome::Mountain => todo!(),
+               | Biome::Badlands => todo!(),
+          }
+     }
 }
 
 #[derive(bon::Builder, Debug)]
-pub struct NoiseLayer {
-    #[builder(default = 1)]
-    pub octaves: usize,
-    pub freq: f64,
-    #[builder(default = 1.0)]
-    pub amp: f64,
-    #[builder(default = 0.5)]
-    pub persistence: f64,
-    #[builder(default = 2.0)]
-    pub lacunarity: f64,
-    pub offset: [f64; 3],
+pub struct NoiseLayer
+{
+     #[builder(default = 1)]
+     pub octaves: usize,
+     pub freq: f64,
+     #[builder(default = 1.0)]
+     pub amp: f64,
+     #[builder(default = 0.5)]
+     pub persistence: f64,
+     #[builder(default = 2.0)]
+     pub lacunarity: f64,
+     pub offset: [f64; 3],
 }
 
-impl Default for NoiseLayer {
-    fn default() -> Self {
-        Self {
-            octaves: 1,
-            freq: 0.5,
-            amp: 1.0,
-            persistence: 0.5,
-            lacunarity: 2.0,
-            offset: [0.0, 0.0, 0.0],
-        }
-    }
+impl Default for NoiseLayer
+{
+     fn default() -> Self
+     {
+          Self {
+               octaves: 1,
+               freq: 0.5,
+               amp: 1.0,
+               persistence: 0.5,
+               lacunarity: 2.0,
+               offset: [0.0, 0.0, 0.0],
+          }
+     }
 }
 
 #[allow(unused)]
-impl NoiseLayer {
-    fn sample_2d<Noise>(&self, noise: &Noise, x: f64, y: f64) -> f64
-    where
-        Noise: noise::NoiseFn<f64, 2> + noise::NoiseFn<f64, 3>,
-    {
-        let mut total = 0.0;
-        let mut max = 0.0;
-        let mut amp = 1.0;
-        let mut freq = self.freq;
+impl NoiseLayer
+{
+     fn sample_2d<Noise>(&self, noise: &Noise, x: f64, y: f64) -> f64
+     where
+          Noise: noise::NoiseFn<f64, 2> + noise::NoiseFn<f64, 3>,
+     {
+          let mut total = 0.0;
+          let mut max = 0.0;
+          let mut amp = 1.0;
+          let mut freq = self.freq;
 
-        (0..self.octaves).for_each(|_| {
-            let x = (x + self.offset[0]) * freq;
-            let y = (y + self.offset[1]) * freq;
+          (0..self.octaves).for_each(|_| {
+               let x = (x + self.offset[0]) * freq;
+               let y = (y + self.offset[1]) * freq;
 
-            total += noise.get([x, y]) * amp;
-            max += amp;
-            amp *= self.persistence;
-            freq *= self.lacunarity;
-        });
+               total += noise.get([x, y]) * amp;
+               max += amp;
+               amp *= self.persistence;
+               freq *= self.lacunarity;
+          });
 
-        ((total / max) + 1.0) * 0.5
-    }
+          ((total / max) + 1.0) * 0.5
+     }
 
-    fn sample_3d<Noise>(&self, noise: &Noise, x: f64, y: f64, z: f64) -> f64
-    where
-        Noise: noise::NoiseFn<f64, 2> + noise::NoiseFn<f64, 3>,
-    {
-        let mut total = 0.0;
-        let mut max = 0.0;
-        let mut amp = 1.0;
-        let mut freq = self.freq;
+     fn sample_3d<Noise>(&self, noise: &Noise, x: f64, y: f64, z: f64) -> f64
+     where
+          Noise: noise::NoiseFn<f64, 2> + noise::NoiseFn<f64, 3>,
+     {
+          let mut total = 0.0;
+          let mut max = 0.0;
+          let mut amp = 1.0;
+          let mut freq = self.freq;
 
-        (0..self.octaves).for_each(|_| {
-            let x = (x + self.offset[0]) * freq;
-            let y = (y + self.offset[1]) * freq;
-            let z = (z + self.offset[2]) * freq;
+          (0..self.octaves).for_each(|_| {
+               let x = (x + self.offset[0]) * freq;
+               let y = (y + self.offset[1]) * freq;
+               let z = (z + self.offset[2]) * freq;
 
-            total += noise.get([x, y, z]) * amp;
-            max += amp;
-            amp *= self.persistence;
-            freq *= self.lacunarity;
-        });
+               total += noise.get([x, y, z]) * amp;
+               max += amp;
+               amp *= self.persistence;
+               freq *= self.lacunarity;
+          });
 
-        ((total / max) + 1.0) * 0.5
-    }
+          ((total / max) + 1.0) * 0.5
+     }
 }
 
 #[derive(bon::Builder, Debug)]
-pub struct TerrainRules {
-    pub surface_depth: f64,
-    pub surface_block: block::Block,
-    pub subsurface: block::Block,
-    pub decorator: block::Block,
+pub struct TerrainRules
+{
+     pub surface_depth: f64,
+     pub surface_block: block::Block,
+     pub subsurface: block::Block,
+     pub decorator: block::Block,
 }
 
 // #[derive(bon::Builder, Debug)]
@@ -205,210 +217,283 @@ pub struct TerrainRules {
 // }
 
 #[derive(bon::Builder, Debug)]
-pub struct TerrainGenerator {
-    pub noise: noise::Perlin,
+pub struct TerrainGenerator
+{
+     pub noise: noise::Perlin,
 }
 
-impl TerrainGenerator {
-    pub fn new(seed: u32) -> Self {
-        let noise = noise::Perlin::new(seed);
+impl TerrainGenerator
+{
+     pub fn new(seed: u32) -> Self
+     {
+          let noise = noise::Perlin::new(seed);
 
-        Self { noise }
-    }
+          Self { noise }
+     }
 
-    pub fn generate_tree(&self, chunk: &mut chunk::Chunk, x: i32, y: i32, z: i32) {
-        use block::Block::*;
+     pub fn generate_tree(
+          &self,
+          chunk: &mut chunk::Chunk,
+          x: i32,
+          y: i32,
+          z: i32,
+          delta_map: &mut world::BlockDeltas,
+     )
+     {
+          use block::Block::*;
 
-        for dy in 0..4 {
-            let log_pos = glam::ivec3(x, y + dy, z);
-            if chunk.get(log_pos) == &Air {
-                *chunk.get_mut(log_pos) = Log;
-            }
-        }
+          for dy in 0..4
+          {
+               let log_pos = glam::ivec3(x, y + dy, z);
+               if chunk.get(log_pos) == &Air
+               {
+                    *chunk.get_mut(log_pos) = Log;
+               }
+          }
 
-        for ly in 2..4 {
-            for lx in -2..=2_i32 {
-                for lz in -2..=2_i32 {
-                    if lx.abs() == 2 && lz.abs() == 2 {
-                        continue;
-                    }
-
-                    let leaf_pos = glam::ivec3(x + lx, y + ly, z + lz);
-                    if chunk.check_index(leaf_pos) && chunk.get(leaf_pos) == &Air {
-                        *chunk.get_mut(leaf_pos) = Leaf;
-                    }
-                }
-            }
-        }
-
-        for lx in -1..=1_i32 {
-            for lz in -1..=1_i32 {
-                if lx.abs() == 1 && lz.abs() == 1 {
-                    continue;
-                }
-
-                let leaf_pos = glam::ivec3(x + lx, y + 4, lz + z);
-                if chunk.check_index(leaf_pos) && chunk.get(leaf_pos) == &Air {
-                    *chunk.get_mut(leaf_pos) = Leaf;
-                }
-            }
-        }
-    }
-
-    pub fn form_chunk(&self, chunk: &mut chunk::Chunk) {
-        use block::Block::*;
-
-        let height = chunk.height() as f64;
-        let sea_level = (height * 0.45) as i32;
-        let chunk_offset = chunk.world_position();
-        for z in 0..chunk.width() as i32 {
-            for x in 0..chunk.width() as i32 {
-                let gcoord = (glam::ivec3(x, 0, z) + chunk_offset).as_dvec3();
-
-                let continent = self.sample_fbm_2d([gcoord.x, gcoord.z], 4, 0.002);
-                let continent_height = (continent * height) as i32;
-                let detail = self.sample_fbm_2d([gcoord.x + 1000.0, gcoord.z + 1000.0], 6, 0.01);
-                let mountain =
-                    self.sample_fbm_2d([gcoord.x + 10000.0, gcoord.z + 10000.0], 8, 0.04).powf(5.0);
-
-                let mut terrain_height =
-                    util::weighted_sum_relative([continent, detail, mountain], [3.0, 4.0, 1.0]);
-
-                let decorator = self.sample_2d([gcoord.x + 99000.0, gcoord.z + 99000.0], 1.1);
-                let decorator2 = self.sample_2d([gcoord.x + 89000.0, gcoord.z + 89000.0], 1.1);
-                let decorator3 = self.sample_2d([gcoord.x + -300.0, gcoord.z + -300.0], 0.3);
-
-                let cliff_subtrator = self.sample_fbm_2d([gcoord.x + 5000.0, gcoord.z + 5000.0], 1, 0.03);
-                if cliff_subtrator > 0.75 {
-                    terrain_height -= detail / 8.0;
-                    terrain_height += mountain / 4.0;
-                }
-
-                let height = (terrain_height * height).min(height - 1.0);
-                for y in 0..height as i32 {
-                    let coord = glam::ivec3(x, y, z);
-                    let gcoord = (coord + chunk_offset).as_dvec3();
-
-                    *chunk.get_mut(glam::ivec3(x, y, z)) = Stone;
-
-                    if self.sample_fbm_3d([gcoord.x, gcoord.y, gcoord.z], 2, 0.01) < 0.45
-                        && y > continent_height
+          for ly in 2..4
+          {
+               for lx in -2..=2_i32
+               {
+                    for lz in -2..=2_i32
                     {
-                        *chunk.get_mut(glam::ivec3(x, y, z)) = Air;
+                         if lx.abs() == 2 && lz.abs() == 2
+                         {
+                              continue;
+                         }
+
+                         let leaf_pos = glam::ivec3(x + lx, y + ly, z + lz);
+                         if chunk.check_index(leaf_pos)
+                         {
+                              if chunk.get(leaf_pos) == &Air
+                              {
+                                   *chunk.get_mut(leaf_pos) = Leaf;
+                              }
+                         }
+                         else
+                         {
+                              let world = chunk.chunk_world_coords(leaf_pos);
+                              let chunk = chunk.to_chunk_coords(leaf_pos);
+                              delta_map.insert(world, world::ChunkDelta { coord: chunk, delta: Leaf });
+                         }
                     }
-                }
+               }
+          }
 
-                for y in 0..sea_level {
-                    let coord = glam::ivec3(x, y, z);
-                    if chunk.get(coord) == &Air {
-                        *chunk.get_mut(coord) = Water;
+          for lx in -1..=1_i32
+          {
+               for lz in -1..=1_i32
+               {
+                    if lx.abs() == 1 && lz.abs() == 1
+                    {
+                         continue;
                     }
-                }
 
-                for y in ((height - 3.0) as i32).max(0)..=height as i32 {
-                    let coord = glam::ivec3(x, y, z);
-                    if y == height as i32 {
-                        *chunk.get_mut(coord) = Grass;
+                    let leaf_pos = glam::ivec3(x + lx, y + 4, lz + z);
+                    if chunk.check_index(leaf_pos)
+                    {
+                         if chunk.get(leaf_pos) == &Air
+                         {
+                              *chunk.get_mut(leaf_pos) = Leaf;
+                         }
                     }
-                    else {
-                        *chunk.get_mut(coord) = Dirt;
+                    else
+                    {
+                         let world = chunk.chunk_world_coords(leaf_pos);
+                         let chunk = chunk.to_chunk_coords(leaf_pos);
+                         delta_map.insert(world, world::ChunkDelta { coord: chunk, delta: Leaf });
                     }
-                }
+               }
+          }
+     }
 
-                for y in sea_level - 2..sea_level + 2 {
-                    let coord = glam::ivec3(x, y, z);
-                    if chunk.get(coord) != &Water && chunk.get(coord) != &Air {
-                        *chunk.get_mut(coord) = Sand
+     pub fn form_chunk(&self, chunk: &mut chunk::Chunk) -> world::BlockDeltas
+     {
+          use block::Block::*;
+
+          let height = chunk.height() as f64;
+          let sea_level = (height * 0.45) as i32;
+          let chunk_offset = chunk.world_position();
+          let mut delta_map = world::ChunkDeltaMap::new();
+          for z in 0..chunk.width() as i32
+          {
+               for x in 0..chunk.width() as i32
+               {
+                    let gcoord = (glam::ivec3(x, 0, z) + chunk_offset).as_dvec3();
+
+                    let continent = self.sample_fbm_2d([gcoord.x, gcoord.z], 4, 0.002);
+                    let continent_height = (continent * height) as i32;
+                    let detail = self.sample_fbm_2d([gcoord.x + 1000.0, gcoord.z + 1000.0], 6, 0.01);
+                    let mountain =
+                         self.sample_fbm_2d([gcoord.x + 10000.0, gcoord.z + 10000.0], 8, 0.04).powf(5.0);
+
+                    let mut terrain_height =
+                         util::weighted_sum_relative([continent, detail, mountain], [3.0, 4.0, 1.0]);
+
+                    let decorator = self.sample_2d([gcoord.x + 99000.0, gcoord.z + 99000.0], 1.1);
+                    let decorator2 = self.sample_2d([gcoord.x + 89000.0, gcoord.z + 89000.0], 1.1);
+                    let decorator3 = self.sample_2d([gcoord.x + -300.0, gcoord.z + -300.0], 0.3);
+
+                    let cliff_subtrator = self.sample_fbm_2d([gcoord.x + 5000.0, gcoord.z + 5000.0], 1, 0.03);
+                    if cliff_subtrator > 0.75
+                    {
+                         terrain_height -= detail / 8.0;
+                         terrain_height += mountain / 4.0;
                     }
-                }
 
-                if decorator > 0.98 {
-                    let coord = glam::ivec3(x, height as i32, z);
-                    if chunk.get(coord) == &Grass && chunk.get(coord.with_y(height as i32 + 1)) == &Air {
-                        self.generate_tree(chunk, x, height as i32 + 1, z);
+                    let height = (terrain_height * height).min(height - 1.0);
+                    for y in 0..height as i32
+                    {
+                         let coord = glam::ivec3(x, y, z);
+                         let gcoord = (coord + chunk_offset).as_dvec3();
+
+                         *chunk.get_mut(glam::ivec3(x, y, z)) = Stone;
+
+                         if self.sample_fbm_3d([gcoord.x, gcoord.y, gcoord.z], 2, 0.01) < 0.45
+                              && y > continent_height
+                         {
+                              *chunk.get_mut(glam::ivec3(x, y, z)) = Air;
+                         }
                     }
-                }
 
-                if decorator2 > 0.95 && decorator > 0.5 {
-                    let coord = glam::ivec3(x, height as i32 + 1, z);
-                    if chunk.get(coord) == &Air {
-                        *chunk.get_mut(coord) = RedFlower
+                    for y in 0..sea_level
+                    {
+                         let coord = glam::ivec3(x, y, z);
+                         if chunk.get(coord) == &Air
+                         {
+                              *chunk.get_mut(coord) = Water;
+                         }
                     }
-                }
-                if decorator2 > 0.95 && decorator < 0.5 {
-                    let coord = glam::ivec3(x, height as i32 + 1, z);
-                    if chunk.get(coord) == &Air {
-                        *chunk.get_mut(coord) = BlueFlower
+
+                    for y in ((height - 3.0) as i32).max(0)..=height as i32
+                    {
+                         let coord = glam::ivec3(x, y, z);
+                         if y == height as i32
+                         {
+                              *chunk.get_mut(coord) = Grass;
+                         }
+                         else
+                         {
+                              *chunk.get_mut(coord) = Dirt;
+                         }
                     }
-                }
 
-                if decorator3 > 0.85 {
-                    let coord = glam::ivec3(x, height as i32 + 1, z);
-                    if chunk.get(coord) == &Air {
-                        *chunk.get_mut(coord) = Shrub
+                    for y in sea_level - 2..sea_level + 2
+                    {
+                         let coord = glam::ivec3(x, y, z);
+                         if chunk.get(coord) != &Water && chunk.get(coord) != &Air
+                         {
+                              *chunk.get_mut(coord) = Sand
+                         }
                     }
-                }
 
-                for y in sea_level..height as i32 {
-                    let ore = self.sample_3d([gcoord.x, y as f64, gcoord.z], 0.1);
-                    let ore_type = self.sample_2d([gcoord.x, gcoord.y], 0.1);
-                    let ore_type = if ore_type < 0.25 {
-                        Coal
+                    if decorator > 0.98
+                    {
+                         let coord = glam::ivec3(x, height as i32, z);
+                         if chunk.get(coord) == &Grass && chunk.get(coord.with_y(height as i32 + 1)) == &Air
+                         {
+                              self.generate_tree(chunk, x, height as i32 + 1, z, &mut delta_map);
+                         }
                     }
-                    else if ore_type < 0.5 {
-                        Copper
+
+                    if decorator2 > 0.95 && decorator > 0.5
+                    {
+                         let coord = glam::ivec3(x, height as i32 + 1, z);
+                         if chunk.get(coord) == &Air
+                         {
+                              *chunk.get_mut(coord) = RedFlower
+                         }
                     }
-                    else {
-                        Tin
-                    };
-                    if ore > 0.6 {
-                        let coord = glam::ivec3(x, y, z);
-                        if chunk.get(coord) == &Stone {
-                            *chunk.get_mut(coord) = ore_type
-                        }
+                    if decorator2 > 0.95 && decorator < 0.5
+                    {
+                         let coord = glam::ivec3(x, height as i32 + 1, z);
+                         if chunk.get(coord) == &Air
+                         {
+                              *chunk.get_mut(coord) = BlueFlower
+                         }
                     }
-                }
-            }
-        }
-    }
 
-    fn sample_2d(&self, point: [f64; 2], freq: f64) -> f64 {
-        (self.noise.get(point.map(|val| val * freq)) + 1.0) * 0.5
-    }
+                    if decorator3 > 0.85
+                    {
+                         let coord = glam::ivec3(x, height as i32 + 1, z);
+                         if chunk.get(coord) == &Air
+                         {
+                              *chunk.get_mut(coord) = Shrub
+                         }
+                    }
 
-    fn sample_3d(&self, point: [f64; 3], freq: f64) -> f64 {
-        (self.noise.get(point.map(|val| val * freq)) + 1.0) * 0.5
-    }
+                    for y in sea_level..height as i32
+                    {
+                         let ore = self.sample_3d([gcoord.x, y as f64, gcoord.z], 0.1);
+                         let ore_type = self.sample_2d([gcoord.x, gcoord.y], 0.1);
+                         let ore_type = if ore_type < 0.25
+                         {
+                              Coal
+                         }
+                         else if ore_type < 0.5
+                         {
+                              Copper
+                         }
+                         else
+                         {
+                              Tin
+                         };
+                         if ore > 0.6
+                         {
+                              let coord = glam::ivec3(x, y, z);
+                              if chunk.get(coord) == &Stone
+                              {
+                                   *chunk.get_mut(coord) = ore_type
+                              }
+                         }
+                    }
+               }
+          }
 
-    fn sample_fbm_2d(&self, point: [f64; 2], octaves: usize, freq: f64) -> f64 {
-        let mut total = 0.0;
-        let mut max = 0.0;
-        let mut amp = 1.0;
-        let mut freq = freq;
+          delta_map
+     }
 
-        (0..octaves).for_each(|_| {
-            total += self.noise.get(point.map(|val| val * freq)) * amp;
-            max += amp;
-            amp *= 0.5;
-            freq *= 2.0;
-        });
+     fn sample_2d(&self, point: [f64; 2], freq: f64) -> f64
+     {
+          (self.noise.get(point.map(|val| val * freq)) + 1.0) * 0.5
+     }
 
-        ((total / max) + 1.0) * 0.5
-    }
+     fn sample_3d(&self, point: [f64; 3], freq: f64) -> f64
+     {
+          (self.noise.get(point.map(|val| val * freq)) + 1.0) * 0.5
+     }
 
-    pub fn sample_fbm_3d(&self, point: [f64; 3], octaves: usize, freq: f64) -> f64 {
-        let mut total = 0.0;
-        let mut max = 0.0;
-        let mut amp = 1.0;
-        let mut freq = freq;
+     fn sample_fbm_2d(&self, point: [f64; 2], octaves: usize, freq: f64) -> f64
+     {
+          let mut total = 0.0;
+          let mut max = 0.0;
+          let mut amp = 1.0;
+          let mut freq = freq;
 
-        (0..octaves).for_each(|_| {
-            total += self.noise.get(point.map(|val| val * freq)) * amp;
-            max += amp;
-            amp *= 0.5;
-            freq *= 2.0;
-        });
+          (0..octaves).for_each(|_| {
+               total += self.noise.get(point.map(|val| val * freq)) * amp;
+               max += amp;
+               amp *= 0.5;
+               freq *= 2.0;
+          });
 
-        ((total / max) + 1.0) * 0.5
-    }
+          ((total / max) + 1.0) * 0.5
+     }
+
+     pub fn sample_fbm_3d(&self, point: [f64; 3], octaves: usize, freq: f64) -> f64
+     {
+          let mut total = 0.0;
+          let mut max = 0.0;
+          let mut amp = 1.0;
+          let mut freq = freq;
+
+          (0..octaves).for_each(|_| {
+               total += self.noise.get(point.map(|val| val * freq)) * amp;
+               max += amp;
+               amp *= 0.5;
+               freq *= 2.0;
+          });
+
+          ((total / max) + 1.0) * 0.5
+     }
 }

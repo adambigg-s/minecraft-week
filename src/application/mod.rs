@@ -10,56 +10,59 @@ use crate::render;
 
 pub trait Application
 where
-    Self: Sized,
+     Self: Sized,
 {
-    fn config() -> Config;
+     fn config() -> Config;
 
-    fn setup(
-        gfx_context: &mut render::GfxContext,
-        gfx_render: &mut render::GfxRenderer,
-    ) -> anyhow::Result<Self>;
+     fn setup(
+          gfx_context: &mut render::GfxContext,
+          gfx_render: &mut render::GfxRenderer,
+     ) -> anyhow::Result<Self>;
 
-    fn physics_frame(
-        &mut self,
-        input: &mut input::Input,
-        gfx_context: &render::GfxContext,
-        gfx_render: &render::GfxRenderer,
-    );
+     fn physics_frame(
+          &mut self,
+          input: &mut input::Input,
+          gfx_context: &render::GfxContext,
+          gfx_render: &render::GfxRenderer,
+     );
 
-    fn gfx_frame(
-        &mut self,
-        input: &input::Input,
-        gfx_context: &mut render::GfxContext,
-        gfx_render: &mut render::GfxRenderer,
-    );
+     fn gfx_frame(
+          &mut self,
+          input: &input::Input,
+          gfx_context: &mut render::GfxContext,
+          gfx_render: &mut render::GfxRenderer,
+     );
 }
 
 #[derive(bon::Builder, Debug)]
-pub struct Config {
-    height: u32,
-    width: u32,
-    title: &'static str,
+pub struct Config
+{
+     height: u32,
+     width: u32,
+     title: &'static str,
 }
 
-fn init() {
-    unsafe {
-        env::set_var("RUST_LOG", "info");
-        env::set_var("RUST_BACKTRACE", "full");
-    };
-    env_logger::init();
-    log::warn!("Application started");
+fn init()
+{
+     unsafe {
+          env::set_var("RUST_LOG", "info");
+          env::set_var("RUST_BACKTRACE", "full");
+     };
+     env_logger::init();
+     log::warn!("Application started");
 }
 
-fn cleanup() {
-    log::warn!("Application terminated successfully");
+fn cleanup()
+{
+     log::warn!("Application terminated successfully");
 }
 
 pub fn run<Inner>() -> anyhow::Result<()>
 where
-    Inner: Application,
+     Inner: Application,
 {
-    init();
-    event_loop::EventLoop::new()?.run_app(&mut app_runner::ApplicationRunner::<Inner>::new())?;
-    cleanup();
-    Ok(())
+     init();
+     event_loop::EventLoop::new()?.run_app(&mut app_runner::ApplicationRunner::<Inner>::new())?;
+     cleanup();
+     Ok(())
 }

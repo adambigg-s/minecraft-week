@@ -1,11 +1,11 @@
 const EPS: f32 = 1e-3;
 
+const AMBIENT: f32 = 0.02;
 const FOG_START: f32 = 200.0;
 const FOG_END: f32 = 550.0;
 const FOG_EXP: f32 = 6.0;
-
-const FACE_LIGHTING: vec3<f32> = vec3<f32>(0.5, 1.0, 0.3);
 const FADE_COLOR: vec4<f32> = vec4<f32>(0.7, 0.8, 1.0, 1.0);
+const FACE_LIGHTING: vec3<f32> = vec3<f32>(0.5, 1.0, 0.3);
 
 struct VertexIn {
     @location(0) pos: vec3<f32>,
@@ -51,25 +51,24 @@ struct FragmentOutput {
 
 @fragment
 fn fs_main(in: VertexOut) -> FragmentOutput {
-    let color = textureSample(texture_atlas, sample_atlas, in.tex);
+    var output: FragmentOutput;
 
+    let color = textureSample(texture_atlas, sample_atlas, in.tex);
     if color.a < EPS {
         discard;
     }
 
-    let abs_nor = abs(in.nor);
-    let light = dot(abs_nor, FACE_LIGHTING);
+    let shading = dot(abs(in.nor), FACE_LIGHTING);
     let ao = pow(in.ao, global_ao);
-    let diffuse_color = color * light * ao;
+    let illumination = clamp(in.lum, AMBIENT, 1.0);
+    let diffuse_color = color * shading * ao * illumination;
 
     let depth = length(in.world_pos.xyz);
     let fog_factor = pow(clamp((depth - FOG_START) / (FOG_END - FOG_START), 0.0, 1.0), FOG_EXP);
 
     let final_color = mix(diffuse_color, FADE_COLOR, fog_factor);
 
-    var output: FragmentOutput;
     output.color = vec4<f32>(final_color.rgb * color.a, color.a);
     output.depth = in.pos.z;
-
     return output;
 }
