@@ -217,7 +217,8 @@ pub struct MeshQuad
 {
      pub quad: Quad,
      pub ao: [f32; 4],
-     pub lum: [f32; 4],
+     pub fil: [f32; 4],
+     pub bil: [f32; 4],
 }
 
 impl MeshQuad
@@ -228,7 +229,8 @@ impl MeshQuad
                Self {
                     quad,
                     ao: [1.0; 4],
-                    lum: [1.0; 4],
+                    fil: [1.0; 4],
+                    bil: [1.0; 4],
                }
           })
      }
@@ -254,7 +256,8 @@ pub struct RectilinearMeshSlice<'r>
      pub pos: &'r mut [glam::Vec3],
      pub nor: &'r mut [glam::Vec3],
      pub uvs: &'r mut [glam::Vec2],
-     pub lum: &'r mut [f32],
+     pub fil: &'r mut [f32],
+     pub bil: &'r mut [f32],
      pub aos: &'r mut [f32],
 }
 
@@ -264,7 +267,8 @@ pub struct RectilinearMesh
      pub pos: Vec<glam::Vec3>,
      pub nor: Vec<glam::Vec3>,
      pub uvs: Vec<glam::Vec2>,
-     pub lum: Vec<f32>,
+     pub fil: Vec<f32>,
+     pub bil: Vec<f32>,
      pub aos: Vec<f32>,
      pub index: Vec<u32>,
      pub integer_pos: Vec<glam::IVec3>,
@@ -284,7 +288,8 @@ impl RectilinearMesh
                let len = out.pos.len();
                out.pos.extend_from_slice(&quad.quad.positions());
                out.nor.extend_from_slice(&quad.quad.normals());
-               out.lum.extend_from_slice(&quad.lum);
+               out.fil.extend_from_slice(&quad.fil);
+               out.bil.extend_from_slice(&quad.bil);
                out.uvs.extend_from_slice(&quad.quad.texture_uvs());
                out.aos.extend_from_slice(&quad.ao);
                out.index.extend_from_slice(&quad.indices(len as u32));
@@ -303,7 +308,8 @@ impl RectilinearMesh
                pos: &mut self.pos[offset .. offset + 4],
                nor: &mut self.nor[offset .. offset + 4],
                uvs: &mut self.uvs[offset .. offset + 4],
-               lum: &mut self.lum[offset .. offset + 4],
+               fil: &mut self.fil[offset .. offset + 4],
+               bil: &mut self.bil[offset .. offset + 4],
                aos: &mut self.aos[offset .. offset + 4],
           }
      }
@@ -335,7 +341,8 @@ pub struct TerrainVertex
      pub pos: glam::Vec3,
      pub nor: glam::Vec3,
      pub tex: glam::Vec2,
-     pub lum: f32,
+     pub fil: f32,
+     pub bil: f32,
      pub ao: f32,
 }
 
@@ -349,6 +356,7 @@ impl render::GfxVertex for TerrainVertex
               2 => Float32x2,
               3 => Float32,
               4 => Float32,
+              5 => Float32,
           ];
 
           wgpu::VertexBufferLayout {
@@ -426,8 +434,10 @@ impl<'c> ChunkMesher<'c>
                               }
 
                               let ao = self.map_ao(position, face);
-                              let lum = *self.view.get_light(neighbor_coord) as f32
+                              let fil = *self.view.get_light(neighbor_coord) as f32
                                    / *light::Light::max_light() as f32;
+                              let bil =
+                                   *self.view.get_light(coord) as f32 / *light::Light::max_light() as f32;
                               match block.mesh_style()
                               {
                                    | block::EmittedMesh::RectilinearFull =>
@@ -438,7 +448,8 @@ impl<'c> ChunkMesher<'c>
                                                   face,
                                              },
                                              ao,
-                                             lum: [lum; 4],
+                                             fil: [fil; 4],
+                                             bil: [bil; 4],
                                         });
                                    }
                                    | block::EmittedMesh::Decorator =>
@@ -450,7 +461,8 @@ impl<'c> ChunkMesher<'c>
                                                        face,
                                                   },
                                                   ao: [1.0; 4],
-                                                  lum: [lum; 4],
+                                                  fil: [fil; 4],
+                                                  bil: [bil; 4],
                                              }
                                         }));
                                    }

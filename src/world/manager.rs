@@ -151,125 +151,6 @@ impl ChunkManager
           self.handle_response(time);
      }
 
-     pub fn advance_chunk(&mut self, coord: glam::IVec3)
-     {
-          let stage = match self.chunk_map.get_stage(&coord)
-          {
-               | Some(stage) => stage,
-               | None =>
-               {
-                    if !self.pending_generated.contains(&coord)
-                    {
-                         self.request_chunk_generation(coord);
-                    }
-                    return;
-               }
-          };
-
-          match stage
-          {
-               | world::ChunkStage::Allocated | world::ChunkStage::TerrainGenerated =>
-               {
-                    if !self.pending_decorators.contains(&coord)
-                    {
-                         self.request_chunk_decorators(coord);
-                    }
-               }
-               | world::ChunkStage::DecoratorsPlaced =>
-               {
-                    if !self.pending_lighting.contains(&coord)
-                    {
-                         self.request_chunk_lighting(coord);
-                    }
-               }
-               | world::ChunkStage::LightingPropagated =>
-               {
-                    if !self.pending_lighting_updated.contains(&coord)
-                    {
-                         self.request_chunk_light_update(coord);
-                    }
-               }
-               | world::ChunkStage::LightingUpdated =>
-               {
-                    if !self.pending_mesh.contains(&coord)
-                    {
-                         self.request_chunk_meshing(coord);
-                    }
-               }
-               | world::ChunkStage::Meshed =>
-               {}
-          }
-     }
-
-     pub fn handle_response(&mut self, time: f32)
-     {
-          if let Some(recv) = &self.chunk_recv
-          {
-               while let Ok(response) = recv.try_recv()
-               {
-                    match response
-                    {
-                         | ChunkResponse::TerrainGenerated {
-                              coord,
-                              chunk,
-                              deltas,
-                         } =>
-                         {
-                              self.pending_generated.remove(&coord);
-                              self.chunk_map.insert(coord, chunk);
-                              self.chunk_block_deltas.merge(deltas);
-                              self.chunk_map.set_time(&coord, time);
-                              self.chunk_map.set_stage(&coord, world::ChunkStage::TerrainGenerated);
-                         }
-                         | ChunkResponse::DecoratorsPlaced {
-                              coord,
-                              chunk,
-                         } =>
-                         {
-                              self.pending_decorators.remove(&coord);
-                              self.chunk_map.insert(coord, chunk);
-                              self.chunk_map.set_time(&coord, time);
-                              self.chunk_map.set_stage(&coord, world::ChunkStage::DecoratorsPlaced);
-                         }
-                         | ChunkResponse::LightingPropagated {
-                              coord,
-                              chunk,
-                              deltas,
-                         } =>
-                         {
-                              self.pending_lighting.remove(&coord);
-                              self.chunk_map.insert(coord, chunk);
-                              self.chunk_light_deltas.merge(deltas);
-                              self.chunk_map.set_time(&coord, time);
-                              self.chunk_map.set_stage(&coord, world::ChunkStage::LightingPropagated);
-                         }
-                         | ChunkResponse::LightingUpdated {
-                              coord,
-                              chunk,
-                              deltas,
-                         } =>
-                         {
-                              self.pending_lighting_updated.remove(&coord);
-                              self.chunk_map.insert(coord, chunk);
-                              self.chunk_light_deltas.merge(deltas);
-                              self.chunk_map.set_time(&coord, time);
-                              self.chunk_map.set_stage(&coord, world::ChunkStage::LightingUpdated);
-                         }
-                         | ChunkResponse::Meshed {
-                              coord,
-                              raw_mesh,
-                         } =>
-                         {
-                              self.pending_mesh.remove(&coord);
-                              self.chunk_map.set_stage(&coord, world::ChunkStage::Meshed);
-                              self.chunk_map.set_time(&coord, time);
-                              self.gfx_insert_queue.push(raw_mesh);
-                         }
-                    }
-               }
-          }
-     }
-
      pub fn sync_gfx_chunks(&mut self, context: &mut render::GfxContext, render: &mut render::GfxRenderer)
      {
           self.gfx_insert_queue.drain(..).for_each(|raw_mesh| {
@@ -443,15 +324,6 @@ impl ChunkManager
           {
                self.pending_decorators.insert(coord);
           }
-
-          // if let Some(view) = self.chunk_map.get_complete_view(coord, world::ChunkStage::TerrainGenerated, 1)
-          //      && self.send_request(ChunkRequest::PlaceDecorators {
-          //           view,
-          //           deltas: self.chunk_block_deltas.get_deltas(coord),
-          //      })
-          // {
-          //      self.pending_decorators.insert(coord);
-          // }
      }
 
      fn request_chunk_lighting(&mut self, coord: glam::IVec3)
@@ -476,27 +348,10 @@ impl ChunkManager
           {
                self.pending_lighting_updated.insert(coord);
           }
-
-          // if let Some(view) = self.chunk_map.get_complete_view(coord, world::ChunkStage::DecoratorsPlaced, 1)
-          //      && self.send_request(ChunkRequest::UpdateLighting {
-          //           view,
-          //           deltas: self.chunk_light_deltas.get_deltas(coord),
-          //      })
-          // {
-          //      self.pending_lighting_updated.insert(coord);
-          // }
      }
 
      fn request_chunk_meshing(&mut self, coord: glam::IVec3)
      {
-          // let view = self.chunk_map.get_any_view(coord, world::ChunkStage::LightingPropagated, 1);
-          // if self.send_request(ChunkRequest::Mesh {
-          //      view,
-          // })
-          // {
-          //      self.pending_mesh.insert(coord);
-          // }
-
           if let Some(view) =
                self.chunk_map.get_complete_view(coord, world::ChunkStage::LightingPropagated, 1)
                && self.send_request(ChunkRequest::Mesh {
@@ -524,6 +379,125 @@ impl ChunkManager
 
           log::error!("Worker thread not spawned");
           false
+     }
+
+     fn advance_chunk(&mut self, coord: glam::IVec3)
+     {
+          let stage = match self.chunk_map.get_stage(&coord)
+          {
+               | Some(stage) => stage,
+               | None =>
+               {
+                    if !self.pending_generated.contains(&coord)
+                    {
+                         self.request_chunk_generation(coord);
+                    }
+                    return;
+               }
+          };
+
+          match stage
+          {
+               | world::ChunkStage::Allocated | world::ChunkStage::TerrainGenerated =>
+               {
+                    if !self.pending_decorators.contains(&coord)
+                    {
+                         self.request_chunk_decorators(coord);
+                    }
+               }
+               | world::ChunkStage::DecoratorsPlaced =>
+               {
+                    if !self.pending_lighting.contains(&coord)
+                    {
+                         self.request_chunk_lighting(coord);
+                    }
+               }
+               | world::ChunkStage::LightingPropagated =>
+               {
+                    if !self.pending_lighting_updated.contains(&coord)
+                    {
+                         self.request_chunk_light_update(coord);
+                    }
+               }
+               | world::ChunkStage::LightingUpdated =>
+               {
+                    if !self.pending_mesh.contains(&coord)
+                    {
+                         self.request_chunk_meshing(coord);
+                    }
+               }
+               | world::ChunkStage::Meshed =>
+               {}
+          }
+     }
+
+     fn handle_response(&mut self, time: f32)
+     {
+          if let Some(recv) = &self.chunk_recv
+          {
+               while let Ok(response) = recv.try_recv()
+               {
+                    match response
+                    {
+                         | ChunkResponse::TerrainGenerated {
+                              coord,
+                              chunk,
+                              deltas,
+                         } =>
+                         {
+                              self.pending_generated.remove(&coord);
+                              self.chunk_map.insert(coord, chunk);
+                              self.chunk_block_deltas.merge(deltas);
+                              self.chunk_map.set_time(&coord, time);
+                              self.chunk_map.set_stage(&coord, world::ChunkStage::TerrainGenerated);
+                         }
+                         | ChunkResponse::DecoratorsPlaced {
+                              coord,
+                              chunk,
+                         } =>
+                         {
+                              self.pending_decorators.remove(&coord);
+                              self.chunk_map.insert(coord, chunk);
+                              self.chunk_map.set_time(&coord, time);
+                              self.chunk_map.set_stage(&coord, world::ChunkStage::DecoratorsPlaced);
+                         }
+                         | ChunkResponse::LightingPropagated {
+                              coord,
+                              chunk,
+                              deltas,
+                         } =>
+                         {
+                              self.pending_lighting.remove(&coord);
+                              self.chunk_map.insert(coord, chunk);
+                              self.chunk_light_deltas.merge(deltas);
+                              self.chunk_map.set_time(&coord, time);
+                              self.chunk_map.set_stage(&coord, world::ChunkStage::LightingPropagated);
+                         }
+                         | ChunkResponse::LightingUpdated {
+                              coord,
+                              chunk,
+                              deltas,
+                         } =>
+                         {
+                              self.pending_lighting_updated.remove(&coord);
+                              self.chunk_map.insert(coord, chunk);
+                              self.chunk_light_deltas.merge(deltas);
+                              self.chunk_map.set_time(&coord, time);
+                              self.chunk_map.set_stage(&coord, world::ChunkStage::LightingUpdated);
+                         }
+                         | ChunkResponse::Meshed {
+                              coord,
+                              raw_mesh,
+                         } =>
+                         {
+                              self.pending_mesh.remove(&coord);
+                              self.chunk_map.set_stage(&coord, world::ChunkStage::Meshed);
+                              self.chunk_map.set_time(&coord, time);
+                              self.gfx_insert_queue.push(raw_mesh);
+                         }
+                    }
+               }
+          }
      }
 
      fn run_worker(

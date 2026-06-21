@@ -134,7 +134,8 @@ impl Chunk
                     pos,
                     nor,
                     uvs,
-                    lum,
+                    fil,
+                    bil,
                     aos,
                     ..
                } = rectilinear.quad_slice(index);
@@ -144,7 +145,8 @@ impl Chunk
                          pos: pos[vertex],
                          nor: nor[vertex],
                          tex: uvs[vertex],
-                         lum: lum[vertex],
+                         fil: fil[vertex],
+                         bil: bil[vertex],
                          ao: aos[vertex],
                     });
                });

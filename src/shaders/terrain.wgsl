@@ -12,7 +12,8 @@ struct VertexIn {
     @location(1) nor: vec3<f32>,
     @location(2) tex: vec2<f32>,
     @location(3) lum: f32,
-    @location(4) ao: f32,
+    @location(4) bil: f32,
+    @location(5) ao: f32,
 };
 
 struct VertexOut {

@@ -125,6 +125,7 @@ impl application::Application for MinecraftWeek
                     "terrain_pipe".into(),
                     "wireframe_pipe".into(),
                     "time_gradient_pipe".into(),
+                    "illumination_pipe".into(),
                ],
                ao_strength: 2.0,
           };
@@ -557,6 +558,11 @@ fn register_pipelines(
           &["global_layout", "skybox_layout"],
      );
      render.register_pipeline::<pipelines::Crosshair>(context, "crosshair_pipe", &[]);
+     render.register_pipeline::<pipelines::BlockIllumination>(
+          context,
+          "illumination_pipe",
+          &["global_layout"],
+     );
      Ok(())
 }
 
