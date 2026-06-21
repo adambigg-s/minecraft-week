@@ -8,6 +8,7 @@ use crate::application::{self};
 use crate::engine::aabb;
 use crate::engine::camera;
 use crate::engine::kinematics::{self};
+use crate::engine::neighbors;
 use crate::engine::player;
 use crate::engine::ray::Cast;
 use crate::engine::ray::{self};
@@ -117,7 +118,7 @@ impl application::Application for MinecraftWeek
                .chunk_width(32)
                .chunk_height(256)
                .build();
-          world.spawn_workers(2);
+          world.spawn_workers(3);
 
           let gfx_config = GfxConfiguration {
                pipeline: "terrain_pipe".into(),
@@ -138,6 +139,8 @@ impl application::Application for MinecraftWeek
           };
 
           let block_selection = 0;
+
+          log::error!("Von-Neuman R3 neighbors: {:?}", neighbors::von_neumann3());
 
           Ok(Self {
                camera,
@@ -342,7 +345,7 @@ impl MinecraftWeek
                     }
                     if input.get_key_pres("space")
                     {
-                         self.player.kinematics.jump(9.0);
+                         self.player.kinematics.jump(9.5);
                     }
                     if input.get_key_pres("shiftleft")
                     {

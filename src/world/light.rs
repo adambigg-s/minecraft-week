@@ -5,7 +5,7 @@ use crate::engine::neighbors;
 use crate::world;
 use crate::world::block;
 
-pub const MAX_LIGHT: u8 = 15;
+pub const MAX_LIGHT: u8 = 32;
 
 #[derive(bon::Builder, Debug)]
 pub struct LightNode
@@ -28,9 +28,26 @@ impl<'c> ChunkLighting<'c>
           Self { view, queue: collections::VecDeque::new() }
      }
 
-     pub fn lighting(&mut self)
+     pub fn initial_lighting(&mut self)
      {
           let chunk = sync::Arc::make_mut(&mut self.view.chunk);
+
+          for z in 0 .. self.view.chunk_width
+          {
+               for y in 0 .. self.view.chunk_height
+               {
+                    for x in 0 .. self.view.chunk_width
+                    {
+                         let coord = glam::ivec3(x, y, z);
+                         if let Some(emissivitiy) = chunk.get(coord).emissivity()
+                         {
+                              *chunk.get_light_mut(coord) = emissivitiy;
+                              self.queue.push_front(LightNode { light: emissivitiy, coord });
+                         }
+                    }
+               }
+          }
+
           for z in 0 .. self.view.chunk_width
           {
                for x in 0 .. self.view.chunk_width
@@ -38,17 +55,35 @@ impl<'c> ChunkLighting<'c>
                     for y in (0 .. self.view.chunk_height).rev()
                     {
                          let coord = glam::ivec3(x, y, z);
-                         *chunk.get_light_mut(coord) = MAX_LIGHT;
+                         let block = chunk.get(coord);
 
-                         if chunk.get(coord).visibility() != block::Visibility::Invisible
+                         if block != &block::Block::EMPTY
                          {
-                              self.queue.push_front(LightNode { light: MAX_LIGHT, coord });
+                              if block.emissivity().is_none()
+                              {
+                                   *chunk.get_light_mut(coord) = MAX_LIGHT;
+                                   self.queue.push_front(LightNode { light: MAX_LIGHT, coord });
+                              }
                               break;
                          }
+
+                         *chunk.get_light_mut(coord) = MAX_LIGHT;
                     }
                }
           }
+
+          log::debug!("Number of nodes in light queue: {}", self.queue.len());
           self.floodfill();
+     }
+
+     pub fn add_light(&mut self, node: LightNode)
+     {
+          todo!()
+     }
+
+     pub fn remove_light(&mut self, node: LightNode)
+     {
+          todo!()
      }
 
      fn floodfill(&mut self)
@@ -56,14 +91,12 @@ impl<'c> ChunkLighting<'c>
           let chunk = sync::Arc::make_mut(&mut self.view.chunk);
           while let Some(node) = self.queue.pop_back()
           {
-               *chunk.get_light_mut(node.coord) = node.light;
-
-               if node.light <= 1
+               let light = node.light.saturating_sub(1);
+               if light == 0
                {
                     continue;
                }
 
-               let light = node.light - 1;
                for (dx, dy, dz) in neighbors::von_neumann3()
                {
                     let coord = node.coord + glam::ivec3(dx, dy, dz);
@@ -72,14 +105,15 @@ impl<'c> ChunkLighting<'c>
                          continue;
                     }
 
-                    if chunk.get(coord).visibility() != block::Visibility::Invisible
-                    {
-                         continue;
-                    }
+                    let neighbor = chunk.get(coord);
 
-                    if light - 1 > *chunk.get_light(coord)
+                    let opacity = neighbor.opacity();
+                    let transmitted = node.light.saturating_sub(opacity + 1);
+
+                    if transmitted > *chunk.get_light(coord)
                     {
-                         self.queue.push_front(LightNode { light, coord });
+                         *chunk.get_light_mut(coord) = transmitted;
+                         self.queue.push_front(LightNode { light: transmitted, coord });
                     }
                }
           }

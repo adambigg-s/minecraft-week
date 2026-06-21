@@ -391,7 +391,8 @@ impl<'c> ChunkMesher<'c>
                          for face in Face::CARDINALS
                          {
                               let offset = face.neighbor_offset();
-                              let neighbor = self.view.get_block(position + offset);
+                              let neighbor_coord = position + offset;
+                              let neighbor = self.view.get_block(neighbor_coord);
 
                               let emit = match (block.visibility(), neighbor.visibility())
                               {
@@ -411,7 +412,7 @@ impl<'c> ChunkMesher<'c>
                               }
 
                               let ao = self.map_ao(position, face);
-                              let lum = *self.view.chunk.get_light(coord) as f32 / light::MAX_LIGHT as f32;
+                              let lum = self.view.get_light(neighbor_coord) as f32 / light::MAX_LIGHT as f32;
                               match block.mesh_style()
                               {
                                    | block::EmittedMesh::RectilinearFull =>
@@ -477,9 +478,9 @@ impl<'c> ChunkMesher<'c>
                     (glam::ivec3(tn_cand.x, 0, 0), glam::ivec3(0, tn_cand.y, 0))
                };
 
-               let side1 = self.view.get_block(adj + tn).occlusion() != 0;
-               let side2 = self.view.get_block(adj + btn).occlusion() != 0;
-               let corner = self.view.get_block(adj + tn + btn).occlusion() != 0;
+               let side1 = self.view.get_block(adj + tn).opacity() != 0;
+               let side2 = self.view.get_block(adj + btn).opacity() != 0;
+               let corner = self.view.get_block(adj + tn + btn).opacity() != 0;
 
                let occlusion = match (side1, side2)
                {

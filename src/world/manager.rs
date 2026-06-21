@@ -472,7 +472,7 @@ impl ChunkManager
                          | ChunkRequest::PropagateLighting { mut view } =>
                          {
                               let coord = view.center;
-                              light::ChunkLighting::new(&mut view).lighting();
+                              light::ChunkLighting::new(&mut view).initial_lighting();
 
                               let response = ChunkResponse::LightingPropagated { coord, chunk: view.chunk };
                               chunk_response.send(response).unwrap();

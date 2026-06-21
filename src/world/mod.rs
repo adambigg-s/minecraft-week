@@ -44,13 +44,23 @@ impl ChunkView
           (rel, chunk)
      }
 
-     pub fn get_block(&self, world_position: glam::IVec3) -> block::Block
+     pub fn get_block(&self, world_coord: glam::IVec3) -> block::Block
      {
-          let (rel, local) = self.resolve(world_position);
+          let (rel, local) = self.resolve(world_coord);
           match self.neighbors.get(&rel)
           {
                | Some(chunk) => *chunk.get(local),
                | None => block::Block::EMPTY,
+          }
+     }
+
+     pub fn get_light(&self, world_coord: glam::IVec3) -> u8
+     {
+          let (rel, local) = self.resolve(world_coord);
+          match self.neighbors.get(&rel)
+          {
+               | Some(chunk) => *chunk.get_light(local),
+               | None => 0,
           }
      }
 }

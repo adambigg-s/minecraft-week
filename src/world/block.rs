@@ -3,6 +3,7 @@ use std::fmt::{self};
 use std::mem;
 
 use crate::engine::kinematics;
+use crate::world::light;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Visibility
@@ -105,26 +106,20 @@ impl Block
           }
      }
 
-     pub fn occlusion(&self) -> u8
+     pub fn opacity(&self) -> u8
      {
           match self
           {
-               | Block::Dirt => 1,
-               | Block::Grass => 1,
-               | Block::Sand => 1,
-               | Block::Water => 1,
-               | Block::Lava => 1,
-               | Block::Log => 1,
-               | Block::Leaf => 1,
-               | Block::Stone => 1,
-               | Block::Gravel => 1,
-               | Block::Plank => 1,
-               | Block::Quartz => 1,
-               | Block::Coal => 1,
-               | Block::Copper => 1,
-               | Block::Tin => 1,
-               | Block::Light => 1,
-               | _ => 0,
+               | Block::Air => 0,
+               | Block::Light => 0,
+               | Block::Shrub => 0,
+               | Block::Glass => 0,
+               | Block::RedFlower => 0,
+               | Block::BlueFlower => 0,
+               | Block::Water => 3,
+               | Block::Leaf => 3,
+               | Block::Lava => 5,
+               | _ => light::MAX_LIGHT,
           }
      }
 
@@ -139,6 +134,16 @@ impl Block
                     Visibility::PartialOpaque
                }
                | _ => Visibility::Opaque,
+          }
+     }
+
+     pub fn emissivity(&self) -> Option<u8>
+     {
+          match self
+          {
+               | Block::Lava => Some(8),
+               | Block::Light => Some(light::MAX_LIGHT),
+               | _ => None,
           }
      }
 
