@@ -110,7 +110,7 @@ impl ops::Add<glam::Vec3> for BoxCollider
      fn add(mut self, rhs: glam::Vec3) -> Self::Output
      {
           let rhs = rhs.to_array();
-          (0..3).for_each(|dim| {
+          (0 .. 3).for_each(|dim| {
                self.lo[dim] += rhs[dim];
                self.hi[dim] += rhs[dim];
           });
@@ -125,7 +125,7 @@ impl ops::Sub<glam::Vec3> for BoxCollider
      fn sub(mut self, rhs: glam::Vec3) -> Self::Output
      {
           let rhs = rhs.to_array();
-          (0..3).for_each(|dim| {
+          (0 .. 3).for_each(|dim| {
                self.lo[dim] -= rhs[dim];
                self.hi[dim] -= rhs[dim];
           });

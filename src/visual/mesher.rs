@@ -5,6 +5,7 @@ use wgpu::vertex_attr_array;
 use crate::render::{self};
 use crate::visual::atlas;
 use crate::world::block;
+use crate::world::light;
 use crate::world::{self};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -285,11 +286,11 @@ impl RectilinearMesh
           RectilinearMeshSlice {
                face: self.face[index],
                integer_position: self.integer_pos[index],
-               pos: &mut self.pos[offset..offset + 4],
-               nor: &mut self.nor[offset..offset + 4],
-               uvs: &mut self.uvs[offset..offset + 4],
-               lum: &mut self.lum[offset..offset + 4],
-               aos: &mut self.aos[offset..offset + 4],
+               pos: &mut self.pos[offset .. offset + 4],
+               nor: &mut self.nor[offset .. offset + 4],
+               uvs: &mut self.uvs[offset .. offset + 4],
+               lum: &mut self.lum[offset .. offset + 4],
+               aos: &mut self.aos[offset .. offset + 4],
           }
      }
 
@@ -372,11 +373,11 @@ impl<'c> ChunkMesher<'c>
           let width = self.view.chunk_width;
           let height = self.view.chunk_height;
 
-          for z in 0..width
+          for z in 0 .. width
           {
-               for y in 0..height
+               for y in 0 .. height
                {
-                    for x in 0..width
+                    for x in 0 .. width
                     {
                          let coord = glam::ivec3(x, y, z);
                          let position = coord + world_origin;
@@ -410,7 +411,7 @@ impl<'c> ChunkMesher<'c>
                               }
 
                               let ao = self.map_ao(position, face);
-                              let lum = *self.view.chunk.get_light(coord) as f32 / 15_f32;
+                              let lum = *self.view.chunk.get_light(coord) as f32 / light::MAX_LIGHT as f32;
                               match block.mesh_style()
                               {
                                    | block::EmittedMesh::RectilinearFull =>
@@ -445,7 +446,7 @@ impl<'c> ChunkMesher<'c>
      {
           let chunk = &self.view.chunk;
 
-          (0..rectilinear.size).for_each(|index| {
+          (0 .. rectilinear.size).for_each(|index| {
                let RectilinearMeshSlice { face, integer_position, uvs, .. } = rectilinear.quad_slice(index);
 
                let position = chunk.to_chunk_coords(integer_position);

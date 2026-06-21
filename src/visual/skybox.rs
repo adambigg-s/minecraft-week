@@ -54,11 +54,11 @@ impl Skybox
      pub fn create_gfx_mesh(&mut self, context: &render::GfxContext) -> mesh::GfxMesh
      {
           let mut vertices = Vec::new();
-          (0..self.mesh.size).for_each(|index| {
+          (0 .. self.mesh.size).for_each(|index| {
                let mesher::RectilinearMeshSlice { face, pos, uvs, .. } = self.mesh.quad_slice(index);
 
                self.texture.conform_uvs(uvs, "skybox", face);
-               (0..4).for_each(|vertex| {
+               (0 .. 4).for_each(|vertex| {
                     vertices.push(SkyboxVertex { pos: pos[vertex], tex: uvs[vertex] });
                });
           });

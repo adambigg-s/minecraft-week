@@ -77,7 +77,7 @@ impl<T, const N: usize> Buffer<T, N>
           debug_assert!(self.surrounds(indices));
           let mut index = 0;
           let mut stride = 1;
-          (0..N).for_each(|dim| {
+          (0 .. N).for_each(|dim| {
                index += indices[dim] * stride;
                stride *= self.size[dim];
           });
@@ -88,8 +88,8 @@ impl<T, const N: usize> Buffer<T, N>
      {
           debug_assert!(self.size.iter().product::<usize>() > index);
           let mut out = [0; N];
-          (0..N).rev().for_each(|dim| {
-               let modifier = self.size[0..dim].iter().product::<usize>();
+          (0 .. N).rev().for_each(|dim| {
+               let modifier = self.size[0 .. dim].iter().product::<usize>();
                out[dim] = index / modifier;
                index -= out[dim] * modifier;
           });
@@ -98,7 +98,7 @@ impl<T, const N: usize> Buffer<T, N>
 
      pub fn surrounds(&self, indices: [usize; N]) -> bool
      {
-          (0..N).all(|idx| indices[idx] < self.size[idx])
+          (0 .. N).all(|idx| indices[idx] < self.size[idx])
      }
 }
 

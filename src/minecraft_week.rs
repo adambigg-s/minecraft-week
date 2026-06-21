@@ -284,6 +284,10 @@ impl MinecraftWeek
                     block::Block::from(self.block_selection as u8 % block::Block::BlockCounter as u8)
                );
           }
+          if input.consume_key_press("keyl")
+          {
+               self.block_selection = block::Block::Light as usize;
+          }
           if input.consume_key_press("keyo")
           {
                self.gfx_config.ao_strength -= 0.5;
@@ -395,7 +399,6 @@ impl MinecraftWeek
                          self.player.collider + (self.camera.inner.position - self.player.collider.center());
                }
           }
-          log::debug!("Player is in: {}", self.world.chunk_surrounding(self.camera.inner.position));
      }
 
      fn update_resources(&mut self, context: &mut render::GfxContext, render: &mut render::GfxRenderer)

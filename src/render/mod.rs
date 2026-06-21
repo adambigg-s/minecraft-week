@@ -233,6 +233,11 @@ impl GfxRenderer
           self.resources.insert(name.into(), resource);
      }
 
+     pub fn unregister_bind_group(&mut self, name: &str)
+     {
+          self.bind_groups.remove(name);
+     }
+
      pub fn unregister_mesh(&mut self, name: &str)
      {
           self.meshes.remove(name);
@@ -303,7 +308,7 @@ impl GfxRenderer
                     }
                }
 
-               render_pass.draw_indexed(0..mesh.size, 0, 0..1);
+               render_pass.draw_indexed(0 .. mesh.size, 0, 0 .. 1);
 
                rc = call;
           }

@@ -44,7 +44,7 @@ impl Chunk
 
      pub fn indices(&self) -> ops::Range<usize>
      {
-          0..self.blocks.size().iter().product()
+          0 .. self.blocks.size().iter().product()
      }
 
      pub fn delinearize(&self, index: usize) -> [usize; 3]
@@ -110,11 +110,11 @@ impl Chunk
           mesher.map_uvs(&mut rectilinear);
 
           let mut vertices = Vec::new();
-          (0..rectilinear.size).for_each(|index| {
+          (0 .. rectilinear.size).for_each(|index| {
                let mesher::RectilinearMeshSlice { pos, nor, uvs, lum, aos, .. } =
                     rectilinear.quad_slice(index);
 
-               (0..4).for_each(|vertex| {
+               (0 .. 4).for_each(|vertex| {
                     vertices.push(mesher::TerrainVertex {
                          pos: pos[vertex],
                          nor: nor[vertex],
@@ -139,11 +139,11 @@ impl kinematics::Collision for Chunk
      {
           let mins = collider.lo.map(|val| val.floor() as i32);
           let maxs = collider.hi.map(|val| val.ceil() as i32);
-          for z in mins[2]..maxs[2]
+          for z in mins[2] .. maxs[2]
           {
-               for y in mins[1]..maxs[1]
+               for y in mins[1] .. maxs[1]
                {
-                    for x in mins[0]..maxs[0]
+                    for x in mins[0] .. maxs[0]
                     {
                          let coord = glam::ivec3(x, y, z);
                          let target_chunk = glam::ivec3(

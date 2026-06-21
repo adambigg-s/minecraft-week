@@ -153,7 +153,7 @@ impl Block
 
      pub fn random() -> Self
      {
-          Self::ALL[rand::random_range(0..Self::BlockCounter as u8) as usize]
+          Self::ALL[rand::random_range(0 .. Self::BlockCounter as u8) as usize]
      }
 }
 

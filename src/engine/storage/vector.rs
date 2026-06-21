@@ -48,7 +48,7 @@ impl<const N: usize> Vector<f64, N>
      pub fn norm(&self) -> f64
      {
           let mut accum = 0.0;
-          (0..N).for_each(|i| accum += self.items[i] * self.items[i]);
+          (0 .. N).for_each(|i| accum += self.items[i] * self.items[i]);
           accum.sqrt()
      }
 }
@@ -91,7 +91,7 @@ where
      #[inline(always)]
      fn add(mut self, rhs: Self) -> Self::Output
      {
-          (0..N).for_each(|i| {
+          (0 .. N).for_each(|i| {
                self.items[i] = self.items[i] + rhs.items[i];
           });
           self
@@ -107,7 +107,7 @@ where
      #[inline(always)]
      fn sub(mut self, rhs: Self) -> Self::Output
      {
-          (0..N).for_each(|i| {
+          (0 .. N).for_each(|i| {
                self.items[i] = self.items[i] - rhs.items[i];
           });
           self
@@ -124,7 +124,7 @@ where
      #[inline(always)]
      fn mul(mut self, rhs: D) -> Self::Output
      {
-          (0..N).for_each(|i| {
+          (0 .. N).for_each(|i| {
                self.items[i] = self.items[i] * rhs;
           });
           self
@@ -141,7 +141,7 @@ where
      #[inline(always)]
      fn div(mut self, rhs: D) -> Self::Output
      {
-          (0..N).for_each(|i| {
+          (0 .. N).for_each(|i| {
                self.items[i] = self.items[i] / rhs;
           });
           self

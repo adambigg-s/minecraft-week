@@ -3,6 +3,8 @@ use std::sync;
 
 use crate::world;
 
+pub const MAX_LIGHT: u8 = 25;
+
 #[derive(bon::Builder, Debug)]
 pub struct LightNode
 {
@@ -26,11 +28,11 @@ impl<'c> ChunkLighting<'c>
 
      pub fn lighting(&mut self)
      {
-          for z in 0..self.view.chunk.width() as i32
+          for z in 0 .. self.view.chunk.width() as i32
           {
-               for y in 0..self.view.chunk.height() as i32
+               for y in 0 .. self.view.chunk.height() as i32
                {
-                    for x in 0..self.view.chunk.width() as i32
+                    for x in 0 .. self.view.chunk.width() as i32
                     {
                          let coord = glam::ivec3(x, y, z);
                          if self.view.chunk.get_light(coord) == &0

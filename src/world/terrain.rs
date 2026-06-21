@@ -144,7 +144,7 @@ impl NoiseLayer
           let mut amp = 1.0;
           let mut freq = self.freq;
 
-          (0..self.octaves).for_each(|_| {
+          (0 .. self.octaves).for_each(|_| {
                let x = (x + self.offset[0]) * freq;
                let y = (y + self.offset[1]) * freq;
 
@@ -166,7 +166,7 @@ impl NoiseLayer
           let mut amp = 1.0;
           let mut freq = self.freq;
 
-          (0..self.octaves).for_each(|_| {
+          (0 .. self.octaves).for_each(|_| {
                let x = (x + self.offset[0]) * freq;
                let y = (y + self.offset[1]) * freq;
                let z = (z + self.offset[2]) * freq;
@@ -242,7 +242,7 @@ impl TerrainGenerator
      {
           use block::Block::*;
 
-          for dy in 0..4
+          for dy in 0 .. 4
           {
                let log_pos = glam::ivec3(x, y + dy, z);
                if chunk.get(log_pos) == &Air
@@ -251,11 +251,11 @@ impl TerrainGenerator
                }
           }
 
-          for ly in 2..4
+          for ly in 2 .. 4
           {
-               for lx in -2..=2_i32
+               for lx in -2 ..= 2_i32
                {
-                    for lz in -2..=2_i32
+                    for lz in -2 ..= 2_i32
                     {
                          if lx.abs() == 2 && lz.abs() == 2
                          {
@@ -272,17 +272,18 @@ impl TerrainGenerator
                          }
                          else
                          {
-                              let world = chunk.chunk_world_coords(leaf_pos);
-                              let chunk = chunk.to_chunk_coords(leaf_pos);
+                              let global_leaf_pos = leaf_pos + chunk.world_position();
+                              let world = chunk.chunk_world_coords(global_leaf_pos);
+                              let chunk = chunk.to_chunk_coords(global_leaf_pos);
                               delta_map.insert(world, world::ChunkDelta { coord: chunk, delta: Leaf });
                          }
                     }
                }
           }
 
-          for lx in -1..=1_i32
+          for lx in -1 ..= 1_i32
           {
-               for lz in -1..=1_i32
+               for lz in -1 ..= 1_i32
                {
                     if lx.abs() == 1 && lz.abs() == 1
                     {
@@ -299,8 +300,9 @@ impl TerrainGenerator
                     }
                     else
                     {
-                         let world = chunk.chunk_world_coords(leaf_pos);
-                         let chunk = chunk.to_chunk_coords(leaf_pos);
+                         let global_leaf_pos = leaf_pos + chunk.world_position();
+                         let world = chunk.chunk_world_coords(global_leaf_pos);
+                         let chunk = chunk.to_chunk_coords(global_leaf_pos);
                          delta_map.insert(world, world::ChunkDelta { coord: chunk, delta: Leaf });
                     }
                }
@@ -315,9 +317,9 @@ impl TerrainGenerator
           let sea_level = (height * 0.45) as i32;
           let chunk_offset = chunk.world_position();
           let mut delta_map = world::ChunkDeltaMap::new();
-          for z in 0..chunk.width() as i32
+          for z in 0 .. chunk.width() as i32
           {
-               for x in 0..chunk.width() as i32
+               for x in 0 .. chunk.width() as i32
                {
                     let gcoord = (glam::ivec3(x, 0, z) + chunk_offset).as_dvec3();
 
@@ -342,7 +344,7 @@ impl TerrainGenerator
                     }
 
                     let height = (terrain_height * height).min(height - 1.0);
-                    for y in 0..height as i32
+                    for y in 0 .. height as i32
                     {
                          let coord = glam::ivec3(x, y, z);
                          let gcoord = (coord + chunk_offset).as_dvec3();
@@ -356,7 +358,7 @@ impl TerrainGenerator
                          }
                     }
 
-                    for y in 0..sea_level
+                    for y in 0 .. sea_level
                     {
                          let coord = glam::ivec3(x, y, z);
                          if chunk.get(coord) == &Air
@@ -365,7 +367,7 @@ impl TerrainGenerator
                          }
                     }
 
-                    for y in ((height - 3.0) as i32).max(0)..=height as i32
+                    for y in ((height - 3.0) as i32).max(0) ..= height as i32
                     {
                          let coord = glam::ivec3(x, y, z);
                          if y == height as i32
@@ -378,7 +380,7 @@ impl TerrainGenerator
                          }
                     }
 
-                    for y in sea_level - 2..sea_level + 2
+                    for y in sea_level - 2 .. sea_level + 2
                     {
                          let coord = glam::ivec3(x, y, z);
                          if chunk.get(coord) != &Water && chunk.get(coord) != &Air
@@ -422,7 +424,7 @@ impl TerrainGenerator
                          }
                     }
 
-                    for y in sea_level..height as i32
+                    for y in sea_level .. height as i32
                     {
                          let ore = self.sample_3d([gcoord.x, y as f64, gcoord.z], 0.1);
                          let ore_type = self.sample_2d([gcoord.x, gcoord.y], 0.1);
@@ -470,7 +472,7 @@ impl TerrainGenerator
           let mut amp = 1.0;
           let mut freq = freq;
 
-          (0..octaves).for_each(|_| {
+          (0 .. octaves).for_each(|_| {
                total += self.noise.get(point.map(|val| val * freq)) * amp;
                max += amp;
                amp *= 0.5;
@@ -487,7 +489,7 @@ impl TerrainGenerator
           let mut amp = 1.0;
           let mut freq = freq;
 
-          (0..octaves).for_each(|_| {
+          (0 .. octaves).for_each(|_| {
                total += self.noise.get(point.map(|val| val * freq)) * amp;
                max += amp;
                amp *= 0.5;

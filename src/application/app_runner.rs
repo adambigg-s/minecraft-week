@@ -144,7 +144,6 @@ where
                }
                | event::WindowEvent::MouseInput { state: ele_state, button, .. } =>
                {
-                    log::debug!("Mouse pressed: {:?}", button);
                     let (left_press, right_press) = &mut state.input.mouse_pressed;
                     let (left_release, right_release) = &mut state.input.mouse_released;
                     match ele_state
@@ -193,7 +192,6 @@ where
                }
                | event::WindowEvent::KeyboardInput { event, .. } =>
                {
-                    log::debug!("Keyboard input: {:?}", event);
                     let keyboard::PhysicalKey::Code(keycode) = event.physical_key
                     else
                     {

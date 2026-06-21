@@ -2,6 +2,7 @@ use std::collections;
 use std::sync::mpsc;
 use std::sync::{self};
 use std::thread;
+use std::time;
 
 use crate::engine::kinematics;
 use crate::engine::ray;
@@ -101,7 +102,7 @@ impl DeltaValue for u8
      }
 }
 
-#[derive(bon::Builder, Debug, Default)]
+#[derive(bon::Builder, Debug, Default, Clone, Copy)]
 pub struct ChunkDelta<T>
 {
      pub coord: glam::IVec3,
@@ -134,6 +135,13 @@ impl<T> ChunkDeltaMap<T>
      pub fn insert(&mut self, coord: glam::IVec3, delta: ChunkDelta<T>)
      {
           self.deltas.entry(coord).or_default().push(delta);
+     }
+
+     pub fn get_deltas(&self, coord: glam::IVec3) -> Vec<ChunkDelta<T>>
+     where
+          T: Clone + Copy,
+     {
+          self.deltas.get(&coord).map_or(Vec::new(), |val| val.to_vec()).to_vec()
      }
 }
 
@@ -202,17 +210,21 @@ impl ChunkMap
           None
      }
 
-     pub fn get_view(&self, target: glam::IVec3, stage_threshold: ChunkStage, size: i32)
-     -> Option<ChunkView>
+     pub fn get_complete_view(
+          &self,
+          center: glam::IVec3,
+          stage_threshold: ChunkStage,
+          size: i32,
+     ) -> Option<ChunkView>
      {
           let map = self.chunks.read().unwrap();
-          let mut neighbor_chunks = collections::HashMap::new();
-          for dz in -size..=size
+          let mut neighbors = collections::HashMap::new();
+          for dz in -size ..= size
           {
-               for dx in -size..=size
+               for dx in -size ..= size
                {
                     let rel = glam::ivec3(dx, 0, dz);
-                    let coord = target + rel;
+                    let coord = center + rel;
 
                     let chunk = map.get(&coord)?;
                     if chunk.stage < stage_threshold
@@ -220,21 +232,54 @@ impl ChunkMap
                          return None;
                     }
 
-                    neighbor_chunks.insert(rel, sync::Arc::clone(&chunk.chunk));
+                    neighbors.insert(rel, sync::Arc::clone(&chunk.chunk));
                }
           }
-          let target_chunk = sync::Arc::clone(&map[&target].chunk);
-          let chunk_width = target_chunk.width() as i32;
-          let chunk_height = target_chunk.height() as i32;
+          let chunk = sync::Arc::clone(&map[&center].chunk);
+          let chunk_width = chunk.width() as i32;
+          let chunk_height = chunk.height() as i32;
 
           Some(ChunkView {
-               center: target,
-               chunk: target_chunk,
-               neighbors: neighbor_chunks,
+               center,
+               chunk,
+               neighbors,
                size,
                chunk_width,
                chunk_height,
           })
+     }
+
+     pub fn get_any_view(&self, center: glam::IVec3, stage_threshold: ChunkStage, size: i32) -> ChunkView
+     {
+          let map = self.chunks.read().unwrap();
+          let mut neighbors = collections::HashMap::new();
+          for dz in -size ..= size
+          {
+               for dx in -size ..= size
+               {
+                    let rel = glam::ivec3(dx, 0, dz);
+                    let coord = center + rel;
+
+                    let chunk = map.get(&coord);
+                    if let Some(chunk) = chunk
+                         && chunk.stage >= stage_threshold
+                    {
+                         neighbors.insert(rel, sync::Arc::clone(&chunk.chunk));
+                    }
+               }
+          }
+          let chunk = sync::Arc::clone(&map[&center].chunk);
+          let chunk_width = chunk.width() as i32;
+          let chunk_height = chunk.height() as i32;
+
+          ChunkView {
+               center,
+               chunk,
+               neighbors,
+               size,
+               chunk_width,
+               chunk_height,
+          }
      }
 }
 
@@ -248,6 +293,7 @@ pub enum ChunkRequest
      PlaceDecorators
      {
           view: ChunkView,
+          deltas: Vec<ChunkDelta<block::Block>>,
      },
      PropagateLighting
      {
@@ -273,6 +319,7 @@ pub enum ChunkResponse
      DecoratorsPlaced
      {
           coord: glam::IVec3,
+          chunk: sync::Arc<chunk::Chunk>,
      },
      LightingPropagated
      {
@@ -405,9 +452,10 @@ impl ChunkManager
                               self.chunk_map.set_time(&coord, time);
                               self.chunk_map.set_stage(&coord, ChunkStage::TerrainGenerated);
                          }
-                         | ChunkResponse::DecoratorsPlaced { coord } =>
+                         | ChunkResponse::DecoratorsPlaced { coord, chunk } =>
                          {
                               self.pending_decorators.remove(&coord);
+                              self.chunk_map.insert(coord, chunk);
                               self.chunk_map.set_time(&coord, time);
                               self.chunk_map.set_stage(&coord, ChunkStage::DecoratorsPlaced);
                          }
@@ -455,7 +503,8 @@ impl ChunkManager
                let name = Self::chunk_key(chunk_coord);
                self.render_chunks.remove(&chunk_coord);
                render.unregister_mesh(&name);
-               // render.unregister_resource(name);
+               render.unregister_resource(&format!("{}_time_uni", name));
+               render.unregister_bind_group(&format!("{}_time_bg", name));
           });
      }
 
@@ -471,7 +520,7 @@ impl ChunkManager
                *chunk.get_light_mut(coord) = match block
                {
                     | block::Block::Air => 0,
-                    | block::Block::Light => 15,
+                    | block::Block::Light => light::MAX_LIGHT,
                     | _ => 0,
                };
 
@@ -577,8 +626,11 @@ impl ChunkManager
 
      fn request_chunk_decorators(&mut self, coord: glam::IVec3)
      {
-          if let Some(view) = self.chunk_map.get_view(coord, ChunkStage::TerrainGenerated, 1)
-               && self.send_request(ChunkRequest::PlaceDecorators { view })
+          if let Some(view) = self.chunk_map.get_complete_view(coord, ChunkStage::TerrainGenerated, 1)
+               && self.send_request(ChunkRequest::PlaceDecorators {
+                    view,
+                    deltas: self.chunk_delta_map.get_deltas(coord),
+               })
           {
                self.pending_decorators.insert(coord);
           }
@@ -586,7 +638,7 @@ impl ChunkManager
 
      fn request_chunk_lighting(&mut self, coord: glam::IVec3)
      {
-          if let Some(view) = self.chunk_map.get_view(coord, ChunkStage::DecoratorsPlaced, 1)
+          if let Some(view) = self.chunk_map.get_complete_view(coord, ChunkStage::DecoratorsPlaced, 1)
                && self.send_request(ChunkRequest::PropagateLighting { view })
           {
                self.pending_lighting.insert(coord);
@@ -595,7 +647,7 @@ impl ChunkManager
 
      fn request_chunk_meshing(&mut self, coord: glam::IVec3)
      {
-          if let Some(view) = self.chunk_map.get_view(coord, ChunkStage::LightingPropagated, 1)
+          if let Some(view) = self.chunk_map.get_complete_view(coord, ChunkStage::LightingPropagated, 1)
                && self.send_request(ChunkRequest::Mesh { view })
           {
                self.pending_mesh.insert(coord);
@@ -635,6 +687,7 @@ impl ChunkManager
           thread::spawn(move || {
                while let Ok(request) = chunk_request.recv()
                {
+                    let time = time::Instant::now();
                     match request
                     {
                          | ChunkRequest::GenerateTerrain { coord } =>
@@ -648,24 +701,33 @@ impl ChunkManager
                                    deltas,
                               };
                               chunk_response.send(response).unwrap();
+
+                              log::debug!("Terrain generated: {} ms", time.elapsed().as_millis());
                          }
-                         | ChunkRequest::PlaceDecorators { view } =>
+                         | ChunkRequest::PlaceDecorators { mut view, deltas } =>
                          {
                               let coord = view.center;
 
-                              let response = ChunkResponse::DecoratorsPlaced { coord };
+                              let chunk = sync::Arc::make_mut(&mut view.chunk);
+                              for delta in deltas
+                              {
+                                   *chunk.get_mut(delta.coord) = delta.delta;
+                              }
+
+                              let response = ChunkResponse::DecoratorsPlaced { coord, chunk: view.chunk };
                               chunk_response.send(response).unwrap();
+
+                              log::debug!("Decorators placed: {} ms", time.elapsed().as_millis());
                          }
                          | ChunkRequest::PropagateLighting { mut view } =>
                          {
                               let coord = view.center;
                               light::ChunkLighting::new(&mut view).lighting();
 
-                              let response = ChunkResponse::LightingPropagated {
-                                   coord,
-                                   chunk: sync::Arc::clone(&view.chunk),
-                              };
+                              let response = ChunkResponse::LightingPropagated { coord, chunk: view.chunk };
                               chunk_response.send(response).unwrap();
+
+                              log::debug!("Lighting propagated: {} ms", time.elapsed().as_millis());
                          }
                          | ChunkRequest::Mesh { view } =>
                          {
@@ -674,6 +736,8 @@ impl ChunkManager
 
                               let response = ChunkResponse::Meshed { coord, raw_mesh };
                               chunk_response.send(response).unwrap();
+
+                              log::debug!("Chunk meshed: {} ms", time.elapsed().as_millis());
                          }
                          | ChunkRequest::ShutdownThread =>
                          {
@@ -693,9 +757,9 @@ impl kinematics::Collision for ChunkManager
      {
           let center = collider.center();
           let center_chunk = self.chunk_surrounding(center);
-          for dx in -1..=1
+          for dx in -1 ..= 1
           {
-               for dz in -1..=1
+               for dz in -1 ..= 1
                {
                     let coord = center_chunk + glam::ivec3(dx, 0, dz);
                     if let Some(entry) = self.chunk_map.chunks.read().unwrap().get(&coord)

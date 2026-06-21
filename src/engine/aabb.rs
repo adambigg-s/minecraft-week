@@ -34,7 +34,7 @@ impl<T, const N: usize> AaBb<T, N>
      where
           T: cmp::PartialOrd,
      {
-          (0..N).all(|dim| self.lo[dim] <= other.hi[dim] && self.hi[dim] >= other.lo[dim])
+          (0 .. N).all(|dim| self.lo[dim] <= other.hi[dim] && self.hi[dim] >= other.lo[dim])
      }
 
      pub fn point_sides(point: [T; N], sides: [T; N]) -> Self
@@ -43,7 +43,7 @@ impl<T, const N: usize> AaBb<T, N>
      {
           let mut lo = point;
           let mut hi = point;
-          (0..N).for_each(|dim| {
+          (0 .. N).for_each(|dim| {
                lo[dim] = lo[dim] - sides[dim];
                hi[dim] = hi[dim] + sides[dim];
           });
