@@ -7,6 +7,19 @@ use crate::render::{self};
 use crate::visual::mesher;
 use crate::visual::skybox;
 
+pub struct BlockIllumination;
+impl render::GfxPipeline for BlockIllumination
+{
+     #[allow(unused)]
+     fn pipeline(
+          context: &render::GfxContext,
+          layouts: &[Option<&wgpu::BindGroupLayout>],
+     ) -> wgpu::RenderPipeline
+     {
+          todo!()
+     }
+}
+
 pub struct Crosshair;
 impl render::GfxPipeline for Crosshair
 {
@@ -354,7 +367,11 @@ impl render::GfxPipeline for WireFrame
                     depth_write_enabled: Some(true),
                     depth_compare: Some(wgpu::CompareFunction::LessEqual),
                     stencil: wgpu::StencilState::default(),
-                    bias: wgpu::DepthBiasState { constant: -1, slope_scale: -5.0, clamp: 0.0 },
+                    bias: wgpu::DepthBiasState {
+                         constant: -1,
+                         slope_scale: -5.0,
+                         clamp: 0.0,
+                    },
                }),
                multisample: wgpu::MultisampleState::default(),
                fragment: Some(wgpu::FragmentState {

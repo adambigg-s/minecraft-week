@@ -15,7 +15,10 @@ impl<T, const N: usize> Vec<T, N>
 
      pub fn new() -> Self
      {
-          Self { len: Default::default(), items: Self::ITEMS }
+          Self {
+               len: Default::default(),
+               items: Self::ITEMS,
+          }
      }
 
      pub fn from_parts(len: usize, items: [T; N]) -> Self
@@ -72,7 +75,10 @@ impl<T, const N: usize> Default for Vec<T, N>
 {
      fn default() -> Self
      {
-          Self { len: Default::default(), items: Self::ITEMS }
+          Self {
+               len: Default::default(),
+               items: Self::ITEMS,
+          }
      }
 }
 
@@ -101,7 +107,10 @@ impl<'d, T, const N: usize> IntoIterator for &'d Vec<T, N>
 
      fn into_iter(self) -> Self::IntoIter
      {
-          VecIter { inner: self, idx: Default::default() }
+          VecIter {
+               inner: self,
+               idx: Default::default(),
+          }
      }
 }
 

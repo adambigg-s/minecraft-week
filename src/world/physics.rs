@@ -1,7 +1,50 @@
 use crate::engine::kinematics;
 use crate::engine::ray;
 use crate::world::block;
+use crate::world::chunk;
 use crate::world::manager;
+
+impl kinematics::Collision for chunk::Chunk
+{
+     type Collider = kinematics::BoxCollider;
+
+     fn collides(&self, collider: Self::Collider) -> bool
+     {
+          let mins = collider.lo.map(|val| val.floor() as i32);
+          let maxs = collider.hi.map(|val| val.ceil() as i32);
+          for z in mins[2] .. maxs[2]
+          {
+               for y in mins[1] .. maxs[1]
+               {
+                    for x in mins[0] .. maxs[0]
+                    {
+                         let coord = glam::ivec3(x, y, z);
+                         let target_chunk = glam::ivec3(
+                              (coord.x as f32 / self.width() as f32).floor() as i32,
+                              0,
+                              (coord.z as f32 / self.width() as f32).floor() as i32,
+                         );
+                         if target_chunk != self.offset()
+                         {
+                              continue;
+                         }
+
+                         let chunk_coord = self.to_chunk_coords(coord);
+                         if !self.check_index(chunk_coord)
+                         {
+                              continue;
+                         }
+                         if self.get(chunk_coord).collides(())
+                         {
+                              return true;
+                         }
+                    }
+               }
+          }
+
+          false
+     }
+}
 
 impl kinematics::Collision for manager::ChunkManager
 {
@@ -97,7 +140,11 @@ impl ray::Cast for manager::ChunkManager
                          let block = *chunk.get(local_coord);
                          if block != block::Block::Air
                          {
-                              return Some(ChunkHit { block, position: idx, normal });
+                              return Some(ChunkHit {
+                                   block,
+                                   position: idx,
+                                   normal,
+                              });
                          }
                     }
                }
@@ -136,6 +183,25 @@ impl ray::Cast for manager::ChunkManager
                          normal = glam::ivec3(0, 0, -step.z);
                     }
                }
+          }
+     }
+}
+
+impl kinematics::Collision for block::Block
+{
+     type Collider = ();
+
+     fn collides(&self, _: Self::Collider) -> bool
+     {
+          match self
+          {
+               | block::Block::Air
+               | block::Block::Water
+               | block::Block::RedFlower
+               | block::Block::BlueFlower
+               | block::Block::Shrub
+               | block::Block::Lava => false,
+               | _ => true,
           }
      }
 }

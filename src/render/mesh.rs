@@ -32,7 +32,11 @@ impl GfxMesh
           });
           let size = indices.len() as u32;
 
-          Self { vertex, index, size }
+          Self {
+               vertex,
+               index,
+               size,
+          }
      }
 
      pub fn write<Vertex, Index>(

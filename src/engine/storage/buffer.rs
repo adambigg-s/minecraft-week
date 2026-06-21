@@ -27,7 +27,10 @@ impl<T, const N: usize> Buffer<T, N>
           S: AsRef<[T]> + Into<Box<[T]>>,
      {
           debug_assert!(size.iter().product::<usize>() == items.as_ref().len());
-          Self { size, items: items.into() }
+          Self {
+               size,
+               items: items.into(),
+          }
      }
 
      pub fn size(&self) -> [usize; N]
@@ -119,7 +122,10 @@ impl<T, const N: usize> Default for Buffer<T, N>
 {
      fn default() -> Self
      {
-          Self { size: [0; N], items: Default::default() }
+          Self {
+               size: [0; N],
+               items: Default::default(),
+          }
      }
 }
 

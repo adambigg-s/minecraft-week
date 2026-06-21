@@ -48,18 +48,29 @@ impl Skybox
           mesh.shift(glam::Vec3::splat(-0.5));
           mesh.scale(glam::Vec3::splat(absolute_size));
 
-          Ok(Self { texture, mesh })
+          Ok(Self {
+               texture,
+               mesh,
+          })
      }
 
      pub fn create_gfx_mesh(&mut self, context: &render::GfxContext) -> mesh::GfxMesh
      {
           let mut vertices = Vec::new();
           (0 .. self.mesh.size).for_each(|index| {
-               let mesher::RectilinearMeshSlice { face, pos, uvs, .. } = self.mesh.quad_slice(index);
+               let mesher::RectilinearMeshSlice {
+                    face,
+                    pos,
+                    uvs,
+                    ..
+               } = self.mesh.quad_slice(index);
 
                self.texture.conform_uvs(uvs, "skybox", face);
                (0 .. 4).for_each(|vertex| {
-                    vertices.push(SkyboxVertex { pos: pos[vertex], tex: uvs[vertex] });
+                    vertices.push(SkyboxVertex {
+                         pos: pos[vertex],
+                         tex: uvs[vertex],
+                    });
                });
           });
           let indices = &self.mesh.index;

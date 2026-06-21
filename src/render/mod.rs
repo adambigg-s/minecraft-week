@@ -96,7 +96,12 @@ impl GfxContext
           };
           surface.configure(&device, &config);
 
-          Ok(Self { surface, config, device, queue })
+          Ok(Self {
+               surface,
+               config,
+               device,
+               queue,
+          })
      }
 
      pub fn config_changed(&mut self, width: u32, height: u32)

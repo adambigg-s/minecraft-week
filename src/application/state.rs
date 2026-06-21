@@ -30,7 +30,13 @@ where
 
           let inner_state = Inner::setup(&mut gfx_context, &mut gfx_render)?;
 
-          Ok(Self { window, gfx_context, gfx_render, input, inner_state })
+          Ok(Self {
+               window,
+               gfx_context,
+               gfx_render,
+               input,
+               inner_state,
+          })
      }
 
      pub fn config_changed(&mut self, width: u32, height: u32) -> anyhow::Result<()>
@@ -73,10 +79,9 @@ where
                | wgpu::CurrentSurfaceTexture::Suboptimal(surface_texture) => surface_texture,
           };
 
-          let mut encoder = self
-               .gfx_context
-               .device
-               .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Command encoder") });
+          let mut encoder = self.gfx_context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+               label: Some("Command encoder"),
+          });
 
           {
                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {

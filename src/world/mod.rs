@@ -19,6 +19,7 @@ pub enum ChunkStage
      TerrainGenerated,
      DecoratorsPlaced,
      LightingPropagated,
+     LightingUpdated,
      Meshed,
 }
 
@@ -50,17 +51,17 @@ impl ChunkView
           match self.neighbors.get(&rel)
           {
                | Some(chunk) => *chunk.get(local),
-               | None => block::Block::EMPTY,
+               | None => block::Block::empty(),
           }
      }
 
-     pub fn get_light(&self, world_coord: glam::IVec3) -> u8
+     pub fn get_light(&self, world_coord: glam::IVec3) -> light::Light
      {
           let (rel, local) = self.resolve(world_coord);
           match self.neighbors.get(&rel)
           {
                | Some(chunk) => *chunk.get_light(local),
-               | None => 0,
+               | None => light::Light::min_light(),
           }
      }
 }

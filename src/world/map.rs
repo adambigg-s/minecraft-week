@@ -28,10 +28,13 @@ impl ChunkMap
 
      pub fn insert(&self, coord: glam::IVec3, chunk: sync::Arc<chunk::Chunk>)
      {
-          self.chunks
-               .write()
-               .unwrap()
-               .insert(coord, ChunkEntry { stage: world::ChunkStage::Allocated, chunk });
+          self.chunks.write().unwrap().insert(
+               coord,
+               ChunkEntry {
+                    stage: world::ChunkStage::Allocated,
+                    chunk,
+               },
+          );
      }
 
      pub fn remove(&self, coord: &glam::IVec3)

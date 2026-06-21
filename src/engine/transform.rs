@@ -17,7 +17,11 @@ impl Transform
 {
      pub fn new(position: glam::Vec3, rotation: glam::Quat, scale: glam::Vec3) -> Self
      {
-          Self { scale, position, rotation }
+          Self {
+               scale,
+               position,
+               rotation,
+          }
      }
 
      pub fn identity() -> Self
@@ -27,17 +31,26 @@ impl Transform
 
      pub fn from_position(position: glam::Vec3) -> Self
      {
-          Self { position, ..Default::default() }
+          Self {
+               position,
+               ..Default::default()
+          }
      }
 
      pub fn from_rotation(rotation: glam::Quat) -> Self
      {
-          Self { rotation, ..Default::default() }
+          Self {
+               rotation,
+               ..Default::default()
+          }
      }
 
      pub fn from_scale(scale: glam::Vec3) -> Self
      {
-          Self { scale, ..Default::default() }
+          Self {
+               scale,
+               ..Default::default()
+          }
      }
 
      pub fn to_matrix4(&self) -> glam::Mat4

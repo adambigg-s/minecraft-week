@@ -69,7 +69,12 @@ impl TextureAtlas
           }
           log::warn!("Texture atlas created: {} images at {} pixels", image_count, atlas_size);
 
-          Ok(Self { atlas_size, tile_size, atlas, offsets })
+          Ok(Self {
+               atlas_size,
+               tile_size,
+               atlas,
+               offsets,
+          })
      }
 
      pub fn save(&self, path: &str) -> anyhow::Result<()>

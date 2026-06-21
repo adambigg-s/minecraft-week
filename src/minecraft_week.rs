@@ -8,7 +8,6 @@ use crate::application::{self};
 use crate::engine::aabb;
 use crate::engine::camera;
 use crate::engine::kinematics::{self};
-use crate::engine::neighbors;
 use crate::engine::player;
 use crate::engine::ray::Cast;
 use crate::engine::ray::{self};
@@ -140,8 +139,6 @@ impl application::Application for MinecraftWeek
 
           let block_selection = 0;
 
-          log::error!("Von-Neuman R3 neighbors: {:?}", neighbors::von_neumann3());
-
           Ok(Self {
                camera,
                player,
@@ -239,6 +236,7 @@ impl MinecraftWeek
           if input.consume_key_press("escape")
           {
                input.request_quit = !input.request_quit;
+               self.world.request_shutdown();
           }
           if input.consume_key_release("keyq")
           {
@@ -437,7 +435,10 @@ impl MinecraftWeek
           let ray = ray::Ray {
                origin: self.camera.inner.position,
                direction: self.camera.inner.forward(),
-               tspan: range::Range { start: 0.0, end: 12.0 },
+               tspan: range::Range {
+                    start: 0.0,
+                    end: 12.0,
+               },
           };
           if input.consume_mouse_left_press()
                && let Some(hit) = self.world.cast(ray)

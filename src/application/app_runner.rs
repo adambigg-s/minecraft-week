@@ -21,7 +21,9 @@ impl<Inner> ApplicationRunner<Inner>
 {
      pub fn new() -> Self
      {
-          Self { inner: None }
+          Self {
+               inner: None,
+          }
      }
 }
 
@@ -65,7 +67,9 @@ where
                }
           };
 
-          if let event::DeviceEvent::MouseMotion { delta: (dx, dy) } = event
+          if let event::DeviceEvent::MouseMotion {
+               delta: (dx, dy),
+          } = event
           {
                let (x, y) = &mut state.input.mouse_delta;
                *x += dx as f32;
@@ -92,35 +96,59 @@ where
 
           match event
           {
-               | event::WindowEvent::ActivationTokenDone { .. } => todo!(),
+               | event::WindowEvent::ActivationTokenDone {
+                    ..
+               } => todo!(),
                | event::WindowEvent::DroppedFile(_) => todo!(),
                | event::WindowEvent::HoveredFile(_) => todo!(),
                | event::WindowEvent::HoveredFileCancelled => todo!(),
                | event::WindowEvent::Ime(_) => todo!(),
-               | event::WindowEvent::PinchGesture { .. } => todo!(),
-               | event::WindowEvent::PanGesture { .. } => todo!(),
-               | event::WindowEvent::DoubleTapGesture { .. } => todo!(),
-               | event::WindowEvent::RotationGesture { .. } => todo!(),
-               | event::WindowEvent::TouchpadPressure { .. } => todo!(),
-               | event::WindowEvent::AxisMotion { .. } => todo!(),
-               | event::WindowEvent::ScaleFactorChanged { .. } => todo!(),
+               | event::WindowEvent::PinchGesture {
+                    ..
+               } => todo!(),
+               | event::WindowEvent::PanGesture {
+                    ..
+               } => todo!(),
+               | event::WindowEvent::DoubleTapGesture {
+                    ..
+               } => todo!(),
+               | event::WindowEvent::RotationGesture {
+                    ..
+               } => todo!(),
+               | event::WindowEvent::TouchpadPressure {
+                    ..
+               } => todo!(),
+               | event::WindowEvent::AxisMotion {
+                    ..
+               } => todo!(),
+               | event::WindowEvent::ScaleFactorChanged {
+                    ..
+               } => todo!(),
                | event::WindowEvent::ThemeChanged(_) => todo!(),
 
                | event::WindowEvent::ModifiersChanged(_) =>
                {}
                | event::WindowEvent::Touch(_) =>
                {}
-               | event::WindowEvent::MouseWheel { .. } =>
+               | event::WindowEvent::MouseWheel {
+                    ..
+               } =>
                {}
                | event::WindowEvent::Occluded(_) =>
                {}
                | event::WindowEvent::Moved(_) =>
                {}
-               | event::WindowEvent::CursorLeft { .. } =>
+               | event::WindowEvent::CursorLeft {
+                    ..
+               } =>
                {}
-               | event::WindowEvent::CursorMoved { .. } =>
+               | event::WindowEvent::CursorMoved {
+                    ..
+               } =>
                {}
-               | event::WindowEvent::CursorEntered { .. } =>
+               | event::WindowEvent::CursorEntered {
+                    ..
+               } =>
                {}
 
                | event::WindowEvent::Focused(_) =>
@@ -142,7 +170,11 @@ where
                     log::debug!("Resize requested: {:?}", physical_size);
                     state.config_changed(physical_size.width, physical_size.height).unwrap();
                }
-               | event::WindowEvent::MouseInput { state: ele_state, button, .. } =>
+               | event::WindowEvent::MouseInput {
+                    state: ele_state,
+                    button,
+                    ..
+               } =>
                {
                     let (left_press, right_press) = &mut state.input.mouse_pressed;
                     let (left_release, right_release) = &mut state.input.mouse_released;
@@ -190,7 +222,9 @@ where
                          }
                     }
                }
-               | event::WindowEvent::KeyboardInput { event, .. } =>
+               | event::WindowEvent::KeyboardInput {
+                    event, ..
+               } =>
                {
                     let keyboard::PhysicalKey::Code(keycode) = event.physical_key
                     else

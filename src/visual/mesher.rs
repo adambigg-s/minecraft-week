@@ -183,7 +183,12 @@ impl Quad
 {
      pub fn cube() -> [Self; 6]
      {
-          Face::CARDINALS.map(|face| Self { position: glam::IVec3::ZERO, face })
+          Face::CARDINALS.map(|face| {
+               Self {
+                    position: glam::IVec3::ZERO,
+                    face,
+               }
+          })
      }
 
      pub fn positions(&self) -> [glam::Vec3; 4]
@@ -219,7 +224,13 @@ impl MeshQuad
 {
      pub fn cube() -> [Self; 6]
      {
-          Quad::cube().map(|quad| Self { quad, ao: [1.0; 4], lum: [1.0; 4] })
+          Quad::cube().map(|quad| {
+               Self {
+                    quad,
+                    ao: [1.0; 4],
+                    lum: [1.0; 4],
+               }
+          })
      }
 
      pub fn indices(&self, start: u32) -> [u32; 6]
@@ -265,7 +276,10 @@ impl RectilinearMesh
 {
      pub fn from_quads(quads: &[MeshQuad]) -> Self
      {
-          let mut out = Self { size: quads.len(), ..Default::default() };
+          let mut out = Self {
+               size: quads.len(),
+               ..Default::default()
+          };
           quads.iter().for_each(|quad| {
                let len = out.pos.len();
                out.pos.extend_from_slice(&quad.quad.positions());
@@ -383,7 +397,7 @@ impl<'c> ChunkMesher<'c>
                          let position = coord + world_origin;
 
                          let block = chunk.get(coord);
-                         if block == &block::Block::EMPTY
+                         if block == &block::Block::empty()
                          {
                               continue;
                          }
@@ -412,13 +426,17 @@ impl<'c> ChunkMesher<'c>
                               }
 
                               let ao = self.map_ao(position, face);
-                              let lum = self.view.get_light(neighbor_coord) as f32 / light::MAX_LIGHT as f32;
+                              let lum = *self.view.get_light(neighbor_coord) as f32
+                                   / *light::Light::max_light() as f32;
                               match block.mesh_style()
                               {
                                    | block::EmittedMesh::RectilinearFull =>
                                    {
                                         quads.push(MeshQuad {
-                                             quad: Quad { position, face },
+                                             quad: Quad {
+                                                  position,
+                                                  face,
+                                             },
                                              ao,
                                              lum: [lum; 4],
                                         });
@@ -427,7 +445,10 @@ impl<'c> ChunkMesher<'c>
                                    {
                                         quads.extend(Face::DIAGONALS.map(|face| {
                                              MeshQuad {
-                                                  quad: Quad { position, face },
+                                                  quad: Quad {
+                                                       position,
+                                                       face,
+                                                  },
                                                   ao: [1.0; 4],
                                                   lum: [lum; 4],
                                              }
@@ -448,7 +469,12 @@ impl<'c> ChunkMesher<'c>
           let chunk = &self.view.chunk;
 
           (0 .. rectilinear.size).for_each(|index| {
-               let RectilinearMeshSlice { face, integer_position, uvs, .. } = rectilinear.quad_slice(index);
+               let RectilinearMeshSlice {
+                    face,
+                    integer_position,
+                    uvs,
+                    ..
+               } = rectilinear.quad_slice(index);
 
                let position = chunk.to_chunk_coords(integer_position);
                let block = chunk.get(position);
@@ -478,9 +504,9 @@ impl<'c> ChunkMesher<'c>
                     (glam::ivec3(tn_cand.x, 0, 0), glam::ivec3(0, tn_cand.y, 0))
                };
 
-               let side1 = self.view.get_block(adj + tn).opacity() != 0;
-               let side2 = self.view.get_block(adj + btn).opacity() != 0;
-               let corner = self.view.get_block(adj + tn + btn).opacity() != 0;
+               let side1 = *self.view.get_block(adj + tn).opacity() != 0;
+               let side2 = *self.view.get_block(adj + btn).opacity() != 0;
+               let corner = *self.view.get_block(adj + tn + btn).opacity() != 0;
 
                let occlusion = match (side1, side2)
                {

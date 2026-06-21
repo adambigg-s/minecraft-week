@@ -228,7 +228,9 @@ impl TerrainGenerator
      {
           let noise = noise::Perlin::new(seed);
 
-          Self { noise }
+          Self {
+               noise,
+          }
      }
 
      pub fn generate_tree(
@@ -275,7 +277,13 @@ impl TerrainGenerator
                               let global_leaf_pos = leaf_pos + chunk.world_position();
                               let world = chunk.chunk_world_coords(global_leaf_pos);
                               let chunk = chunk.to_chunk_coords(global_leaf_pos);
-                              delta_map.insert(world, delta::ChunkDelta { coord: chunk, delta: Leaf });
+                              delta_map.insert(
+                                   world,
+                                   delta::ChunkDelta {
+                                        coord: chunk,
+                                        delta: Leaf,
+                                   },
+                              );
                          }
                     }
                }
@@ -303,7 +311,13 @@ impl TerrainGenerator
                          let global_leaf_pos = leaf_pos + chunk.world_position();
                          let world = chunk.chunk_world_coords(global_leaf_pos);
                          let chunk = chunk.to_chunk_coords(global_leaf_pos);
-                         delta_map.insert(world, delta::ChunkDelta { coord: chunk, delta: Leaf });
+                         delta_map.insert(
+                              world,
+                              delta::ChunkDelta {
+                                   coord: chunk,
+                                   delta: Leaf,
+                              },
+                         );
                     }
                }
           }

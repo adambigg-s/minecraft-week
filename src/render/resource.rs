@@ -31,7 +31,9 @@ impl GfxBindingLayout
                     | GfxBindingLayout::Texture =>
                     {
                          wgpu::BindingType::Texture {
-                              sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                              sample_type: wgpu::TextureSampleType::Float {
+                                   filterable: false,
+                              },
                               view_dimension: wgpu::TextureViewDimension::D2,
                               multisampled: false,
                          }
@@ -92,7 +94,9 @@ impl GfxUniform
                mapped_at_creation: false,
           });
 
-          Self { buffer }
+          Self {
+               buffer,
+          }
      }
 
      pub fn write<Uniform>(&self, context: &GfxContext, data: &Uniform)
@@ -154,7 +158,10 @@ impl GfxTexture
           );
           let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-          Self { texture, view }
+          Self {
+               texture,
+               view,
+          }
      }
 
      pub fn new_depth(context: &GfxContext, label: &str) -> anyhow::Result<Self>
@@ -175,6 +182,9 @@ impl GfxTexture
           });
           let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-          Ok(Self { texture, view })
+          Ok(Self {
+               texture,
+               view,
+          })
      }
 }

@@ -2,6 +2,7 @@ use rustc_hash as rh;
 
 use crate::world::block;
 use crate::world::chunk;
+use crate::world::light;
 
 pub trait DeltaValue
 {
@@ -51,6 +52,11 @@ impl<T> ChunkDeltaMap<T>
      {
           self.deltas.get(&coord).map_or(Vec::new(), |val| val.to_vec()).to_vec()
      }
+
+     pub fn take_deltas(&mut self, coord: glam::IVec3) -> Vec<ChunkDelta<T>>
+     {
+          self.deltas.remove(&coord).map_or(Vec::new(), |val| val)
+     }
 }
 
 pub type BlockDeltas = ChunkDeltaMap<block::Block>;
@@ -65,7 +71,7 @@ pub type BlockDeltas = ChunkDeltaMap<block::Block>;
 //      }
 // }
 
-pub type LightDeltas = ChunkDeltaMap<u8>;
+pub type LightDeltas = ChunkDeltaMap<light::Light>;
 
 // impl DeltaValue for u8
 // {

@@ -60,7 +60,9 @@ where
      #[inline(always)]
      fn default() -> Self
      {
-          Self { items: [T::default(); N] }
+          Self {
+               items: [T::default(); N],
+          }
      }
 }
 
@@ -69,7 +71,9 @@ impl<T, const N: usize> From<[T; N]> for Vector<T, N>
      #[inline(always)]
      fn from(items: [T; N]) -> Self
      {
-          Self { items }
+          Self {
+               items,
+          }
      }
 }
 

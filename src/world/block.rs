@@ -2,7 +2,6 @@ use std::fmt::Display;
 use std::fmt::{self};
 use std::mem;
 
-use crate::engine::kinematics;
 use crate::world::light;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -54,7 +53,7 @@ pub enum Block
 
 impl Block
 {
-     pub const ALL: [Block; Block::BlockCounter as usize] = [
+     const ALL: [Block; Block::BlockCounter as usize] = [
           Block::Air,
           Block::Dirt,
           Block::Grass,
@@ -76,7 +75,17 @@ impl Block
           Block::Glass,
           Block::Light,
      ];
-     pub const EMPTY: Block = Block::Air;
+     const EMPTY: Block = Block::Air;
+
+     pub fn empty() -> Self
+     {
+          Self::EMPTY
+     }
+
+     pub fn all() -> [Self; Self::BlockCounter as usize]
+     {
+          Self::ALL
+     }
 
      pub fn name(&self) -> &'static str
      {
@@ -106,20 +115,20 @@ impl Block
           }
      }
 
-     pub fn opacity(&self) -> u8
+     pub fn opacity(&self) -> light::Light
      {
           match self
           {
-               | Block::Air => 0,
-               | Block::Light => 0,
-               | Block::Shrub => 0,
-               | Block::Glass => 0,
-               | Block::RedFlower => 0,
-               | Block::BlueFlower => 0,
-               | Block::Water => 3,
-               | Block::Leaf => 3,
-               | Block::Lava => 5,
-               | _ => light::MAX_LIGHT,
+               | Block::Air => 0.into(),
+               | Block::Light => 0.into(),
+               | Block::Shrub => 0.into(),
+               | Block::Glass => 0.into(),
+               | Block::RedFlower => 0.into(),
+               | Block::BlueFlower => 0.into(),
+               | Block::Water => 3.into(),
+               | Block::Leaf => 3.into(),
+               | Block::Lava => 5.into(),
+               | _ => light::Light::max_light(),
           }
      }
 
@@ -137,12 +146,12 @@ impl Block
           }
      }
 
-     pub fn emissivity(&self) -> Option<u8>
+     pub fn emissivity(&self) -> Option<light::Light>
      {
           match self
           {
-               | Block::Lava => Some(8),
-               | Block::Light => Some(light::MAX_LIGHT),
+               | Block::Lava => Some(8.into()),
+               | Block::Light => Some(light::Light::max_light()),
                | _ => None,
           }
      }
@@ -177,24 +186,5 @@ where
      fn from(value: T) -> Self
      {
           unsafe { mem::transmute(value.into()) }
-     }
-}
-
-impl kinematics::Collision for Block
-{
-     type Collider = ();
-
-     fn collides(&self, _: Self::Collider) -> bool
-     {
-          match self
-          {
-               | Block::Air
-               | Block::Water
-               | Block::RedFlower
-               | Block::BlueFlower
-               | Block::Shrub
-               | Block::Lava => false,
-               | _ => true,
-          }
      }
 }

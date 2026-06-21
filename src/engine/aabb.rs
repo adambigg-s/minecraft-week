@@ -27,7 +27,10 @@ impl<T, const N: usize> AaBb<T, N>
 {
      pub fn new(lo: [T; N], hi: [T; N]) -> Self
      {
-          Self { lo, hi }
+          Self {
+               lo,
+               hi,
+          }
      }
 
      pub fn overlaps(&self, other: &Self) -> bool
@@ -47,7 +50,10 @@ impl<T, const N: usize> AaBb<T, N>
                lo[dim] = lo[dim] - sides[dim];
                hi[dim] = hi[dim] + sides[dim];
           });
-          Self { lo, hi }
+          Self {
+               lo,
+               hi,
+          }
      }
 }
 
