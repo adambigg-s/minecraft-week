@@ -1,7 +1,7 @@
-use std::collections;
 use std::fs;
 
 use image::GenericImage;
+use rustc_hash as rh;
 
 use crate::engine::storage::buffer;
 use crate::visual::mesher;
@@ -21,7 +21,7 @@ pub struct TextureAtlas
      pub atlas_size: u32,
      pub tile_size: u32,
      pub atlas: image::RgbaImage,
-     pub offsets: collections::HashMap<String, collections::HashMap<BlockTextureFace, glam::Vec2>>,
+     pub offsets: rh::FxHashMap<String, rh::FxHashMap<BlockTextureFace, glam::Vec2>>,
 }
 
 impl TextureAtlas
@@ -35,13 +35,14 @@ impl TextureAtlas
           let atlas_size = (tiles_per_side * tile_size).next_power_of_two();
 
           let mut atlas = image::RgbaImage::new(atlas_size, atlas_size);
-          let mut offsets: collections::HashMap<String, collections::HashMap<BlockTextureFace, glam::Vec2>> =
-               collections::HashMap::new();
+          let mut offsets: rh::FxHashMap<String, rh::FxHashMap<BlockTextureFace, glam::Vec2>> =
+               rh::FxHashMap::default();
 
-          let mut images = images.iter().collect::<Vec<(
-               &String,
-               &collections::HashMap<BlockTextureFace, image::ImageBuffer<image::Rgba<u8>, Vec<u8>>>,
-          )>>();
+          let mut images =
+               images.iter().collect::<Vec<(
+                    &String,
+                    &rh::FxHashMap<BlockTextureFace, image::ImageBuffer<image::Rgba<u8>, Vec<u8>>>,
+               )>>();
           images.sort_unstable_by_key(|(name_alphabetical, _)| *name_alphabetical);
 
           let index_assistant = buffer::Buffer::<(), 2>::new([tiles_per_side as usize; 2]);
@@ -124,12 +125,10 @@ impl TextureAtlas
      fn collect_textures(
           directory: &str,
           tile_size: u32,
-     ) -> anyhow::Result<collections::HashMap<String, collections::HashMap<BlockTextureFace, image::RgbaImage>>>
+     ) -> anyhow::Result<rh::FxHashMap<String, rh::FxHashMap<BlockTextureFace, image::RgbaImage>>>
      {
-          let mut images: collections::HashMap<
-               String,
-               collections::HashMap<BlockTextureFace, image::RgbaImage>,
-          > = collections::HashMap::new();
+          let mut images: rh::FxHashMap<String, rh::FxHashMap<BlockTextureFace, image::RgbaImage>> =
+               rh::FxHashMap::default();
 
           let entries = fs::read_dir(directory)?;
           for entry in entries

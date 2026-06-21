@@ -2,9 +2,9 @@ pub mod mesh;
 pub mod resource;
 pub mod util;
 
-use std::collections;
 use std::sync;
 
+use rustc_hash as rh;
 use winit::window;
 
 pub trait GfxVertex
@@ -119,19 +119,19 @@ pub struct GfxDrawCall
 pub struct GfxRenderer
 {
      #[builder(default)]
-     pub bind_group_layouts: collections::HashMap<String, wgpu::BindGroupLayout>,
+     pub bind_group_layouts: rh::FxHashMap<String, wgpu::BindGroupLayout>,
 
      #[builder(default)]
-     pub bind_groups: collections::HashMap<String, wgpu::BindGroup>,
+     pub bind_groups: rh::FxHashMap<String, wgpu::BindGroup>,
 
      #[builder(default)]
-     pub pipelines: collections::HashMap<String, wgpu::RenderPipeline>,
+     pub pipelines: rh::FxHashMap<String, wgpu::RenderPipeline>,
 
      #[builder(default)]
-     pub meshes: collections::HashMap<String, mesh::GfxMesh>,
+     pub meshes: rh::FxHashMap<String, mesh::GfxMesh>,
 
      #[builder(default)]
-     pub resources: collections::HashMap<String, resource::GfxResource>,
+     pub resources: rh::FxHashMap<String, resource::GfxResource>,
 
      pub depth_texture: Option<resource::GfxTexture>,
 

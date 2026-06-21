@@ -1,6 +1,6 @@
 const EPS: f32 = 1e-3;
 
-const AMBIENT: f32 = 0.1;
+const AMBIENT: f32 = 0.025;
 const FOG_START: f32 = 200.0;
 const FOG_END: f32 = 550.0;
 const FOG_EXP: f32 = 6.0;

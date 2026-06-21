@@ -20,8 +20,8 @@ use crate::visual::atlas;
 use crate::visual::pipelines;
 use crate::visual::skybox;
 use crate::world::block;
+use crate::world::manager;
 use crate::world::terrain;
-use crate::world::{self};
 
 #[derive(bon::Builder, Debug)]
 pub struct GfxConfiguration
@@ -56,7 +56,7 @@ pub struct MinecraftWeek
 {
      pub camera: camera::Camera,
      pub player: player::PlayerController,
-     pub world: world::ChunkManager,
+     pub world: manager::ChunkManager,
      pub gfx_config: GfxConfiguration,
      pub frame_data: FrameData,
      pub block_selection: usize,
@@ -67,8 +67,8 @@ impl application::Application for MinecraftWeek
      fn config() -> application::Config
      {
           application::Config::builder()
-               .width(2560)
-               .height(1200)
+               .width(1920)
+               .height(1080)
                .title("Minecraft-week game")
                .build()
      }
@@ -110,14 +110,14 @@ impl application::Application for MinecraftWeek
                .kinematics(kinematics::Kinematics::builder().up(glam::Vec3::Y).build())
                .build();
 
-          let mut world = world::ChunkManager::builder()
+          let mut world = manager::ChunkManager::builder()
                .atlas(sync::Arc::clone(&texture_atlas))
-               .view_distance(6)
+               .view_distance(16)
                .terrain(sync::Arc::clone(&terrain_gen))
                .chunk_width(32)
                .chunk_height(256)
                .build();
-          world.spawn_worker();
+          world.spawn_workers(2);
 
           let gfx_config = GfxConfiguration {
                pipeline: "terrain_pipe".into(),
@@ -197,7 +197,7 @@ impl application::Application for MinecraftWeek
                });
                self.world.render_chunks.iter().for_each(|&coord| {
                     render.queue(render::GfxDrawCall {
-                         mesh: world::ChunkManager::chunk_key(coord),
+                         mesh: manager::ChunkManager::chunk_key(coord),
                          pipe: self.gfx_config.pipeline.to_owned(),
                          bind_groups: vec!["global_bg".into()],
                     });
@@ -207,11 +207,11 @@ impl application::Application for MinecraftWeek
           {
                self.world.render_chunks.iter().for_each(|&coord| {
                     render.queue(render::GfxDrawCall {
-                         mesh: world::ChunkManager::chunk_key(coord),
+                         mesh: manager::ChunkManager::chunk_key(coord),
                          pipe: self.gfx_config.pipeline.to_owned(),
                          bind_groups: vec![
                               "global_bg".into(),
-                              format!("{}_time_bg", world::ChunkManager::chunk_key(coord)),
+                              format!("{}_time_bg", manager::ChunkManager::chunk_key(coord)),
                          ],
                     });
                });
@@ -220,7 +220,7 @@ impl application::Application for MinecraftWeek
           {
                self.world.render_chunks.iter().for_each(|&coord| {
                     render.queue(render::GfxDrawCall {
-                         mesh: world::ChunkManager::chunk_key(coord),
+                         mesh: manager::ChunkManager::chunk_key(coord),
                          pipe: self.gfx_config.pipeline.to_owned(),
                          bind_groups: vec!["global_bg".into()],
                     });
@@ -257,12 +257,10 @@ impl MinecraftWeek
           if input.consume_key_press("equal")
           {
                self.world.view_distance = self.world.view_distance.saturating_add(1);
-               self.world.center_chunk = glam::IVec3::MAX;
           }
           if input.consume_key_press("minus")
           {
                self.world.view_distance = self.world.view_distance.saturating_sub(1);
-               self.world.center_chunk = glam::IVec3::MAX;
           }
           if input.consume_key_release("keyy")
           {
@@ -344,7 +342,7 @@ impl MinecraftWeek
                     }
                     if input.get_key_pres("space")
                     {
-                         self.player.kinematics.jump(10.0);
+                         self.player.kinematics.jump(9.0);
                     }
                     if input.get_key_pres("shiftleft")
                     {
@@ -422,8 +420,9 @@ impl MinecraftWeek
 
           for (&chunk_coord, time) in self.world.chunk_map.update_times.iter()
           {
-               if let Some(resource::GfxResource::Uniform(chunk_time)) =
-                    render.resources.get(&format!("{}_time_uni", world::ChunkManager::chunk_key(chunk_coord)))
+               if let Some(resource::GfxResource::Uniform(chunk_time)) = render
+                    .resources
+                    .get(&format!("{}_time_uni", manager::ChunkManager::chunk_key(chunk_coord)))
                {
                     chunk_time.write(context, time);
                }

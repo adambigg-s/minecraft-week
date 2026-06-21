@@ -3,7 +3,7 @@ use noise::NoiseFn;
 use crate::engine::util;
 use crate::world::block;
 use crate::world::chunk;
-use crate::world::{self};
+use crate::world::delta;
 
 #[derive(bon::Builder, Debug)]
 pub struct TerrainConfig
@@ -237,7 +237,7 @@ impl TerrainGenerator
           x: i32,
           y: i32,
           z: i32,
-          delta_map: &mut world::BlockDeltas,
+          delta_map: &mut delta::BlockDeltas,
      )
      {
           use block::Block::*;
@@ -275,7 +275,7 @@ impl TerrainGenerator
                               let global_leaf_pos = leaf_pos + chunk.world_position();
                               let world = chunk.chunk_world_coords(global_leaf_pos);
                               let chunk = chunk.to_chunk_coords(global_leaf_pos);
-                              delta_map.insert(world, world::ChunkDelta { coord: chunk, delta: Leaf });
+                              delta_map.insert(world, delta::ChunkDelta { coord: chunk, delta: Leaf });
                          }
                     }
                }
@@ -303,20 +303,20 @@ impl TerrainGenerator
                          let global_leaf_pos = leaf_pos + chunk.world_position();
                          let world = chunk.chunk_world_coords(global_leaf_pos);
                          let chunk = chunk.to_chunk_coords(global_leaf_pos);
-                         delta_map.insert(world, world::ChunkDelta { coord: chunk, delta: Leaf });
+                         delta_map.insert(world, delta::ChunkDelta { coord: chunk, delta: Leaf });
                     }
                }
           }
      }
 
-     pub fn form_chunk(&self, chunk: &mut chunk::Chunk) -> world::BlockDeltas
+     pub fn form_chunk(&self, chunk: &mut chunk::Chunk) -> delta::BlockDeltas
      {
           use block::Block::*;
 
           let height = chunk.height() as f64;
           let sea_level = (height * 0.45) as i32;
           let chunk_offset = chunk.world_position();
-          let mut delta_map = world::ChunkDeltaMap::new();
+          let mut delta_map = delta::ChunkDeltaMap::new();
           for z in 0 .. chunk.width() as i32
           {
                for x in 0 .. chunk.width() as i32
