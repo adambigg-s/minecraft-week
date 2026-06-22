@@ -124,7 +124,7 @@ impl ChunkMap
           center: glam::IVec3,
           stage_threshold: world::ChunkStage,
           size: i32,
-     ) -> world::ChunkView
+     ) -> Option<world::ChunkView>
      {
           let map = self.chunks.read().unwrap();
           let mut neighbors = rh::FxHashMap::default();
@@ -137,23 +137,27 @@ impl ChunkMap
 
                     let chunk = map.get(&coord);
                     if let Some(chunk) = chunk
-                         && chunk.stage >= stage_threshold
                     {
+                         if chunk.stage < stage_threshold
+                         {
+                              continue;
+                         }
+
                          neighbors.insert(rel, sync::Arc::clone(&chunk.chunk));
                     }
                }
           }
-          let chunk = sync::Arc::clone(&map[&center].chunk);
+          let chunk = sync::Arc::clone(&map.get(&center)?.chunk);
           let chunk_width = chunk.width() as i32;
           let chunk_height = chunk.height() as i32;
 
-          world::ChunkView {
+          Some(world::ChunkView {
                center,
                chunk,
                neighbors,
                size,
                chunk_width,
                chunk_height,
-          }
+          })
      }
 }

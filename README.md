@@ -4,12 +4,12 @@ Minecraft inspired voxel game made in one week\*\* with Rust and wgpu
 
 ### Status
 
-\*\* There were some things that I wasn't able to finish in the initial week
-that I wanted to keep working on. So, this version has more than 1 week of work.
+\*\*There were some things that I wasn't able to finish in the initial week
+that I wanted to keep working on. This version has more than 1 week of work.
 The 'one week' version is preserved in a [branch that can be found here.
 ](https://github.com/adambigg-s/minecraft-week/tree/f239245b432c7842381b852e00c0bf91ffa11833)
 
-![screenshot](images/valley.png)
+![screenshot](images/development/good_illumination.png)
 
 ### Building
 
@@ -49,6 +49,7 @@ was a goal
 - https://github.com/jdah/minecraft-again.git
 - https://0fps.net/2013/07/03/ambient-occlusion-for-minecraft-like-worlds/
 - Reinventing Minecraft world generation by Henrik Kniberg
+- https://web.archive.org/web/20201112035552/https://www.seedofandromeda.com/blogs/29-fast-flood-fill-lighting-in-a-blocky-voxel-game-pt-1 
 
 ### Examples
 

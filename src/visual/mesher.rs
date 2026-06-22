@@ -434,10 +434,9 @@ impl<'c> ChunkMesher<'c>
                               }
 
                               let ao = self.map_ao(position, face);
-                              let fil = *self.view.get_light(neighbor_coord) as f32
-                                   / *light::Light::max_light() as f32;
-                              let bil =
-                                   *self.view.get_light(coord) as f32 / *light::Light::max_light() as f32;
+                              let face_lighting = self.map_face_lighting(position, face);
+                              let block_lighting =
+                                   *self.view.get_light(position) as f32 / *light::Light::max_light() as f32;
                               match block.mesh_style()
                               {
                                    | block::EmittedMesh::RectilinearFull =>
@@ -448,8 +447,8 @@ impl<'c> ChunkMesher<'c>
                                                   face,
                                              },
                                              ao,
-                                             fil: [fil; 4],
-                                             bil: [bil; 4],
+                                             fil: face_lighting,
+                                             bil: [block_lighting; 4],
                                         });
                                    }
                                    | block::EmittedMesh::Decorator =>
@@ -461,8 +460,8 @@ impl<'c> ChunkMesher<'c>
                                                        face,
                                                   },
                                                   ao: [1.0; 4],
-                                                  fil: [fil; 4],
-                                                  bil: [bil; 4],
+                                                  fil: face_lighting,
+                                                  bil: [block_lighting; 4],
                                              }
                                         }));
                                    }
@@ -527,6 +526,45 @@ impl<'c> ChunkMesher<'c>
                };
 
                (occlusion as f32 + 1.0) * 0.25
+          })
+     }
+
+     fn map_face_lighting(&self, coord: glam::IVec3, face: Face) -> [f32; 4]
+     {
+          let nor = face.neighbor_offset();
+          let adj = coord + nor;
+          face.corners().map(|(offset, _)| {
+               let dir = offset * 2 - glam::IVec3::ONE;
+               let tn_cand = dir * (glam::IVec3::ONE - nor.abs());
+
+               let (tn, btn) = if nor.x != 0
+               {
+                    (glam::ivec3(0, tn_cand.y, 0), glam::ivec3(0, 0, tn_cand.z))
+               }
+               else if nor.y != 0
+               {
+                    (glam::ivec3(tn_cand.x, 0, 0), glam::ivec3(0, 0, tn_cand.z))
+               }
+               else
+               {
+                    (glam::ivec3(tn_cand.x, 0, 0), glam::ivec3(0, tn_cand.y, 0))
+               };
+
+               let center_light = *self.view.get_light(adj) as f32;
+               let side1_light = *self.view.get_light(adj + tn) as f32;
+               let side2_light = *self.view.get_light(adj + btn) as f32;
+               let mut corner_light = *self.view.get_light(adj + tn + btn) as f32;
+
+               let side1 = *self.view.get_block(adj + tn).opacity() != 0;
+               let side2 = *self.view.get_block(adj + btn).opacity() != 0;
+
+               if side1 && side2
+               {
+                    corner_light = center_light;
+               }
+
+               (center_light + side1_light + side2_light + corner_light)
+                    / (4.0 * *light::Light::max_light() as f32)
           })
      }
 }

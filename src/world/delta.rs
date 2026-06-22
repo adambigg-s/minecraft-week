@@ -12,23 +12,23 @@ pub trait DeltaValue
 }
 
 #[derive(bon::Builder, Debug, Default, Clone, Copy)]
-pub struct ChunkDelta<T>
+pub struct ChunkDelta<Delta>
 {
      pub coord: glam::IVec3,
-     pub delta: T,
+     pub delta: Delta,
 }
 
 #[derive(bon::Builder, Debug, Default)]
-pub struct ChunkDeltaMap<T>
+pub struct ChunkDeltaMap<Delta>
 {
-     pub deltas: rh::FxHashMap<glam::IVec3, Vec<ChunkDelta<T>>>,
+     pub deltas: rh::FxHashMap<glam::IVec3, Vec<ChunkDelta<Delta>>>,
 }
 
-impl<T> ChunkDeltaMap<T>
+impl<Delta> ChunkDeltaMap<Delta>
 {
      pub fn new() -> Self
      where
-          T: Default,
+          Delta: Default,
      {
           Self::default()
      }
@@ -41,21 +41,21 @@ impl<T> ChunkDeltaMap<T>
           }
      }
 
-     pub fn insert(&mut self, coord: glam::IVec3, delta: ChunkDelta<T>)
+     pub fn insert(&mut self, coord: glam::IVec3, delta: ChunkDelta<Delta>)
      {
           self.deltas.entry(coord).or_default().push(delta);
      }
 
-     pub fn get_deltas(&self, coord: glam::IVec3) -> Vec<ChunkDelta<T>>
+     pub fn get_deltas(&self, coord: glam::IVec3) -> Vec<ChunkDelta<Delta>>
      where
-          T: Clone + Copy,
+          Delta: Clone + Copy,
      {
-          self.deltas.get(&coord).map_or(Vec::new(), |val| val.to_vec()).to_vec()
+          self.deltas.get(&coord).cloned().unwrap_or_default()
      }
 
-     pub fn take_deltas(&mut self, coord: glam::IVec3) -> Vec<ChunkDelta<T>>
+     pub fn take_deltas(&mut self, coord: glam::IVec3) -> Vec<ChunkDelta<Delta>>
      {
-          self.deltas.remove(&coord).map_or(Vec::new(), |val| val)
+          self.deltas.remove(&coord).unwrap_or_default()
      }
 }
 

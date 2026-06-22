@@ -69,7 +69,7 @@ impl application::Application for MinecraftWeek
           application::Config::builder()
                .width(1920)
                .height(1080)
-               .title("Minecraft-week game")
+               .title("Another Minecraft clone game")
                .build()
      }
 
@@ -112,7 +112,7 @@ impl application::Application for MinecraftWeek
 
           let mut world = manager::ChunkManager::builder()
                .atlas(sync::Arc::clone(&texture_atlas))
-               .view_distance(16)
+               .view_distance(12)
                .terrain(sync::Arc::clone(&terrain_gen))
                .chunk_width(32)
                .chunk_height(256)

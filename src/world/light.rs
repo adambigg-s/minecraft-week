@@ -4,9 +4,10 @@ use std::sync;
 
 use crate::engine::neighbors;
 use crate::world;
+use crate::world::block;
 use crate::world::delta;
 
-const MAX_LIGHT: u8 = 15;
+const MAX_LIGHT: u8 = 20;
 
 #[repr(transparent)]
 #[derive(bon::Builder, Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -100,6 +101,30 @@ impl<'c> ChunkLighting<'c>
 
           for z in 0 .. self.view.chunk_width
           {
+               for x in 0 .. self.view.chunk_width
+               {
+                    for y in (0 .. self.view.chunk_height).rev()
+                    {
+                         let coord = glam::ivec3(x, y, z);
+                         let imm_below = coord + glam::IVec3::NEG_Y;
+
+                         if chunk.check_index(imm_below)
+                              && chunk.get(imm_below).visibility() != block::Visibility::Invisible
+                         {
+                              *chunk.get_light_mut(coord) = Light::max_light();
+                              self.queue.push_front(LightNode {
+                                   light: Light::max_light(),
+                                   coord,
+                              });
+
+                              break;
+                         }
+                    }
+               }
+          }
+
+          for z in 0 .. self.view.chunk_width
+          {
                for y in 0 .. self.view.chunk_height
                {
                     for x in 0 .. self.view.chunk_width
@@ -117,7 +142,6 @@ impl<'c> ChunkLighting<'c>
                }
           }
 
-          log::debug!("Number of nodes in light queue: {}", self.queue.len());
           self.floodfill(&mut deltas);
 
           deltas
@@ -137,18 +161,6 @@ impl<'c> ChunkLighting<'c>
           deltas
      }
 
-     #[allow(unused)]
-     pub fn add_light(&mut self, node: LightNode)
-     {
-          todo!()
-     }
-
-     #[allow(unused)]
-     pub fn remove_light(&mut self, node: LightNode)
-     {
-          todo!()
-     }
-
      fn floodfill(&mut self, deltas: &mut delta::LightDeltas)
      {
           let chunk = sync::Arc::make_mut(&mut self.view.chunk);
@@ -165,9 +177,9 @@ impl<'c> ChunkLighting<'c>
                     let coord = node.coord + glam::ivec3(dx, dy, dz);
                     if !chunk.check_index(coord)
                     {
-                         let global_coords = coord + chunk.world_position();
-                         let world = chunk.chunk_world_coords(global_coords);
-                         let chunk = chunk.to_chunk_coords(global_coords);
+                         let world_coords = coord + chunk.world_position();
+                         let world = chunk.chunk_world_coords(world_coords);
+                         let chunk = chunk.to_chunk_coords(world_coords);
                          deltas.insert(
                               world,
                               delta::ChunkDelta {

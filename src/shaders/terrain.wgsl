@@ -1,17 +1,17 @@
 const EPS: f32 = 1e-3;
 
 const AMBIENT: f32 = 0.025;
-const FOG_START: f32 = 200.0;
+const FOG_START: f32 = 150.0;
 const FOG_END: f32 = 550.0;
 const FOG_EXP: f32 = 6.0;
-const FADE_COLOR: vec4<f32> = vec4<f32>(0.7, 0.8, 1.0, 1.0);
+const FADE_COLOR: vec3<f32> = vec3<f32>(0.6, 0.7, 1.0);
 const FACE_LIGHTING: vec3<f32> = vec3<f32>(0.5, 1.0, 0.3);
 
 struct VertexIn {
     @location(0) pos: vec3<f32>,
     @location(1) nor: vec3<f32>,
     @location(2) tex: vec2<f32>,
-    @location(3) lum: f32,
+    @location(3) fil: f32,
     @location(4) bil: f32,
     @location(5) ao: f32,
 };
@@ -21,7 +21,7 @@ struct VertexOut {
     @location(0) world_pos: vec4<f32>,
     @location(1) nor: vec3<f32>,
     @location(2) tex: vec2<f32>,
-    @location(3) lum: f32,
+    @location(3) fil: f32,
     @location(4) ao: f32,
 }
 
@@ -35,7 +35,7 @@ fn vs_main(in: VertexIn) -> VertexOut {
     out.world_pos = view * vec4<f32>(in.pos, 1.0);
     out.nor = in.nor;
     out.tex = in.tex;
-    out.lum = in.lum;
+    out.fil = in.fil;
     out.ao = in.ao;
     return out;
 }
@@ -59,17 +59,17 @@ fn fs_main(in: VertexOut) -> FragmentOutput {
         discard;
     }
 
-    let shading = dot(abs(in.nor), FACE_LIGHTING);
+    let shade = dot(abs(in.nor), FACE_LIGHTING);
     let ao = pow(in.ao, global_ao);
-    let illumination = clamp(in.lum, AMBIENT, 1.0);
-    let diffuse_color = color * shading * ao * illumination;
+    let lum = clamp(in.fil, AMBIENT, 1.0);
+    let shaded_color = color * shade * ao * lum;
 
     let depth = length(in.world_pos.xyz);
     let fog_factor = pow(clamp((depth - FOG_START) / (FOG_END - FOG_START), 0.0, 1.0), FOG_EXP);
 
-    let final_color = mix(diffuse_color, FADE_COLOR, fog_factor);
+    let final_color = mix(shaded_color, vec4<f32>(FADE_COLOR, 1.0), fog_factor);
 
-    output.color = vec4<f32>(final_color.rgb * color.a, color.a);
+    output.color = final_color;
     output.depth = in.pos.z;
     return output;
 }

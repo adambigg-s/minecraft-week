@@ -65,7 +65,7 @@ impl Skybox
                     ..
                } = self.mesh.quad_slice(index);
 
-               self.texture.conform_uvs(uvs, "skybox", face);
+               self.texture.conform_uvs(uvs, "skyboxnight", face);
                (0 .. 4).for_each(|vertex| {
                     vertices.push(SkyboxVertex {
                          pos: pos[vertex],
