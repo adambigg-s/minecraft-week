@@ -3,8 +3,8 @@ use std::fs;
 use image::GenericImage;
 use rustc_hash as rh;
 
+use crate::engine::rectilinear;
 use crate::engine::storage::buffer;
-use crate::visual::mesher;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum BlockTextureFace
@@ -83,12 +83,12 @@ impl TextureAtlas
           Ok(())
      }
 
-     pub fn conform_uvs(&self, uvs: &mut [glam::Vec2], name: &str, face: mesher::Face)
+     pub fn conform_uvs(&self, uvs: &mut [glam::Vec2], name: &str, face: rectilinear::Face)
      {
           let face_texture = match face
           {
-               | mesher::Face::Top => BlockTextureFace::Top,
-               | mesher::Face::Bottom => BlockTextureFace::Bottom,
+               | rectilinear::Face::Top => BlockTextureFace::Top,
+               | rectilinear::Face::Bottom => BlockTextureFace::Bottom,
                | _ => BlockTextureFace::Side,
           };
 

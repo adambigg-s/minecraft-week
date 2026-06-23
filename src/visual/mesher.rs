@@ -2,337 +2,12 @@ use std::mem;
 
 use wgpu::vertex_attr_array;
 
+use crate::engine::rectilinear;
 use crate::render::{self};
 use crate::visual::atlas;
 use crate::world::block;
 use crate::world::light;
 use crate::world::{self};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Face
-{
-     Top,
-     Bottom,
-     Left,
-     Right,
-     Back,
-     Front,
-     DiagPosFront,
-     DiagPosBack,
-     DiagNegFront,
-     DiagNegBack,
-}
-
-impl Face
-{
-     pub const CARDINALS: [Face; 6] = [
-          Face::Top,
-          Face::Bottom,
-          Face::Left,
-          Face::Right,
-          Face::Front,
-          Face::Back,
-     ];
-     pub const DIAGONALS: [Face; 4] = [
-          Face::DiagPosFront,
-          Face::DiagPosBack,
-          Face::DiagNegFront,
-          Face::DiagNegBack,
-     ];
-
-     pub fn neighbor_offset(&self) -> glam::IVec3
-     {
-          match self
-          {
-               | Face::Top => glam::ivec3(0, 1, 0),
-               | Face::Bottom => glam::ivec3(0, -1, 0),
-               | Face::Left => glam::ivec3(-1, 0, 0),
-               | Face::Right => glam::ivec3(1, 0, 0),
-               | Face::Back => glam::ivec3(0, 0, 1),
-               | Face::Front => glam::ivec3(0, 0, -1),
-               | _ => glam::IVec3::ZERO,
-          }
-     }
-
-     pub fn normal(&self) -> glam::Vec3
-     {
-          match self
-          {
-               | Face::Top => glam::Vec3::Y,
-               | Face::Bottom => glam::Vec3::NEG_Y,
-               | Face::Left => glam::Vec3::X,
-               | Face::Right => glam::Vec3::NEG_X,
-               | Face::Back => glam::Vec3::Z,
-               | Face::Front => glam::Vec3::NEG_Z,
-               | Face::DiagPosFront => glam::ivec3(1, 0, -1).as_vec3().normalize(),
-               | Face::DiagPosBack => glam::ivec3(1, 0, 1).as_vec3().normalize(),
-               | Face::DiagNegFront => glam::ivec3(-1, 0, -1).as_vec3().normalize(),
-               | Face::DiagNegBack => glam::ivec3(-1, 0, 1).as_vec3().normalize(),
-          }
-     }
-
-     pub fn corners(&self) -> [(glam::IVec3, glam::IVec2); 4]
-     {
-          use glam::ivec2;
-          use glam::ivec3;
-
-          match self
-          {
-               | Face::Top =>
-               {
-                    [
-                         (ivec3(0, 1, 1), ivec2(0, 0)),
-                         (ivec3(0, 1, 0), ivec2(0, 1)),
-                         (ivec3(1, 1, 1), ivec2(1, 0)),
-                         (ivec3(1, 1, 0), ivec2(1, 1)),
-                    ]
-               }
-               | Face::Bottom =>
-               {
-                    [
-                         (ivec3(0, 0, 0), ivec2(0, 0)),
-                         (ivec3(0, 0, 1), ivec2(0, 1)),
-                         (ivec3(1, 0, 0), ivec2(1, 0)),
-                         (ivec3(1, 0, 1), ivec2(1, 1)),
-                    ]
-               }
-               | Face::Left =>
-               {
-                    [
-                         (ivec3(0, 1, 1), ivec2(0, 0)),
-                         (ivec3(0, 0, 1), ivec2(0, 1)),
-                         (ivec3(0, 1, 0), ivec2(1, 0)),
-                         (ivec3(0, 0, 0), ivec2(1, 1)),
-                    ]
-               }
-               | Face::Right =>
-               {
-                    [
-                         (ivec3(1, 1, 0), ivec2(0, 0)),
-                         (ivec3(1, 0, 0), ivec2(0, 1)),
-                         (ivec3(1, 1, 1), ivec2(1, 0)),
-                         (ivec3(1, 0, 1), ivec2(1, 1)),
-                    ]
-               }
-               | Face::Back =>
-               {
-                    [
-                         (ivec3(1, 1, 1), ivec2(0, 0)),
-                         (ivec3(1, 0, 1), ivec2(0, 1)),
-                         (ivec3(0, 1, 1), ivec2(1, 0)),
-                         (ivec3(0, 0, 1), ivec2(1, 1)),
-                    ]
-               }
-               | Face::Front =>
-               {
-                    [
-                         (ivec3(0, 1, 0), ivec2(0, 0)),
-                         (ivec3(0, 0, 0), ivec2(0, 1)),
-                         (ivec3(1, 1, 0), ivec2(1, 0)),
-                         (ivec3(1, 0, 0), ivec2(1, 1)),
-                    ]
-               }
-               | Face::DiagPosFront =>
-               {
-                    [
-                         (ivec3(0, 1, 0), ivec2(0, 0)),
-                         (ivec3(0, 0, 0), ivec2(0, 1)),
-                         (ivec3(1, 1, 1), ivec2(1, 0)),
-                         (ivec3(1, 0, 1), ivec2(1, 1)),
-                    ]
-               }
-               | Face::DiagPosBack =>
-               {
-                    [
-                         (ivec3(1, 1, 1), ivec2(0, 0)),
-                         (ivec3(1, 0, 1), ivec2(0, 1)),
-                         (ivec3(0, 1, 0), ivec2(1, 0)),
-                         (ivec3(0, 0, 0), ivec2(1, 1)),
-                    ]
-               }
-               | Face::DiagNegFront =>
-               {
-                    [
-                         (ivec3(1, 1, 0), ivec2(0, 0)),
-                         (ivec3(1, 0, 0), ivec2(0, 1)),
-                         (ivec3(0, 1, 1), ivec2(1, 0)),
-                         (ivec3(0, 0, 1), ivec2(1, 1)),
-                    ]
-               }
-               | Face::DiagNegBack =>
-               {
-                    [
-                         (ivec3(0, 1, 1), ivec2(0, 0)),
-                         (ivec3(0, 0, 1), ivec2(0, 1)),
-                         (ivec3(1, 1, 0), ivec2(1, 0)),
-                         (ivec3(1, 0, 0), ivec2(1, 1)),
-                    ]
-               }
-          }
-     }
-}
-
-#[derive(bon::Builder, Debug)]
-pub struct Quad
-{
-     pub position: glam::IVec3,
-     pub face: Face,
-}
-
-impl Quad
-{
-     pub fn cube() -> [Self; 6]
-     {
-          Face::CARDINALS.map(|face| {
-               Self {
-                    position: glam::IVec3::ZERO,
-                    face,
-               }
-          })
-     }
-
-     pub fn positions(&self) -> [glam::Vec3; 4]
-     {
-          self.face.corners().map(|(offset, _)| (self.position + offset).as_vec3())
-     }
-
-     pub fn texture_uvs(&self) -> [glam::Vec2; 4]
-     {
-          self.face.corners().map(|(_, uv)| uv.as_vec2())
-     }
-
-     pub fn normals(&self) -> [glam::Vec3; 4]
-     {
-          [self.face.normal(); 4]
-     }
-
-     pub fn indices(&self, start: u32) -> [u32; 6]
-     {
-          [start, start + 2, start + 1, start + 1, start + 2, start + 3]
-     }
-}
-
-#[derive(bon::Builder, Debug)]
-pub struct MeshQuad
-{
-     pub quad: Quad,
-     pub ao: [f32; 4],
-     pub fil: [f32; 4],
-     pub bil: [f32; 4],
-}
-
-impl MeshQuad
-{
-     pub fn cube() -> [Self; 6]
-     {
-          Quad::cube().map(|quad| {
-               Self {
-                    quad,
-                    ao: [1.0; 4],
-                    fil: [1.0; 4],
-                    bil: [1.0; 4],
-               }
-          })
-     }
-
-     pub fn indices(&self, start: u32) -> [u32; 6]
-     {
-          if self.ao[0] + self.ao[3] < self.ao[1] + self.ao[2]
-          {
-               [start, start + 2, start + 1, start + 1, start + 2, start + 3]
-          }
-          else
-          {
-               [start, start + 2, start + 3, start, start + 3, start + 1]
-          }
-     }
-}
-
-#[derive(bon::Builder, Debug)]
-pub struct RectilinearMeshSlice<'r>
-{
-     pub face: Face,
-     pub integer_position: glam::IVec3,
-     pub pos: &'r mut [glam::Vec3],
-     pub nor: &'r mut [glam::Vec3],
-     pub uvs: &'r mut [glam::Vec2],
-     pub fil: &'r mut [f32],
-     pub bil: &'r mut [f32],
-     pub aos: &'r mut [f32],
-}
-
-#[derive(bon::Builder, Debug, Default)]
-pub struct RectilinearMesh
-{
-     pub pos: Vec<glam::Vec3>,
-     pub nor: Vec<glam::Vec3>,
-     pub uvs: Vec<glam::Vec2>,
-     pub fil: Vec<f32>,
-     pub bil: Vec<f32>,
-     pub aos: Vec<f32>,
-     pub index: Vec<u32>,
-     pub integer_pos: Vec<glam::IVec3>,
-     pub face: Vec<Face>,
-     pub size: usize,
-}
-
-impl RectilinearMesh
-{
-     pub fn from_quads(quads: &[MeshQuad]) -> Self
-     {
-          let mut out = Self {
-               size: quads.len(),
-               ..Default::default()
-          };
-          quads.iter().for_each(|quad| {
-               let len = out.pos.len();
-               out.pos.extend_from_slice(&quad.quad.positions());
-               out.nor.extend_from_slice(&quad.quad.normals());
-               out.fil.extend_from_slice(&quad.fil);
-               out.bil.extend_from_slice(&quad.bil);
-               out.uvs.extend_from_slice(&quad.quad.texture_uvs());
-               out.aos.extend_from_slice(&quad.ao);
-               out.index.extend_from_slice(&quad.indices(len as u32));
-               out.face.push(quad.quad.face);
-               out.integer_pos.push(quad.quad.position);
-          });
-          out
-     }
-
-     pub fn quad_slice<'r>(&'r mut self, index: usize) -> RectilinearMeshSlice<'r>
-     {
-          let offset = index * 4;
-          RectilinearMeshSlice {
-               face: self.face[index],
-               integer_position: self.integer_pos[index],
-               pos: &mut self.pos[offset .. offset + 4],
-               nor: &mut self.nor[offset .. offset + 4],
-               uvs: &mut self.uvs[offset .. offset + 4],
-               fil: &mut self.fil[offset .. offset + 4],
-               bil: &mut self.bil[offset .. offset + 4],
-               aos: &mut self.aos[offset .. offset + 4],
-          }
-     }
-
-     pub fn unit_cube() -> Self
-     {
-          Self::from_quads(&MeshQuad::cube())
-     }
-
-     pub fn scale(&mut self, scale: glam::Vec3)
-     {
-          self.pos.iter_mut().for_each(|pos| {
-               *pos *= scale;
-          });
-     }
-
-     pub fn shift(&mut self, shift: glam::Vec3)
-     {
-          self.pos.iter_mut().for_each(|pos| {
-               *pos += shift;
-          });
-     }
-}
 
 #[repr(C)]
 #[derive(bytemuck::Pod, bytemuck::Zeroable, bon::Builder, Debug, Default, Clone, Copy)]
@@ -367,6 +42,143 @@ impl render::GfxVertex for TerrainVertex
      }
 }
 
+#[derive(bon::Builder, Debug, Default)]
+pub struct TerrainQuad
+{
+     pub quad: rectilinear::Quad,
+     pub ambient_occlusion: [f32; 4],
+     pub face_illumination: [f32; 4],
+     pub block_illumination: [f32; 4],
+     pub block: block::Block,
+}
+
+impl TerrainQuad
+{
+     pub fn indices(&self, start: u32) -> [u32; 6]
+     {
+          if self.ambient_occlusion[0] + self.ambient_occlusion[3]
+               < self.ambient_occlusion[1] + self.ambient_occlusion[2]
+          {
+               [start, start + 2, start + 1, start + 1, start + 2, start + 3]
+          }
+          else
+          {
+               [start, start + 2, start + 3, start, start + 3, start + 1]
+          }
+     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum DecoratorBillboard
+{
+     DiagPosFront,
+     DiagPosBack,
+     DiagNegFront,
+     DiagNegBack,
+}
+
+impl DecoratorBillboard
+{
+     const DIAGONALS: [DecoratorBillboard; 4] = [
+          DecoratorBillboard::DiagPosFront,
+          DecoratorBillboard::DiagPosBack,
+          DecoratorBillboard::DiagNegFront,
+          DecoratorBillboard::DiagNegBack,
+     ];
+
+     pub fn diagonals() -> [Self; 4]
+     {
+          Self::DIAGONALS
+     }
+
+     pub fn normal(&self) -> glam::Vec3
+     {
+          match self
+          {
+               | DecoratorBillboard::DiagPosFront => glam::ivec3(1, 0, -1).as_vec3().normalize(),
+               | DecoratorBillboard::DiagPosBack => glam::ivec3(1, 0, 1).as_vec3().normalize(),
+               | DecoratorBillboard::DiagNegFront => glam::ivec3(-1, 0, -1).as_vec3().normalize(),
+               | DecoratorBillboard::DiagNegBack => glam::ivec3(-1, 0, 1).as_vec3().normalize(),
+          }
+     }
+
+     pub fn corners(&self) -> [(glam::IVec3, glam::IVec2); 4]
+     {
+          use glam::ivec2;
+          use glam::ivec3;
+
+          match self
+          {
+               | DecoratorBillboard::DiagPosFront =>
+               {
+                    [
+                         (ivec3(0, 1, 0), ivec2(0, 0)),
+                         (ivec3(0, 0, 0), ivec2(0, 1)),
+                         (ivec3(1, 1, 1), ivec2(1, 0)),
+                         (ivec3(1, 0, 1), ivec2(1, 1)),
+                    ]
+               }
+               | DecoratorBillboard::DiagPosBack =>
+               {
+                    [
+                         (ivec3(1, 1, 1), ivec2(0, 0)),
+                         (ivec3(1, 0, 1), ivec2(0, 1)),
+                         (ivec3(0, 1, 0), ivec2(1, 0)),
+                         (ivec3(0, 0, 0), ivec2(1, 1)),
+                    ]
+               }
+               | DecoratorBillboard::DiagNegFront =>
+               {
+                    [
+                         (ivec3(1, 1, 0), ivec2(0, 0)),
+                         (ivec3(1, 0, 0), ivec2(0, 1)),
+                         (ivec3(0, 1, 1), ivec2(1, 0)),
+                         (ivec3(0, 0, 1), ivec2(1, 1)),
+                    ]
+               }
+               | DecoratorBillboard::DiagNegBack =>
+               {
+                    [
+                         (ivec3(0, 1, 1), ivec2(0, 0)),
+                         (ivec3(0, 0, 1), ivec2(0, 1)),
+                         (ivec3(1, 1, 0), ivec2(1, 0)),
+                         (ivec3(1, 0, 0), ivec2(1, 1)),
+                    ]
+               }
+          }
+     }
+}
+
+#[derive(bon::Builder, Debug)]
+pub struct TerrainDecorator
+{
+     pub position: glam::IVec3,
+     pub decorator: DecoratorBillboard,
+}
+
+impl TerrainDecorator
+{
+     pub fn positions(&self) -> [glam::Vec3; 4]
+     {
+          self.decorator.corners().map(|(offset, _)| (self.position + offset).as_vec3())
+     }
+
+     pub fn texture_uvs(&self) -> [glam::Vec2; 4]
+     {
+          self.decorator.corners().map(|(_, uv)| uv.as_vec2())
+     }
+
+     pub fn normals(&self) -> [glam::Vec3; 4]
+     {
+          [self.decorator.normal(); 4]
+     }
+
+     pub fn indices(&self, start: u32) -> [u32; 6]
+     {
+          [start, start + 2, start + 1, start + 1, start + 2, start + 3]
+     }
+}
+
 #[derive(bon::Builder, Debug)]
 pub struct ChunkRawMesh
 {
@@ -384,36 +196,35 @@ pub struct ChunkMesher<'c>
 
 impl<'c> ChunkMesher<'c>
 {
-     pub fn to_rectilinear(&self) -> RectilinearMesh
+     pub fn raw_mesh(&self) -> ChunkRawMesh
      {
           use block::Visibility::*;
 
-          let mut quads = Vec::new();
-
           let chunk = &self.view.chunk;
-          let world_origin = chunk.world_position();
-          let width = self.view.chunk_width;
-          let height = self.view.chunk_height;
-
-          for z in 0 .. width
+          let mut vertices = Vec::new();
+          let mut indices = Vec::new();
+          for idx in chunk.indices()
           {
-               for y in 0 .. height
+               let [x, y, z] = chunk.delinearize(idx);
+               let coord = glam::ivec3(x as i32, y as i32, z as i32);
+               let world_coord = chunk.world_position() + coord;
+
+               let block = *chunk.get(coord);
+               if block == block::Block::empty()
                {
-                    for x in 0 .. width
+                    continue;
+               }
+
+               let block_light = *self.view.get_light(world_coord) as f32 / *light::Light::max_light() as f32;
+
+               match block.mesh_style()
+               {
+                    | block::EmittedMesh::RectilinearFull =>
                     {
-                         let coord = glam::ivec3(x, y, z);
-                         let position = coord + world_origin;
-
-                         let block = chunk.get(coord);
-                         if block == &block::Block::empty()
-                         {
-                              continue;
-                         }
-
-                         for face in Face::CARDINALS
+                         for face in rectilinear::Face::cardinals()
                          {
                               let offset = face.neighbor_offset();
-                              let neighbor_coord = position + offset;
+                              let neighbor_coord = world_coord + offset;
                               let neighbor = self.view.get_block(neighbor_coord);
 
                               let emit = match (block.visibility(), neighbor.visibility())
@@ -433,67 +244,42 @@ impl<'c> ChunkMesher<'c>
                                    continue;
                               }
 
-                              let ao = self.map_ao(position, face);
-                              let face_lighting = self.map_face_lighting(position, face);
-                              let block_lighting =
-                                   *self.view.get_light(position) as f32 / *light::Light::max_light() as f32;
-                              match block.mesh_style()
-                              {
-                                   | block::EmittedMesh::RectilinearFull =>
-                                   {
-                                        quads.push(MeshQuad {
-                                             quad: Quad {
-                                                  position,
-                                                  face,
-                                             },
-                                             ao,
-                                             fil: face_lighting,
-                                             bil: [block_lighting; 4],
-                                        });
-                                   }
-                                   | block::EmittedMesh::Decorator =>
-                                   {
-                                        quads.extend(Face::DIAGONALS.map(|face| {
-                                             MeshQuad {
-                                                  quad: Quad {
-                                                       position,
-                                                       face,
-                                                  },
-                                                  ao: [1.0; 4],
-                                                  fil: face_lighting,
-                                                  bil: [block_lighting; 4],
-                                             }
-                                        }));
-                                   }
-                                   | block::EmittedMesh::RectilinearPartial => todo!(),
-                              }
+                              self.append_block_full_face(
+                                   &mut vertices,
+                                   &mut indices,
+                                   world_coord,
+                                   block,
+                                   block_light,
+                                   face,
+                              );
                          }
                     }
+                    | block::EmittedMesh::Decorator =>
+                    {
+                         for decorator in DecoratorBillboard::diagonals()
+                         {
+                              self.append_decorator(
+                                   &mut vertices,
+                                   &mut indices,
+                                   world_coord,
+                                   block,
+                                   block_light,
+                                   decorator,
+                              );
+                         }
+                    }
+                    | block::EmittedMesh::RectilinearPartial => todo!(),
                }
           }
 
-          RectilinearMesh::from_quads(&quads)
+          ChunkRawMesh {
+               vertices,
+               indices,
+               offset: chunk.offset(),
+          }
      }
 
-     pub fn map_uvs(&self, rectilinear: &mut RectilinearMesh)
-     {
-          let chunk = &self.view.chunk;
-
-          (0 .. rectilinear.size).for_each(|index| {
-               let RectilinearMeshSlice {
-                    face,
-                    integer_position,
-                    uvs,
-                    ..
-               } = rectilinear.quad_slice(index);
-
-               let position = chunk.to_chunk_coords(integer_position);
-               let block = chunk.get(position);
-               self.atlas.conform_uvs(uvs, block.name(), face);
-          });
-     }
-
-     pub fn map_ao(&self, coord: glam::IVec3, face: Face) -> [f32; 4]
+     fn map_ao(&self, coord: glam::IVec3, face: rectilinear::Face) -> [f32; 4]
      {
           let nor = face.neighbor_offset();
           let adj = coord + nor;
@@ -529,7 +315,7 @@ impl<'c> ChunkMesher<'c>
           })
      }
 
-     fn map_face_lighting(&self, coord: glam::IVec3, face: Face) -> [f32; 4]
+     fn map_face_lighting(&self, coord: glam::IVec3, face: rectilinear::Face) -> [f32; 4]
      {
           let nor = face.neighbor_offset();
           let adj = coord + nor;
@@ -566,5 +352,79 @@ impl<'c> ChunkMesher<'c>
                (center_light + side1_light + side2_light + corner_light)
                     / (4.0 * *light::Light::max_light() as f32)
           })
+     }
+
+     fn append_block_full_face(
+          &self,
+          vertices: &mut Vec<TerrainVertex>,
+          indices: &mut Vec<u32>,
+          world_coord: glam::IVec3,
+          block: block::Block,
+          block_light: f32,
+          face: rectilinear::Face,
+     )
+     {
+          let ao = self.map_ao(world_coord, face);
+          let face_light = self.map_face_lighting(world_coord, face);
+
+          let quad = TerrainQuad {
+               quad: rectilinear::Quad {
+                    position: world_coord,
+                    face,
+               },
+               ambient_occlusion: ao,
+               face_illumination: face_light,
+               block_illumination: [block_light; 4],
+               block,
+          };
+          let pos = quad.quad.positions();
+          let nor = quad.quad.normals();
+          let fil = quad.face_illumination;
+          let bil = quad.block_illumination;
+          let ao = quad.ambient_occlusion;
+          let mut tex = quad.quad.texture_uvs();
+          self.atlas.conform_uvs(&mut tex, block.name(), face);
+          indices.extend_from_slice(&quad.indices(vertices.len() as u32));
+          (0 .. 4).for_each(|vertex| {
+               vertices.push(TerrainVertex {
+                    pos: pos[vertex],
+                    nor: nor[vertex],
+                    tex: tex[vertex],
+                    fil: fil[vertex],
+                    bil: bil[vertex],
+                    ao: ao[vertex],
+               });
+          });
+     }
+
+     fn append_decorator(
+          &self,
+          vertices: &mut Vec<TerrainVertex>,
+          indices: &mut Vec<u32>,
+          world_coord: glam::IVec3,
+          block: block::Block,
+          block_light: f32,
+          decorator: DecoratorBillboard,
+     )
+     {
+          let decorator = TerrainDecorator {
+               position: world_coord,
+               decorator,
+          };
+          let pos = decorator.positions();
+          let nor = decorator.normals();
+          let mut tex = decorator.texture_uvs();
+          self.atlas.conform_uvs(&mut tex, block.name(), rectilinear::Face::Front);
+          indices.extend_from_slice(&decorator.indices(vertices.len() as u32));
+          (0 .. 4).for_each(|vertex| {
+               vertices.push(TerrainVertex {
+                    pos: pos[vertex],
+                    nor: nor[vertex],
+                    tex: tex[vertex],
+                    fil: block_light,
+                    bil: block_light,
+                    ao: 1.0,
+               });
+          });
      }
 }

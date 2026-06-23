@@ -125,39 +125,7 @@ impl Chunk
                view,
                atlas,
           };
-          let mut rectilinear = mesher.to_rectilinear();
-          mesher.map_uvs(&mut rectilinear);
 
-          let mut vertices = Vec::new();
-          (0 .. rectilinear.size).for_each(|index| {
-               let mesher::RectilinearMeshSlice {
-                    pos,
-                    nor,
-                    uvs,
-                    fil,
-                    bil,
-                    aos,
-                    ..
-               } = rectilinear.quad_slice(index);
-
-               (0 .. 4).for_each(|vertex| {
-                    vertices.push(mesher::TerrainVertex {
-                         pos: pos[vertex],
-                         nor: nor[vertex],
-                         tex: uvs[vertex],
-                         fil: fil[vertex],
-                         bil: bil[vertex],
-                         ao: aos[vertex],
-                    });
-               });
-          });
-          let indices = rectilinear.index;
-          let offset = self.offset;
-
-          mesher::ChunkRawMesh {
-               vertices,
-               indices,
-               offset,
-          }
+          mesher.raw_mesh()
      }
 }

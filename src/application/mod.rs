@@ -1,4 +1,5 @@
 pub mod app_runner;
+pub mod gui;
 pub mod input;
 pub mod state;
 
@@ -32,6 +33,31 @@ where
           gfx_context: &mut render::GfxContext,
           gfx_render: &mut render::GfxRenderer,
      );
+
+     fn gfx_prepass(
+          &mut self,
+          input: &input::Input,
+          gfx_context: &mut render::GfxContext,
+          gfx_render: &mut render::GfxRenderer,
+     )
+     {
+          _ = (input, gfx_context, gfx_render);
+     }
+
+     fn gfx_postpass(
+          &mut self,
+          input: &input::Input,
+          gfx_context: &mut render::GfxContext,
+          gfx_render: &mut render::GfxRenderer,
+     )
+     {
+          _ = (input, gfx_context, gfx_render);
+     }
+
+     fn immediate_ui(&mut self, gui: &mut gui::GuiContext)
+     {
+          _ = gui;
+     }
 }
 
 #[derive(bon::Builder, Debug)]

@@ -348,14 +348,14 @@ impl MinecraftWeek
                     }
                     if input.get_key_pres("shiftleft")
                     {
-                         frame_movement_speed *= 1.75;
+                         frame_movement_speed *= 1.5;
                     }
                     let forward = self.camera.inner.forward().with_y(0.0).normalize_or_zero();
                     let right = self.camera.inner.right().with_y(0.0).normalize_or_zero();
                     let movement = (right * dx + forward * dz).normalize_or_zero();
                     self.player.kinematics.velocity.x = movement.x * frame_movement_speed;
                     self.player.kinematics.velocity.z = movement.z * frame_movement_speed;
-                    self.player.kinematics.apply_gravity(0.4);
+                    self.player.kinematics.apply_gravity(32.0, self.frame_data.dt);
                     self.player.collider = self.player.kinematics.translate(
                          self.player.collider,
                          &self.world,

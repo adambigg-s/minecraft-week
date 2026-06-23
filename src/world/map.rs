@@ -57,6 +57,25 @@ impl ChunkMap
           false
      }
 
+     pub fn try_set_stage(
+          &self,
+          coord: &glam::IVec3,
+          stage: world::ChunkStage,
+          stage_threshold: world::ChunkStage,
+     ) -> bool
+     {
+          if let Some(chunk) = self.chunks.write().unwrap().get_mut(coord)
+          {
+               if chunk.stage < stage_threshold
+               {
+                    return false;
+               }
+               chunk.stage = stage;
+               return true;
+          }
+          false
+     }
+
      pub fn get_stage(&self, coord: &glam::IVec3) -> Option<world::ChunkStage>
      {
           if let Some(chunk) = self.chunks.read().unwrap().get(coord)

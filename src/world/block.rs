@@ -119,15 +119,15 @@ impl Block
      {
           match self
           {
-               | Block::Air => 0.into(),
-               | Block::Light => 0.into(),
-               | Block::Shrub => 0.into(),
-               | Block::Glass => 0.into(),
-               | Block::RedFlower => 0.into(),
-               | Block::BlueFlower => 0.into(),
-               | Block::Water => 3.into(),
-               | Block::Leaf => 3.into(),
-               | Block::Lava => 5.into(),
+               | Block::Air => light::Light::new(0),
+               | Block::Light => light::Light::new(0),
+               | Block::Shrub => light::Light::new(0),
+               | Block::Glass => light::Light::new(0),
+               | Block::RedFlower => light::Light::new(0),
+               | Block::BlueFlower => light::Light::new(0),
+               | Block::Water => light::Light::new(3),
+               | Block::Leaf => light::Light::new(3),
+               | Block::Lava => light::Light::new(5),
                | _ => light::Light::max_light(),
           }
      }
@@ -150,7 +150,7 @@ impl Block
      {
           match self
           {
-               | Block::Lava => Some(8.into()),
+               | Block::Lava => Some(light::Light::new(8)),
                | Block::Light => Some(light::Light::max_light()),
                | _ => None,
           }

@@ -21,7 +21,7 @@ pub struct Kinematics
 
 impl Kinematics
 {
-     pub const KINEMATIC_DELTA: f32 = 1e-2;
+     const KINEMATIC_DELTA: f32 = 1e-2;
 
      pub fn jump(&mut self, impulse: f32)
      {
@@ -34,9 +34,9 @@ impl Kinematics
           self.flying = true;
      }
 
-     pub fn apply_gravity(&mut self, impulse: f32)
+     pub fn apply_gravity(&mut self, impulse: f32, dt: f32)
      {
-          self.velocity -= self.up * impulse;
+          self.velocity -= self.up * impulse * dt;
      }
 
      pub fn check_grounded<Collider>(&mut self, collider: BoxCollider, world: &Collider) -> bool

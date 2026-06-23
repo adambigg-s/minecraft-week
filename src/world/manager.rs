@@ -193,16 +193,11 @@ impl ChunkManager
                let chunk = sync::Arc::make_mut(&mut chunk.chunk);
 
                *chunk.get_mut(coord) = block;
-               *chunk.get_light_mut(coord) = match block
-               {
-                    | block::Block::Light => light::Light::max_light(),
-                    | _ => light::Light::min_light(),
-               };
                self.chunk_light_deltas.insert(
                     chunk_worldspace,
                     delta::ChunkDelta {
                          coord,
-                         delta: *chunk.get_light(coord),
+                         delta: light::Light::max_light(),
                     },
                );
 
@@ -225,7 +220,13 @@ impl ChunkManager
                }
           }
 
-          requests.iter().for_each(|&req| self.request_chunk_light_update(req));
+          requests.iter().for_each(|&req| {
+               self.chunk_map.try_set_stage(
+                    &req,
+                    world::ChunkStage::LightingPropagated,
+                    world::ChunkStage::LightingPropagated,
+               );
+          });
      }
 
      pub fn chunk_key(coord: glam::IVec3) -> String
@@ -293,7 +294,11 @@ impl ChunkManager
                }
           });
           block_delta_resolution.into_iter().for_each(|coord| {
-               self.request_chunk_decorators(coord);
+               self.chunk_map.try_set_stage(
+                    &coord,
+                    world::ChunkStage::TerrainGenerated,
+                    world::ChunkStage::TerrainGenerated,
+               );
           });
 
           let mut light_delta_resolution = Vec::new();
@@ -304,7 +309,11 @@ impl ChunkManager
                }
           });
           light_delta_resolution.into_iter().for_each(|coord| {
-               self.request_chunk_light_update(coord);
+               self.chunk_map.try_set_stage(
+                    &coord,
+                    world::ChunkStage::LightingPropagated,
+                    world::ChunkStage::LightingPropagated,
+               );
           });
      }
 
@@ -342,7 +351,7 @@ impl ChunkManager
      fn request_chunk_decorators(&mut self, coord: glam::IVec3)
      {
           let deltas = self.chunk_block_deltas.get_deltas(coord);
-          let Some(view) = self.chunk_map.get_any_view(coord, world::ChunkStage::TerrainGenerated, 1)
+          let Some(view) = self.chunk_map.get_complete_view(coord, world::ChunkStage::TerrainGenerated, 1)
           else
           {
                return;
@@ -352,17 +361,21 @@ impl ChunkManager
                deltas,
           })
           {
-               let _ = self.chunk_block_deltas.take_deltas(coord);
                self.pending_decorators.insert(coord);
+               let _ = self.chunk_block_deltas.take_deltas(coord);
           }
      }
 
      fn request_chunk_lighting(&mut self, coord: glam::IVec3)
      {
-          if let Some(view) = self.chunk_map.get_complete_view(coord, world::ChunkStage::DecoratorsPlaced, 1)
-               && self.send_request(ChunkRequest::PropagateLighting {
-                    view,
-               })
+          let Some(view) = self.chunk_map.get_complete_view(coord, world::ChunkStage::DecoratorsPlaced, 1)
+          else
+          {
+               return;
+          };
+          if self.send_request(ChunkRequest::PropagateLighting {
+               view,
+          })
           {
                self.pending_lighting.insert(coord);
           }
@@ -371,7 +384,7 @@ impl ChunkManager
      fn request_chunk_light_update(&mut self, coord: glam::IVec3)
      {
           let deltas = self.chunk_light_deltas.get_deltas(coord);
-          let Some(view) = self.chunk_map.get_any_view(coord, world::ChunkStage::DecoratorsPlaced, 1)
+          let Some(view) = self.chunk_map.get_complete_view(coord, world::ChunkStage::LightingPropagated, 1)
           else
           {
                return;
@@ -381,18 +394,21 @@ impl ChunkManager
                deltas,
           })
           {
-               let _ = self.chunk_light_deltas.take_deltas(coord);
                self.pending_lighting_updated.insert(coord);
+               let _ = self.chunk_light_deltas.take_deltas(coord);
           }
      }
 
      fn request_chunk_meshing(&mut self, coord: glam::IVec3)
      {
-          if let Some(view) =
-               self.chunk_map.get_complete_view(coord, world::ChunkStage::LightingPropagated, 1)
-               && self.send_request(ChunkRequest::Mesh {
-                    view,
-               })
+          let Some(view) = self.chunk_map.get_complete_view(coord, world::ChunkStage::LightingUpdated, 1)
+          else
+          {
+               return;
+          };
+          if self.send_request(ChunkRequest::Mesh {
+               view,
+          })
           {
                self.pending_mesh.insert(coord);
           }
@@ -612,7 +628,7 @@ impl ChunkManager
                               };
                               chunk_response.send(response).unwrap();
 
-                              log::debug!("Lighting propagated: {} ms", time.elapsed().as_millis());
+                              log::debug!("Lighting initially propagated: {} ms", time.elapsed().as_millis());
                          }
                          | ChunkRequest::UpdateLighting {
                               mut view,

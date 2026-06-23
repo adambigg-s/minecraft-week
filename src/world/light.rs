@@ -7,7 +7,7 @@ use crate::world;
 use crate::world::block;
 use crate::world::delta;
 
-const MAX_LIGHT: u8 = 20;
+const MAX_LIGHT: u8 = 15;
 
 #[repr(transparent)]
 #[derive(bon::Builder, Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -103,21 +103,25 @@ impl<'c> ChunkLighting<'c>
           {
                for x in 0 .. self.view.chunk_width
                {
-                    for y in (0 .. self.view.chunk_height).rev()
+                    'height: for y in (0 .. self.view.chunk_height).rev()
                     {
                          let coord = glam::ivec3(x, y, z);
-                         let imm_below = coord + glam::IVec3::NEG_Y;
+                         *chunk.get_light_mut(coord) = Light::max_light();
 
-                         if chunk.check_index(imm_below)
-                              && chunk.get(imm_below).visibility() != block::Visibility::Invisible
+                         for (dx, dy, dz) in neighbors::von_neumann3()
                          {
-                              *chunk.get_light_mut(coord) = Light::max_light();
+                              let coord = coord + glam::ivec3(dx, dy, dz);
                               self.queue.push_front(LightNode {
                                    light: Light::max_light(),
                                    coord,
                               });
+                         }
 
-                              break;
+                         let imm_down = coord + glam::ivec3(0, -1, 0);
+                         if chunk.check_index(imm_down)
+                              && chunk.get(imm_down).visibility() == block::Visibility::Opaque
+                         {
+                              break 'height;
                          }
                     }
                }
@@ -132,7 +136,6 @@ impl<'c> ChunkLighting<'c>
                          let coord = glam::ivec3(x, y, z);
                          if let Some(emissivitiy) = chunk.get(coord).emissivity()
                          {
-                              *chunk.get_light_mut(coord) = emissivitiy;
                               self.queue.push_front(LightNode {
                                    light: emissivitiy,
                                    coord,
@@ -163,45 +166,68 @@ impl<'c> ChunkLighting<'c>
 
      fn floodfill(&mut self, deltas: &mut delta::LightDeltas)
      {
-          let chunk = sync::Arc::make_mut(&mut self.view.chunk);
-          while let Some(node) = self.queue.pop_back()
+          while let Some(LightNode {
+               mut light,
+               coord,
+          }) = self.queue.pop_back()
           {
-               let light = Light::new(node.light.saturating_sub(1));
+               let chunk = &self.view.chunk;
+
                if *light == 0
                {
                     continue;
                }
 
-               for (dx, dy, dz) in neighbors::von_neumann3()
+               if !chunk.check_index(coord)
                {
-                    let coord = node.coord + glam::ivec3(dx, dy, dz);
-                    if !chunk.check_index(coord)
-                    {
-                         let world_coords = coord + chunk.world_position();
-                         let world = chunk.chunk_world_coords(world_coords);
-                         let chunk = chunk.to_chunk_coords(world_coords);
-                         deltas.insert(
-                              world,
-                              delta::ChunkDelta {
-                                   coord: chunk,
-                                   delta: light,
-                              },
-                         );
+                    self.queue_delta(deltas, chunk, light, coord);
+                    continue;
+               }
 
-                         continue;
-                    }
+               let curr_block = *chunk.get(coord);
+               let curr_light = *chunk.get_light(coord);
 
-                    let opacity = chunk.get(coord).opacity();
-                    let transmitted = Light::new(node.light.saturating_sub(*opacity + 1));
-                    if transmitted > *chunk.get_light(coord)
+               let attenuation = curr_block.opacity();
+               *light = light.saturating_sub(1 + *attenuation);
+
+               let chunk = sync::Arc::make_mut(&mut self.view.chunk);
+               if curr_light < light
+               {
+                    *chunk.get_light_mut(coord) = light;
+
+                    for (dx, dy, dz) in neighbors::von_neumann3()
                     {
-                         *chunk.get_light_mut(coord) = transmitted;
+                         let coord = coord + glam::ivec3(dx, dy, dz);
                          self.queue.push_front(LightNode {
-                              light: transmitted,
+                              light,
                               coord,
                          });
                     }
                }
+          }
+     }
+
+     fn queue_delta(
+          &self,
+          deltas: &mut delta::ChunkDeltaMap<Light>,
+          chunk: &sync::Arc<world::chunk::Chunk>,
+          light: Light,
+          coord: glam::IVec3,
+     )
+     {
+          let world_coord = coord + chunk.world_position();
+          let world = chunk.chunk_world_coords(world_coord);
+          let chunk = chunk.to_chunk_coords(world_coord);
+
+          if self.view.get_light(world_coord) < light
+          {
+               deltas.insert(
+                    world,
+                    delta::ChunkDelta {
+                         coord: chunk,
+                         delta: light,
+                    },
+               );
           }
      }
 }
