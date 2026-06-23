@@ -2,7 +2,7 @@ const EPS: f32 = 1e-3;
 
 const AMBIENT: f32 = 0.025;
 const FOG_START: f32 = 150.0;
-const FOG_END: f32 = 550.0;
+const FOG_END: f32 = 500.0;
 const FOG_EXP: f32 = 6.0;
 const FADE_COLOR: vec3<f32> = vec3<f32>(0.6, 0.7, 1.0);
 const FACE_LIGHTING: vec3<f32> = vec3<f32>(0.5, 1.0, 0.3);

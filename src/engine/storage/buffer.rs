@@ -107,7 +107,7 @@ impl<T, const N: usize> Buffer<T, N>
 
 impl<T, const N: usize> Buffer<T, N>
 where
-     T: Default + Copy,
+     T: Default + Clone,
 {
      pub fn new_zeroed(size: [usize; N]) -> Self
      {

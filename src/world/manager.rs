@@ -185,19 +185,19 @@ impl ChunkManager
 
      pub fn modify(&mut self, coord: glam::IVec3, block: block::Block)
      {
-          let mut requests = Vec::new();
           let chunk_worldspace = self.chunk_surrounding(coord.as_vec3());
+          let mut requests = Vec::new();
           if let Some(chunk) = self.chunk_map.chunks.write().unwrap().get_mut(&chunk_worldspace)
           {
                let coord = chunk.chunk.to_chunk_coords(coord);
                let chunk = sync::Arc::make_mut(&mut chunk.chunk);
-
                *chunk.get_mut(coord) = block;
+
                self.chunk_light_deltas.insert(
                     chunk_worldspace,
                     delta::ChunkDelta {
                          coord,
-                         delta: light::Light::max_light(),
+                         delta: block.emissivity().unwrap_or(light::Light::min_light()),
                     },
                );
 
@@ -421,11 +421,7 @@ impl ChunkManager
                return match send.try_send(request)
                {
                     | Ok(_) => true,
-                    | Err(err) =>
-                    {
-                         log::debug!("Error sending chunk request: {}", err);
-                         false
-                    }
+                    | Err(_) => false,
                };
           }
 

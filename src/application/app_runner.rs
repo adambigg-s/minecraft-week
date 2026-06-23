@@ -44,7 +44,7 @@ where
           let config = Inner::config();
           let window_attrs = window::WindowAttributes::default()
                .with_window_level(window::WindowLevel::Normal)
-               .with_position(dpi::PhysicalPosition::new(800, 200))
+               .with_position(dpi::PhysicalPosition::new(1100, 100))
                .with_inner_size(dpi::PhysicalSize::new(config.width, config.height))
                .with_title(config.title);
           let window = sync::Arc::new(event_loop.create_window(window_attrs).unwrap());

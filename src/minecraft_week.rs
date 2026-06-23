@@ -112,7 +112,7 @@ impl application::Application for MinecraftWeek
 
           let mut world = manager::ChunkManager::builder()
                .atlas(sync::Arc::clone(&texture_atlas))
-               .view_distance(12)
+               .view_distance(16)
                .terrain(sync::Arc::clone(&terrain_gen))
                .chunk_width(32)
                .chunk_height(256)
