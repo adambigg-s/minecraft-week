@@ -204,17 +204,15 @@ impl<'c> ChunkMesher<'c>
           let mut indices = Vec::new();
           for idx in chunk.indices()
           {
-               let [x, y, z] = chunk.delinearize(idx);
-               let coord = glam::ivec3(x as i32, y as i32, z as i32);
+               let coord = glam::IVec3::from_array(chunk.delinearize(idx).map(|val| val as i32));
                let world_coord = chunk.world_position() + coord;
-
                let block = *chunk.get(coord);
-               if block == block::Block::empty()
+               let light = self.view.get_light(coord).luminosity();
+
+               if block.visibility() == Invisible
                {
                     continue;
                }
-
-               let block_light = self.view.get_light(world_coord).luminosity();
 
                match block.mesh_style()
                {
@@ -224,9 +222,9 @@ impl<'c> ChunkMesher<'c>
                          {
                               let offset = face.neighbor_offset();
                               let neighbor_coord = coord + offset;
-                              let neighbor = self.view.get_block(neighbor_coord);
+                              let neighbor_block = self.view.get_block(neighbor_coord);
 
-                              let emit = match (block.visibility(), neighbor.visibility())
+                              let emit = match (block.visibility(), neighbor_block.visibility())
                               {
                                    | (Opaque, PartialOpaque)
                                    | (Opaque, Transparent)
@@ -246,10 +244,10 @@ impl<'c> ChunkMesher<'c>
                               self.append_block_full_face(
                                    &mut vertices,
                                    &mut indices,
-                                   world_coord,
                                    coord,
+                                   world_coord,
                                    block,
-                                   block_light,
+                                   light,
                                    face,
                               );
                          }
@@ -264,7 +262,7 @@ impl<'c> ChunkMesher<'c>
                                    world_coord,
                                    coord,
                                    block,
-                                   block_light,
+                                   light,
                                    decorator,
                               );
                          }
@@ -363,8 +361,8 @@ impl<'c> ChunkMesher<'c>
           &self,
           vertices: &mut Vec<TerrainVertex>,
           indices: &mut Vec<u32>,
-          world_coord: glam::IVec3,
           coord: glam::IVec3,
+          world_coord: glam::IVec3,
           block: block::Block,
           block_light: f32,
           face: rectilinear::Face,

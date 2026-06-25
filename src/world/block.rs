@@ -48,6 +48,7 @@ pub enum Block
      Tin,
      Glass,
      Light,
+     Torch,
      BlockCounter,
 }
 
@@ -74,6 +75,7 @@ impl Block
           Block::Tin,
           Block::Glass,
           Block::Light,
+          Block::Torch,
      ];
      const EMPTY: Block = Block::Air;
 
@@ -111,6 +113,7 @@ impl Block
                | Block::Tin => "tin",
                | Block::Glass => "glass",
                | Block::Light => "light",
+               | Block::Torch => "torch",
                | Block::BlockCounter => "",
           }
      }
@@ -122,6 +125,7 @@ impl Block
                | Block::Air => light::Light::new(0),
                | Block::Light => light::Light::new(0),
                | Block::Shrub => light::Light::new(0),
+               | Block::Torch => light::Light::new(0),
                | Block::Glass => light::Light::new(0),
                | Block::RedFlower => light::Light::new(0),
                | Block::BlueFlower => light::Light::new(0),
@@ -152,11 +156,13 @@ impl Block
      {
           match self
           {
+               | Block::Leaf
+               | Block::RedFlower
+               | Block::BlueFlower
+               | Block::Shrub
+               | Block::Glass
+               | Block::Torch => Visibility::PartialOpaque,
                | Block::Air => Visibility::Invisible,
-               | Block::Leaf | Block::RedFlower | Block::BlueFlower | Block::Shrub | Block::Glass =>
-               {
-                    Visibility::PartialOpaque
-               }
                | _ => Visibility::Opaque,
           }
      }
@@ -181,6 +187,7 @@ impl Block
           {
                | Block::Lava => Some(light::Light::new(8)),
                | Block::Light => Some(light::Light::max_light()),
+               | Block::Torch => Some(light::Light::max_light()),
                | _ => None,
           }
      }
@@ -189,7 +196,7 @@ impl Block
      {
           match self
           {
-               | Block::RedFlower | Block::BlueFlower | Block::Shrub => EmittedMesh::Decorator,
+               | Block::RedFlower | Block::BlueFlower | Block::Shrub | Block::Torch => EmittedMesh::Decorator,
                | _ => EmittedMesh::RectilinearFull,
           }
      }

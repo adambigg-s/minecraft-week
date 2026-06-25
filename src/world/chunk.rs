@@ -22,8 +22,7 @@ impl Chunk
      pub fn new(offset: glam::IVec3, width: usize, height: usize) -> Self
      {
           let blocks = buffer::Buffer::new_zeroed([width, height, width]);
-          let mut lights = buffer::Buffer::new_zeroed([width, height, width]);
-          lights.fill(light::Light::max_light());
+          let lights = buffer::Buffer::new_zeroed([width, height, width]);
 
           Self {
                blocks,

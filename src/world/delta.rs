@@ -68,10 +68,16 @@ impl DeltaValue for block::Block
      fn resolve(&self, delta: ChunkDelta<Self>, chunk: &mut chunk::Chunk) {}
 }
 
-pub type LightDeltas = ChunkDeltaMap<light::Light>;
+pub type LightDeltas = ChunkDeltaMap<light::LightDelta>;
 
 #[allow(unused)]
 impl DeltaValue for light::Light
+{
+     fn resolve(&self, delta: ChunkDelta<Self>, chunk: &mut chunk::Chunk) {}
+}
+
+#[allow(unused)]
+impl DeltaValue for light::LightDelta
 {
      fn resolve(&self, delta: ChunkDelta<Self>, chunk: &mut chunk::Chunk) {}
 }

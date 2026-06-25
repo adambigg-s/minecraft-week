@@ -112,9 +112,9 @@ impl application::Application for MinecraftWeek
 
           let mut world = manager::ChunkManager::builder()
                .atlas(sync::Arc::clone(&texture_atlas))
-               .view_distance(12)
+               .view_distance(24)
                .terrain(sync::Arc::clone(&terrain_gen))
-               .chunk_width(24)
+               .chunk_width(16)
                .chunk_height(256)
                .build();
           world.spawn_workers(3);
@@ -138,7 +138,7 @@ impl application::Application for MinecraftWeek
                tick: 0,
           };
 
-          let block_selection = block::Block::Light as usize;
+          let block_selection = block::Block::Torch as usize;
 
           Ok(Self {
                camera,
@@ -191,11 +191,11 @@ impl application::Application for MinecraftWeek
 
           if &self.gfx_config.pipeline == "terrain_pipe"
           {
-               render.queue(render::GfxDrawCall {
-                    mesh: "skybox_mesh".into(),
-                    pipe: "skybox_pipe".into(),
-                    bind_groups: vec!["global_bg".into(), "skybox_bg".into()],
-               });
+               // render.queue(render::GfxDrawCall {
+               //      mesh: "skybox_mesh".into(),
+               //      pipe: "skybox_pipe".into(),
+               //      bind_groups: vec!["global_bg".into(), "skybox_bg".into()],
+               // });
                self.world.render_chunks.iter().for_each(|&coord| {
                     render.queue(render::GfxDrawCall {
                          mesh: manager::ChunkManager::chunk_key(coord),

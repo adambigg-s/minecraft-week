@@ -39,7 +39,7 @@ pub enum ChunkRequest
      UpdateLighting
      {
           view: world::ChunkView,
-          deltas: Vec<delta::ChunkDelta<light::Light>>,
+          deltas: Vec<delta::ChunkDelta<light::LightDelta>>,
      },
      Mesh
      {
@@ -203,7 +203,14 @@ impl ChunkManager
                     chunk_worldspace,
                     delta::ChunkDelta {
                          coord,
-                         delta: block.emissivity().unwrap_or(light::Light::min_light()),
+                         delta: light::LightDelta {
+                              light: block.emissivity().unwrap_or(light::Light::min_light()),
+                              removal: match block
+                              {
+                                   | block::Block::Air => true,
+                                   | _ => false,
+                              },
+                         },
                     },
                );
 
@@ -503,10 +510,10 @@ impl ChunkManager
                          {
                               self.pending_generated.remove(&coord);
                               self.chunk_map.insert(coord, chunk);
-                              self.chunk_block_deltas.merge(&deltas);
-                              self.chunk_map.set_time(&coord, time);
                               self.chunk_map.set_stage(&coord, world::ChunkStage::TerrainGenerated);
+                              self.chunk_map.set_time(&coord, time);
                               self.chunk_map.telem(world::ChunkStage::TerrainGenerated, gen_time);
+                              self.chunk_block_deltas.merge(&deltas);
                          }
                          | ChunkResponse::DecoratorsPlaced {
                               coord,
@@ -516,8 +523,8 @@ impl ChunkManager
                          {
                               self.pending_decorators.remove(&coord);
                               self.chunk_map.insert(coord, chunk);
-                              self.chunk_map.set_time(&coord, time);
                               self.chunk_map.set_stage(&coord, world::ChunkStage::DecoratorsPlaced);
+                              self.chunk_map.set_time(&coord, time);
                               self.chunk_map.telem(world::ChunkStage::DecoratorsPlaced, gen_time);
                          }
                          | ChunkResponse::LightingPropagated {
@@ -529,10 +536,10 @@ impl ChunkManager
                          {
                               self.pending_lighting.remove(&coord);
                               self.chunk_map.insert(coord, chunk);
-                              self.chunk_light_deltas.merge(&deltas);
-                              self.chunk_map.set_time(&coord, time);
                               self.chunk_map.set_stage(&coord, world::ChunkStage::LightingPropagated);
+                              self.chunk_map.set_time(&coord, time);
                               self.chunk_map.telem(world::ChunkStage::LightingPropagated, gen_time);
+                              self.chunk_light_deltas.merge(&deltas);
                          }
                          | ChunkResponse::LightingUpdated {
                               coord,
@@ -543,10 +550,10 @@ impl ChunkManager
                          {
                               self.pending_lighting_updated.remove(&coord);
                               self.chunk_map.insert(coord, chunk);
-                              self.chunk_light_deltas.merge(&deltas);
-                              self.chunk_map.set_time(&coord, time);
                               self.chunk_map.set_stage(&coord, world::ChunkStage::LightingUpdated);
+                              self.chunk_map.set_time(&coord, time);
                               self.chunk_map.telem(world::ChunkStage::LightingUpdated, gen_time);
+                              self.chunk_light_deltas.merge(&deltas);
                          }
                          | ChunkResponse::Meshed {
                               coord,
@@ -557,8 +564,8 @@ impl ChunkManager
                               self.pending_mesh.remove(&coord);
                               self.chunk_map.set_stage(&coord, world::ChunkStage::Meshed);
                               self.chunk_map.set_time(&coord, time);
-                              self.gfx_insert_queue.push(raw_mesh);
                               self.chunk_map.telem(world::ChunkStage::Meshed, gen_time);
+                              self.gfx_insert_queue.push(raw_mesh);
                          }
                     }
                }

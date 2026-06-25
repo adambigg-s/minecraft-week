@@ -200,7 +200,9 @@ impl kinematics::Collision for block::Block
                | block::Block::RedFlower
                | block::Block::BlueFlower
                | block::Block::Shrub
+               | block::Block::Torch
                | block::Block::Lava => false,
+
                | _ => true,
           }
      }

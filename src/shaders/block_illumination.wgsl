@@ -39,6 +39,6 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
         discard;
     }
 
-    return mix(color, light, 0.99);
+    return mix(color, light, 0.95);
 }
 

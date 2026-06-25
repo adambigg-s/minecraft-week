@@ -52,7 +52,15 @@ impl ChunkView
                | Some(chunk) => *chunk.get(local),
                | None =>
                {
-                    log::error!("Indexing out of ChunkView domain: {}", relative_coord);
+                    if rel.y == 0
+                    {
+                         log::error!(
+                              "Indexing out of ChunkView domain: {} {} {}",
+                              rel,
+                              local,
+                              relative_coord
+                         );
+                    }
                     block::Block::empty()
                }
           }
@@ -66,7 +74,15 @@ impl ChunkView
                | Some(chunk) => *chunk.get_light(local),
                | None =>
                {
-                    log::error!("Indexing out of ChunkView domain: {}", relative_coord);
+                    if rel.y == 0
+                    {
+                         log::error!(
+                              "Indexing out of ChunkView domain: {} {} {}",
+                              rel,
+                              local,
+                              relative_coord
+                         );
+                    }
                     light::Light::min_light()
                }
           }
