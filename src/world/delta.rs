@@ -1,14 +1,14 @@
 use rustc_hash as rh;
 
+use crate::visual::light;
 use crate::world::block;
 use crate::world::chunk;
-use crate::world::light;
 
 pub trait DeltaValue
+where
+     Self: Sized + Clone + Copy,
 {
-     fn resolve(&self, delta: ChunkDelta<Self>, chunk: &mut chunk::Chunk)
-     where
-          Self: Sized;
+     fn resolve(&self, delta: ChunkDelta<Self>, chunk: &mut chunk::Chunk);
 }
 
 #[derive(bon::Builder, Debug, Default, Clone, Copy)]
@@ -25,6 +25,8 @@ pub struct ChunkDeltaMap<Delta>
 }
 
 impl<Delta> ChunkDeltaMap<Delta>
+where
+     Delta: DeltaValue,
 {
      pub fn new() -> Self
      where
@@ -33,12 +35,11 @@ impl<Delta> ChunkDeltaMap<Delta>
           Self::default()
      }
 
-     pub fn merge(&mut self, other: Self)
+     pub fn merge(&mut self, other: &Self)
      {
-          for (coord, mut deltas) in other.deltas
-          {
-               self.deltas.entry(coord).or_default().append(&mut deltas);
-          }
+          other.deltas.iter().for_each(|(&coord, delta)| {
+               self.deltas.entry(coord).or_default().extend(delta);
+          });
      }
 
      pub fn insert(&mut self, coord: glam::IVec3, delta: ChunkDelta<Delta>)
@@ -61,23 +62,16 @@ impl<Delta> ChunkDeltaMap<Delta>
 
 pub type BlockDeltas = ChunkDeltaMap<block::Block>;
 
-// impl DeltaValue for block::Block
-// {
-//      fn resolve(&self, delta: ChunkDelta<Self>, chunk: &mut chunk::Chunk)
-//      {
-//           let curr = chunk.get(delta.coord);
-//           let replace = curr.max(&delta.delta);
-//           *chunk.get_mut(delta.coord) = *replace
-//      }
-// }
+#[allow(unused)]
+impl DeltaValue for block::Block
+{
+     fn resolve(&self, delta: ChunkDelta<Self>, chunk: &mut chunk::Chunk) {}
+}
 
 pub type LightDeltas = ChunkDeltaMap<light::Light>;
 
-// impl DeltaValue for u8
-// {
-//      fn resolve(&self, delta: ChunkDelta<Self>, chunk: &mut chunk::Chunk)
-//      {
-//           let _ = chunk.get_light(delta.coord);
-//           todo!()
-//      }
-// }
+#[allow(unused)]
+impl DeltaValue for light::Light
+{
+     fn resolve(&self, delta: ChunkDelta<Self>, chunk: &mut chunk::Chunk) {}
+}

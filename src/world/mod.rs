@@ -1,15 +1,15 @@
+pub mod block;
+pub mod chunk;
+pub mod delta;
+pub mod manager;
+pub mod map;
+pub mod physics;
+
 use std::sync::{self};
 
 use rustc_hash as rh;
 
-pub mod block;
-pub mod chunk;
-pub mod delta;
-pub mod light;
-pub mod manager;
-pub mod map;
-pub mod physics;
-pub mod terrain;
+use crate::visual::light;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ChunkStage
@@ -36,32 +36,39 @@ pub struct ChunkView
 
 impl ChunkView
 {
-     pub fn resolve(&self, world_coord: glam::IVec3) -> (glam::IVec3, glam::IVec3)
+     pub fn resolve(&self, relative_coord: glam::IVec3) -> (glam::IVec3, glam::IVec3)
      {
-          let world = self.chunk.chunk_world_coords(world_coord);
-          let rel = world - self.chunk.offset();
-          let chunk = self.chunk.to_chunk_coords(world_coord);
+          let rel = relative_coord.div_euclid(self.chunk.size());
+          let local = relative_coord.rem_euclid(self.chunk.size());
 
-          (rel, chunk)
+          (rel, local)
      }
 
-     pub fn get_block(&self, world_coord: glam::IVec3) -> block::Block
+     pub fn get_block(&self, relative_coord: glam::IVec3) -> block::Block
      {
-          let (rel, local) = self.resolve(world_coord);
+          let (rel, local) = self.resolve(relative_coord);
           match self.neighbors.get(&rel)
           {
                | Some(chunk) => *chunk.get(local),
-               | None => block::Block::empty(),
+               | None =>
+               {
+                    log::error!("Indexing out of ChunkView domain: {}", relative_coord);
+                    block::Block::empty()
+               }
           }
      }
 
-     pub fn get_light(&self, world_coord: glam::IVec3) -> light::Light
+     pub fn get_light(&self, relative_coord: glam::IVec3) -> light::Light
      {
-          let (rel, local) = self.resolve(world_coord);
+          let (rel, local) = self.resolve(relative_coord);
           match self.neighbors.get(&rel)
           {
                | Some(chunk) => *chunk.get_light(local),
-               | None => light::Light::min_light(),
+               | None =>
+               {
+                    log::error!("Indexing out of ChunkView domain: {}", relative_coord);
+                    light::Light::min_light()
+               }
           }
      }
 }

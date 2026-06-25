@@ -16,12 +16,12 @@ use crate::render::GfxCamera;
 use crate::render::resource;
 use crate::render::util;
 use crate::render::{self};
+use crate::terrain;
 use crate::visual::atlas;
 use crate::visual::pipelines;
 use crate::visual::skybox;
 use crate::world::block;
 use crate::world::manager;
-use crate::world::terrain;
 
 #[derive(bon::Builder, Debug)]
 pub struct GfxConfiguration
@@ -112,9 +112,9 @@ impl application::Application for MinecraftWeek
 
           let mut world = manager::ChunkManager::builder()
                .atlas(sync::Arc::clone(&texture_atlas))
-               .view_distance(16)
+               .view_distance(12)
                .terrain(sync::Arc::clone(&terrain_gen))
-               .chunk_width(32)
+               .chunk_width(24)
                .chunk_height(256)
                .build();
           world.spawn_workers(3);
@@ -138,7 +138,7 @@ impl application::Application for MinecraftWeek
                tick: 0,
           };
 
-          let block_selection = 0;
+          let block_selection = block::Block::Light as usize;
 
           Ok(Self {
                camera,
@@ -435,10 +435,10 @@ impl MinecraftWeek
      {
           let ray = ray::Ray {
                origin: self.camera.inner.position,
-               direction: self.camera.inner.forward(),
+               direction: self.camera.inner.forward().normalize(),
                tspan: range::Range {
                     start: 0.0,
-                    end: 12.0,
+                    end: 50.0,
                },
           };
           if input.consume_mouse_left_press()

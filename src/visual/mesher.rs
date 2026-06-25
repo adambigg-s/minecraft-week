@@ -6,7 +6,6 @@ use crate::engine::rectilinear;
 use crate::render::{self};
 use crate::visual::atlas;
 use crate::world::block;
-use crate::world::light;
 use crate::world::{self};
 
 #[repr(C)]
@@ -215,7 +214,7 @@ impl<'c> ChunkMesher<'c>
                     continue;
                }
 
-               let block_light = *self.view.get_light(world_coord) as f32 / *light::Light::max_light() as f32;
+               let block_light = self.view.get_light(world_coord).luminosity();
 
                match block.mesh_style()
                {
@@ -224,7 +223,7 @@ impl<'c> ChunkMesher<'c>
                          for face in rectilinear::Face::cardinals()
                          {
                               let offset = face.neighbor_offset();
-                              let neighbor_coord = world_coord + offset;
+                              let neighbor_coord = coord + offset;
                               let neighbor = self.view.get_block(neighbor_coord);
 
                               let emit = match (block.visibility(), neighbor.visibility())
@@ -248,6 +247,7 @@ impl<'c> ChunkMesher<'c>
                                    &mut vertices,
                                    &mut indices,
                                    world_coord,
+                                   coord,
                                    block,
                                    block_light,
                                    face,
@@ -262,6 +262,7 @@ impl<'c> ChunkMesher<'c>
                                    &mut vertices,
                                    &mut indices,
                                    world_coord,
+                                   coord,
                                    block,
                                    block_light,
                                    decorator,
@@ -317,55 +318,60 @@ impl<'c> ChunkMesher<'c>
 
      fn map_face_lighting(&self, coord: glam::IVec3, face: rectilinear::Face) -> [f32; 4]
      {
-          let nor = face.neighbor_offset();
-          let adj = coord + nor;
-          face.corners().map(|(offset, _)| {
-               let dir = offset * 2 - glam::IVec3::ONE;
-               let tn_cand = dir * (glam::IVec3::ONE - nor.abs());
+          // let nor = face.neighbor_offset();
+          // let adj = coord + nor;
 
-               let (tn, btn) = if nor.x != 0
-               {
-                    (glam::ivec3(0, tn_cand.y, 0), glam::ivec3(0, 0, tn_cand.z))
-               }
-               else if nor.y != 0
-               {
-                    (glam::ivec3(tn_cand.x, 0, 0), glam::ivec3(0, 0, tn_cand.z))
-               }
-               else
-               {
-                    (glam::ivec3(tn_cand.x, 0, 0), glam::ivec3(0, tn_cand.y, 0))
-               };
+          // face.corners().map(|(offset, _)| {
+          //      let dir = offset * 2 - glam::IVec3::ONE;
+          //      let tn_cand = dir * (glam::IVec3::ONE - nor.abs());
 
-               let center_light = *self.view.get_light(adj) as f32;
-               let side1_light = *self.view.get_light(adj + tn) as f32;
-               let side2_light = *self.view.get_light(adj + btn) as f32;
-               let mut corner_light = *self.view.get_light(adj + tn + btn) as f32;
+          //      let (tn, btn) = if nor.x != 0
+          //      {
+          //           (glam::ivec3(0, tn_cand.y, 0), glam::ivec3(0, 0, tn_cand.z))
+          //      }
+          //      else if nor.y != 0
+          //      {
+          //           (glam::ivec3(tn_cand.x, 0, 0), glam::ivec3(0, 0, tn_cand.z))
+          //      }
+          //      else
+          //      {
+          //           (glam::ivec3(tn_cand.x, 0, 0), glam::ivec3(0, tn_cand.y, 0))
+          //      };
 
-               let side1 = *self.view.get_block(adj + tn).opacity() != 0;
-               let side2 = *self.view.get_block(adj + btn).opacity() != 0;
+          //      let center_light = *self.view.get_light(adj) as f32;
+          //      let side1_light = *self.view.get_light(adj + tn) as f32;
+          //      let side2_light = *self.view.get_light(adj + btn) as f32;
+          //      let mut corner_light = *self.view.get_light(adj + tn + btn) as f32;
 
-               if side1 && side2
-               {
-                    corner_light = center_light;
-               }
+          //      let side1 = *self.view.get_block(adj + tn).opacity() != 0;
+          //      let side2 = *self.view.get_block(adj + btn).opacity() != 0;
 
-               (center_light + side1_light + side2_light + corner_light)
-                    / (4.0 * *light::Light::max_light() as f32)
-          })
+          //      if side1 && side2
+          //      {
+          //           corner_light = center_light;
+          //      }
+
+          //      (center_light + side1_light + side2_light + corner_light)
+          //           / (4.0 * *light::Light::max_light() as f32)
+          // })
+          let light = self.view.get_light(coord + face.neighbor_offset()).luminosity();
+          [light; 4]
      }
 
+     #[allow(clippy::too_many_arguments)]
      fn append_block_full_face(
           &self,
           vertices: &mut Vec<TerrainVertex>,
           indices: &mut Vec<u32>,
           world_coord: glam::IVec3,
+          coord: glam::IVec3,
           block: block::Block,
           block_light: f32,
           face: rectilinear::Face,
      )
      {
-          let ao = self.map_ao(world_coord, face);
-          let face_light = self.map_face_lighting(world_coord, face);
+          let ao = self.map_ao(coord, face);
+          let face_light = self.map_face_lighting(coord, face);
 
           let quad = TerrainQuad {
                quad: rectilinear::Quad {
@@ -397,11 +403,14 @@ impl<'c> ChunkMesher<'c>
           });
      }
 
+     #[allow(unused)]
+     #[allow(clippy::too_many_arguments)]
      fn append_decorator(
           &self,
           vertices: &mut Vec<TerrainVertex>,
           indices: &mut Vec<u32>,
           world_coord: glam::IVec3,
+          coord: glam::IVec3,
           block: block::Block,
           block_light: f32,
           decorator: DecoratorBillboard,

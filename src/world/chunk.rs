@@ -2,10 +2,10 @@ use std::ops;
 
 use crate::engine::storage::buffer;
 use crate::visual::atlas;
+use crate::visual::light;
 use crate::visual::mesher;
 use crate::world;
 use crate::world::block;
-use crate::world::light;
 
 #[derive(bon::Builder, Debug, Clone)]
 pub struct Chunk
@@ -22,7 +22,8 @@ impl Chunk
      pub fn new(offset: glam::IVec3, width: usize, height: usize) -> Self
      {
           let blocks = buffer::Buffer::new_zeroed([width, height, width]);
-          let lights = buffer::Buffer::new_zeroed([width, height, width]);
+          let mut lights = buffer::Buffer::new_zeroed([width, height, width]);
+          lights.fill(light::Light::max_light());
 
           Self {
                blocks,
@@ -121,11 +122,10 @@ impl Chunk
 
      pub fn raw_mesh(&self, atlas: &atlas::TextureAtlas, view: &world::ChunkView) -> mesher::ChunkRawMesh
      {
-          let mesher = mesher::ChunkMesher {
+          mesher::ChunkMesher {
                view,
                atlas,
-          };
-
-          mesher.raw_mesh()
+          }
+          .raw_mesh()
      }
 }

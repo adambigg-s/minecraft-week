@@ -10,14 +10,14 @@ use crate::engine::neighbors;
 use crate::render;
 use crate::render::mesh;
 use crate::render::util;
+use crate::terrain;
 use crate::visual::atlas;
+use crate::visual::light;
 use crate::visual::mesher;
 use crate::world::block;
 use crate::world::chunk;
 use crate::world::delta;
-use crate::world::light;
 use crate::world::map;
-use crate::world::terrain;
 use crate::world::{self};
 
 #[derive(Debug, Default)]
@@ -57,28 +57,33 @@ pub enum ChunkResponse
           coord: glam::IVec3,
           chunk: sync::Arc<chunk::Chunk>,
           deltas: delta::BlockDeltas,
+          gen_time: time::Duration,
      },
      DecoratorsPlaced
      {
           coord: glam::IVec3,
           chunk: sync::Arc<chunk::Chunk>,
+          gen_time: time::Duration,
      },
      LightingPropagated
      {
           coord: glam::IVec3,
           chunk: sync::Arc<chunk::Chunk>,
           deltas: delta::LightDeltas,
+          gen_time: time::Duration,
      },
      LightingUpdated
      {
           coord: glam::IVec3,
           chunk: sync::Arc<chunk::Chunk>,
           deltas: delta::LightDeltas,
+          gen_time: time::Duration,
      },
      Meshed
      {
           coord: glam::IVec3,
           raw_mesh: mesher::ChunkRawMesh,
+          gen_time: time::Duration,
      },
 }
 
@@ -185,8 +190,9 @@ impl ChunkManager
 
      pub fn modify(&mut self, coord: glam::IVec3, block: block::Block)
      {
-          let chunk_worldspace = self.chunk_surrounding(coord.as_vec3());
           let mut requests = Vec::new();
+
+          let chunk_worldspace = self.chunk_surrounding(coord.as_vec3());
           if let Some(chunk) = self.chunk_map.chunks.write().unwrap().get_mut(&chunk_worldspace)
           {
                let coord = chunk.chunk.to_chunk_coords(coord);
@@ -248,6 +254,7 @@ impl ChunkManager
           (0 .. 32).for_each(|_| {
                self.send_request(ChunkRequest::ShutdownThread);
           });
+          log::warn!("\n{}", self.chunk_map.telem);
      }
 
      fn chunk_in_range(&self, coord: glam::IVec3) -> bool
@@ -491,57 +498,67 @@ impl ChunkManager
                               coord,
                               chunk,
                               deltas,
+                              gen_time,
                          } =>
                          {
                               self.pending_generated.remove(&coord);
                               self.chunk_map.insert(coord, chunk);
-                              self.chunk_block_deltas.merge(deltas);
+                              self.chunk_block_deltas.merge(&deltas);
                               self.chunk_map.set_time(&coord, time);
                               self.chunk_map.set_stage(&coord, world::ChunkStage::TerrainGenerated);
+                              self.chunk_map.telem(world::ChunkStage::TerrainGenerated, gen_time);
                          }
                          | ChunkResponse::DecoratorsPlaced {
                               coord,
                               chunk,
+                              gen_time,
                          } =>
                          {
                               self.pending_decorators.remove(&coord);
                               self.chunk_map.insert(coord, chunk);
                               self.chunk_map.set_time(&coord, time);
                               self.chunk_map.set_stage(&coord, world::ChunkStage::DecoratorsPlaced);
+                              self.chunk_map.telem(world::ChunkStage::DecoratorsPlaced, gen_time);
                          }
                          | ChunkResponse::LightingPropagated {
                               coord,
                               chunk,
                               deltas,
+                              gen_time,
                          } =>
                          {
                               self.pending_lighting.remove(&coord);
                               self.chunk_map.insert(coord, chunk);
-                              self.chunk_light_deltas.merge(deltas);
+                              self.chunk_light_deltas.merge(&deltas);
                               self.chunk_map.set_time(&coord, time);
                               self.chunk_map.set_stage(&coord, world::ChunkStage::LightingPropagated);
+                              self.chunk_map.telem(world::ChunkStage::LightingPropagated, gen_time);
                          }
                          | ChunkResponse::LightingUpdated {
                               coord,
                               chunk,
                               deltas,
+                              gen_time,
                          } =>
                          {
                               self.pending_lighting_updated.remove(&coord);
                               self.chunk_map.insert(coord, chunk);
-                              self.chunk_light_deltas.merge(deltas);
+                              self.chunk_light_deltas.merge(&deltas);
                               self.chunk_map.set_time(&coord, time);
                               self.chunk_map.set_stage(&coord, world::ChunkStage::LightingUpdated);
+                              self.chunk_map.telem(world::ChunkStage::LightingUpdated, gen_time);
                          }
                          | ChunkResponse::Meshed {
                               coord,
                               raw_mesh,
+                              gen_time,
                          } =>
                          {
                               self.pending_mesh.remove(&coord);
                               self.chunk_map.set_stage(&coord, world::ChunkStage::Meshed);
                               self.chunk_map.set_time(&coord, time);
                               self.gfx_insert_queue.push(raw_mesh);
+                              self.chunk_map.telem(world::ChunkStage::Meshed, gen_time);
                          }
                     }
                }
@@ -586,6 +603,7 @@ impl ChunkManager
                                    coord,
                                    chunk: sync::Arc::new(chunk),
                                    deltas,
+                                   gen_time: time.elapsed(),
                               };
                               chunk_response.send(response).unwrap();
 
@@ -605,6 +623,7 @@ impl ChunkManager
                               let response = ChunkResponse::DecoratorsPlaced {
                                    coord,
                                    chunk: view.chunk,
+                                   gen_time: time.elapsed(),
                               };
                               chunk_response.send(response).unwrap();
 
@@ -615,12 +634,13 @@ impl ChunkManager
                          } =>
                          {
                               let coord = view.center;
-                              let deltas = light::ChunkLighting::new(&mut view).initial_lighting();
+                              let deltas = light::ChunkLighting::new(&mut view).initialize_lighting();
 
                               let response = ChunkResponse::LightingPropagated {
                                    coord,
                                    chunk: view.chunk,
                                    deltas,
+                                   gen_time: time.elapsed(),
                               };
                               chunk_response.send(response).unwrap();
 
@@ -633,12 +653,13 @@ impl ChunkManager
                          {
                               let coord = view.center;
                               let mut lighting = light::ChunkLighting::new(&mut view);
-                              let deltas = lighting.update_lighting(deltas);
+                              let deltas = lighting.update_lighting(&deltas);
 
                               let response = ChunkResponse::LightingUpdated {
                                    coord,
                                    chunk: view.chunk,
                                    deltas,
+                                   gen_time: time.elapsed(),
                               };
                               chunk_response.send(response).unwrap();
 
@@ -654,6 +675,7 @@ impl ChunkManager
                               let response = ChunkResponse::Meshed {
                                    coord,
                                    raw_mesh,
+                                   gen_time: time.elapsed(),
                               };
                               chunk_response.send(response).unwrap();
 

@@ -1,9 +1,38 @@
+use core::time;
+use std::fmt::Display;
+use std::fmt::{self};
 use std::sync;
 
 use rustc_hash as rh;
 
 use crate::world::chunk;
 use crate::world::{self};
+
+#[derive(bon::Builder, Debug, Default)]
+pub struct ChunkTelemetry
+{
+     pub stage_times: rh::FxHashMap<world::ChunkStage, (time::Duration, u64)>,
+     pub requests: u64,
+}
+
+impl Display for ChunkTelemetry
+{
+     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result
+     {
+          for (stage, (duration, writes)) in self.stage_times.iter()
+          {
+               writeln!(
+                    fmt,
+                    "{:?} averaged: {:.4} ms for {} updates",
+                    stage,
+                    duration.as_millis() as f32 / *writes as f32,
+                    writes
+               )?;
+          }
+          writeln!(fmt, "Total requests: {}", self.requests)?;
+          Ok(())
+     }
+}
 
 #[derive(bon::Builder, Debug)]
 pub struct ChunkEntry
@@ -17,6 +46,7 @@ pub struct ChunkMap
 {
      pub chunks: sync::RwLock<rh::FxHashMap<glam::IVec3, ChunkEntry>>,
      pub update_times: rh::FxHashMap<glam::IVec3, f32>,
+     pub telem: ChunkTelemetry,
 }
 
 impl ChunkMap
@@ -97,6 +127,14 @@ impl ChunkMap
                return Some(curr_time);
           }
           None
+     }
+
+     pub fn telem(&mut self, stage: world::ChunkStage, time: time::Duration)
+     {
+          let (cumulative, writes) = self.telem.stage_times.entry(stage).or_default();
+          *cumulative += time;
+          *writes += 1;
+          self.telem.requests += 1;
      }
 
      pub fn get_complete_view(
