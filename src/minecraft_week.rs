@@ -112,9 +112,9 @@ impl application::Application for MinecraftWeek
 
           let mut world = manager::ChunkManager::builder()
                .atlas(sync::Arc::clone(&texture_atlas))
-               .view_distance(24)
+               .view_distance(8)
                .terrain(sync::Arc::clone(&terrain_gen))
-               .chunk_width(16)
+               .chunk_width(32)
                .chunk_height(256)
                .build();
           world.spawn_workers(3);
@@ -166,6 +166,8 @@ impl application::Application for MinecraftWeek
           self.handle_interaction_input(input);
 
           self.world.update_chunks(self.camera.inner.position, self.frame_data.time);
+
+          // log::info!("FPS: {:.2}", self.frame_data.dt.recip());
      }
 
      fn gfx_frame(

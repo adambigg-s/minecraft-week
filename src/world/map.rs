@@ -137,6 +137,17 @@ impl ChunkMap
           self.telem.requests += 1;
      }
 
+     pub fn get_chunk(
+          &self,
+          coord: &glam::IVec3,
+          stage_threshold: world::ChunkStage,
+     ) -> Option<sync::Arc<chunk::Chunk>>
+     {
+          self.chunks.read().unwrap().get(coord).and_then(|chunk| {
+               if chunk.stage >= stage_threshold { Some(sync::Arc::clone(&chunk.chunk)) } else { None }
+          })
+     }
+
      pub fn get_complete_view(
           &self,
           center: glam::IVec3,

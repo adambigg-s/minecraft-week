@@ -5,6 +5,7 @@ use wgpu::vertex_attr_array;
 use crate::engine::rectilinear;
 use crate::render::{self};
 use crate::visual::atlas;
+use crate::visual::light;
 use crate::world::block;
 use crate::world::{self};
 
@@ -45,25 +46,44 @@ impl render::GfxVertex for TerrainVertex
 pub struct TerrainQuad
 {
      pub quad: rectilinear::Quad,
+     pub block: block::Block,
      pub ambient_occlusion: [f32; 4],
      pub face_illumination: [f32; 4],
      pub block_illumination: [f32; 4],
-     pub block: block::Block,
 }
 
 impl TerrainQuad
 {
      pub fn indices(&self, start: u32) -> [u32; 6]
      {
-          if self.ambient_occlusion[0] + self.ambient_occlusion[3]
-               < self.ambient_occlusion[1] + self.ambient_occlusion[2]
+          let out;
+
+          let ao0 = self.ambient_occlusion[0] + self.ambient_occlusion[3];
+          let ao1 = self.ambient_occlusion[1] + self.ambient_occlusion[2];
+          let fl0 = self.face_illumination[0] + self.face_illumination[3];
+          let fl1 = self.face_illumination[1] + self.face_illumination[2];
+
+          if ao0 < ao1
           {
-               [start, start + 2, start + 1, start + 1, start + 2, start + 3]
+               out = [start, start + 2, start + 1, start + 1, start + 2, start + 3];
+          }
+          else if ao0 > ao1
+          {
+               out = [start, start + 2, start + 3, start, start + 3, start + 1];
           }
           else
           {
-               [start, start + 2, start + 3, start, start + 3, start + 1]
+               if fl0 < fl1
+               {
+                    out = [start, start + 2, start + 3, start, start + 3, start + 1];
+               }
+               else
+               {
+                    out = [start, start + 2, start + 1, start + 1, start + 2, start + 3];
+               }
           }
+
+          out
      }
 }
 
@@ -316,44 +336,42 @@ impl<'c> ChunkMesher<'c>
 
      fn map_face_lighting(&self, coord: glam::IVec3, face: rectilinear::Face) -> [f32; 4]
      {
-          // let nor = face.neighbor_offset();
-          // let adj = coord + nor;
+          let nor = face.neighbor_offset();
+          let adj = coord + nor;
 
-          // face.corners().map(|(offset, _)| {
-          //      let dir = offset * 2 - glam::IVec3::ONE;
-          //      let tn_cand = dir * (glam::IVec3::ONE - nor.abs());
+          face.corners().map(|(offset, _)| {
+               let dir = offset * 2 - glam::IVec3::ONE;
+               let tn_cand = dir * (glam::IVec3::ONE - nor.abs());
 
-          //      let (tn, btn) = if nor.x != 0
-          //      {
-          //           (glam::ivec3(0, tn_cand.y, 0), glam::ivec3(0, 0, tn_cand.z))
-          //      }
-          //      else if nor.y != 0
-          //      {
-          //           (glam::ivec3(tn_cand.x, 0, 0), glam::ivec3(0, 0, tn_cand.z))
-          //      }
-          //      else
-          //      {
-          //           (glam::ivec3(tn_cand.x, 0, 0), glam::ivec3(0, tn_cand.y, 0))
-          //      };
+               let (tn, btn) = if nor.x != 0
+               {
+                    (glam::ivec3(0, tn_cand.y, 0), glam::ivec3(0, 0, tn_cand.z))
+               }
+               else if nor.y != 0
+               {
+                    (glam::ivec3(tn_cand.x, 0, 0), glam::ivec3(0, 0, tn_cand.z))
+               }
+               else
+               {
+                    (glam::ivec3(tn_cand.x, 0, 0), glam::ivec3(0, tn_cand.y, 0))
+               };
 
-          //      let center_light = *self.view.get_light(adj) as f32;
-          //      let side1_light = *self.view.get_light(adj + tn) as f32;
-          //      let side2_light = *self.view.get_light(adj + btn) as f32;
-          //      let mut corner_light = *self.view.get_light(adj + tn + btn) as f32;
+               let center_light = *self.view.get_light(adj) as f32;
+               let side1_light = *self.view.get_light(adj + tn) as f32;
+               let side2_light = *self.view.get_light(adj + btn) as f32;
+               let mut corner_light = *self.view.get_light(adj + tn + btn) as f32;
 
-          //      let side1 = *self.view.get_block(adj + tn).opacity() != 0;
-          //      let side2 = *self.view.get_block(adj + btn).opacity() != 0;
+               let side1 = *self.view.get_block(adj + tn).opacity() != 0;
+               let side2 = *self.view.get_block(adj + btn).opacity() != 0;
 
-          //      if side1 && side2
-          //      {
-          //           corner_light = center_light;
-          //      }
+               if side1 && side2
+               {
+                    corner_light = center_light;
+               }
 
-          //      (center_light + side1_light + side2_light + corner_light)
-          //           / (4.0 * *light::Light::max_light() as f32)
-          // })
-          let light = self.view.get_light(coord + face.neighbor_offset()).luminosity();
-          [light; 4]
+               (center_light + side1_light + side2_light + corner_light)
+                    / (4.0 * *light::Light::max_light() as f32)
+          })
      }
 
      #[allow(clippy::too_many_arguments)]
@@ -376,10 +394,10 @@ impl<'c> ChunkMesher<'c>
                     position: world_coord,
                     face,
                },
+               block,
                ambient_occlusion: ao,
                face_illumination: face_light,
                block_illumination: [block_light; 4],
-               block,
           };
           let pos = quad.quad.positions();
           let nor = quad.quad.normals();

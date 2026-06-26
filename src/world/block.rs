@@ -185,7 +185,7 @@ impl Block
      {
           match self
           {
-               | Block::Lava => Some(light::Light::new(8)),
+               | Block::Lava => Some(light::Light::max_light()),
                | Block::Light => Some(light::Light::max_light()),
                | Block::Torch => Some(light::Light::max_light()),
                | _ => None,
