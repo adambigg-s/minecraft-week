@@ -9,7 +9,7 @@ that I wanted to keep working on. This version has more than 1 week of work.
 The 'one week' version is preserved in a [branch that can be found here.
 ](https://github.com/adambigg-s/minecraft-week/tree/f239245b432c7842381b852e00c0bf91ffa11833)
 
-![screenshot](images/development/good_illumination.png)
+![screenshot](images/development/torch_cave.png)
 
 ### Building
 

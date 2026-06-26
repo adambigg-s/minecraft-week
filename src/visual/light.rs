@@ -7,7 +7,7 @@ use crate::world;
 use crate::world::chunk;
 use crate::world::delta;
 
-const MAX_LIGHT: u8 = 15;
+const MAX_LIGHT: u8 = 8;
 
 #[derive(bon::Builder, Debug, Default, Clone, Copy)]
 pub struct LightDelta
@@ -178,7 +178,7 @@ impl FloodFill
                {
                     continue;
                }
-               else if curr_light > expected_light
+               if curr_light > expected_light
                {
                     self.add_light(
                          LightNode {
@@ -188,10 +188,8 @@ impl FloodFill
                          chunk,
                     );
                }
-               else
-               {
-                    *chunk.get_light_mut(coord) = Light::min_light();
-               }
+
+               *chunk.get_light_mut(coord) = Light::min_light();
 
                for (dx, dy, dz) in neighbors::von_neumann3()
                {
