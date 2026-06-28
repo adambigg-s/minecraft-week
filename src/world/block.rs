@@ -124,33 +124,17 @@ impl Block
           {
                | Block::Air => light::Light::new(0),
                | Block::Light => light::Light::new(0),
-               | Block::Shrub => light::Light::new(0),
                | Block::Torch => light::Light::new(0),
+               | Block::Shrub => light::Light::new(0),
                | Block::Glass => light::Light::new(0),
                | Block::RedFlower => light::Light::new(0),
                | Block::BlueFlower => light::Light::new(0),
-               | Block::Leaf => light::Light::new(3),
+               | Block::Water => light::Light::new(2),
+               | Block::Leaf => light::Light::new(4),
                | Block::Lava => light::Light::new(5),
                | _ => light::Light::max_light(),
           }
      }
-
-     // pub fn opacity(&self) -> light::Light
-     // {
-     //      match self
-     //      {
-     //           | Block::Air => light::Light::new(0),
-     //           | Block::Light => light::Light::new(0),
-     //           | Block::Shrub => light::Light::new(0),
-     //           | Block::Glass => light::Light::new(0),
-     //           | Block::RedFlower => light::Light::new(0),
-     //           | Block::BlueFlower => light::Light::new(0),
-     //           | Block::Water => light::Light::new(3),
-     //           | Block::Leaf => light::Light::new(3),
-     //           | Block::Lava => light::Light::new(5),
-     //           | _ => light::Light::max_light(),
-     //      }
-     // }
 
      pub fn visibility(&self) -> Visibility
      {
@@ -163,23 +147,10 @@ impl Block
                | Block::Glass
                | Block::Torch => Visibility::PartialOpaque,
                | Block::Air => Visibility::Invisible,
+               | Block::Water => Visibility::Transparent,
                | _ => Visibility::Opaque,
           }
      }
-
-     // pub fn visibility(&self) -> Visibility
-     // {
-     //      match self
-     //      {
-     //           | Block::Air => Visibility::Invisible,
-     //           | Block::Water => Visibility::Transparent,
-     //           | Block::Leaf | Block::RedFlower | Block::BlueFlower | Block::Shrub | Block::Glass =>
-     //           {
-     //                Visibility::PartialOpaque
-     //           }
-     //           | _ => Visibility::Opaque,
-     //      }
-     // }
 
      pub fn emissivity(&self) -> Option<light::Light>
      {

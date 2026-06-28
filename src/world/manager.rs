@@ -219,17 +219,6 @@ impl ChunkManager
                     },
                );
 
-               log::info!(
-                    "Manger::modify delta: {:?}",
-                    delta::ChunkDelta {
-                         coord,
-                         delta: light::LightDelta {
-                              light,
-                              removal,
-                         },
-                    }
-               );
-
                requests.push(chunk_worldspace);
                if coord.x == 0
                {

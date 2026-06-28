@@ -385,18 +385,20 @@ impl<'c> ChunkLighting<'c>
                          coord,
                     });
                }
-
-               if removal
+               else if removal
                {
                     neighbors::von_neumann3().into_iter().for_each(|(dx, dy, dz)| {
                          let neighbor_coord = coord + glam::ivec3(dx, dy, dz);
                          let neighbor_light = self.view.get_light(neighbor_coord);
                          if neighbor_light > Light::min_light()
                          {
-                              self.ff.add_queue.push_back(LightNode {
-                                   light: neighbor_light,
-                                   coord: neighbor_coord,
-                              });
+                              self.ff.add_light(
+                                   LightNode {
+                                        light: neighbor_light,
+                                        coord: neighbor_coord,
+                                   },
+                                   chunk,
+                              );
                          }
                     });
                }
