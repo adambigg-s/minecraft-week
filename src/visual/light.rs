@@ -337,7 +337,7 @@ impl<'c> ChunkLighting<'c>
                          }
 
                          let imm_down = coord + glam::ivec3(0, -1, 0);
-                         if chunk.check_index(imm_down) && *chunk.get(imm_down) != block::Block::Air
+                         if chunk.check_index(imm_down) && chunk.get(imm_down).opacity() != Light::min_light()
                          {
                               break 'height;
                          }

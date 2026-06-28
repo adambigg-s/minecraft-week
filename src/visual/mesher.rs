@@ -9,6 +9,14 @@ use crate::visual::light;
 use crate::world::block;
 use crate::world::{self};
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum MeshType
+{
+     #[default]
+     Opaque,
+     Transparent,
+}
+
 #[repr(C)]
 #[derive(bytemuck::Pod, bytemuck::Zeroable, bon::Builder, Debug, Default, Clone, Copy)]
 pub struct TerrainVertex
@@ -204,6 +212,7 @@ pub struct ChunkRawMesh
      pub vertices: Vec<TerrainVertex>,
      pub indices: Vec<u32>,
      pub offset: glam::IVec3,
+     pub mesh_type: MeshType,
 }
 
 #[derive(bon::Builder, Debug)]
@@ -215,7 +224,7 @@ pub struct ChunkMesher<'c>
 
 impl<'c> ChunkMesher<'c>
 {
-     pub fn raw_mesh(&self) -> ChunkRawMesh
+     pub fn raw_opaque_mesh(&self) -> ChunkRawMesh
      {
           use block::Visibility::*;
 
@@ -290,12 +299,20 @@ impl<'c> ChunkMesher<'c>
                     | block::EmittedMesh::RectilinearPartial => todo!(),
                }
           }
+          let offset = chunk.offset();
+          let mesh_type = MeshType::Opaque;
 
           ChunkRawMesh {
                vertices,
                indices,
-               offset: chunk.offset(),
+               offset,
+               mesh_type,
           }
+     }
+
+     pub fn raw_transparent_mesh(&self) -> ChunkRawMesh
+     {
+          todo!()
      }
 
      fn map_ao(&self, coord: glam::IVec3, face: rectilinear::Face) -> [f32; 4]

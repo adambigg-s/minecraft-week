@@ -125,6 +125,6 @@ impl Chunk
                view,
                atlas,
           }
-          .raw_mesh()
+          .raw_opaque_mesh()
      }
 }
