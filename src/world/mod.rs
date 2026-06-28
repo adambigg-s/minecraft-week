@@ -50,19 +50,7 @@ impl ChunkView
           match self.neighbors.get(&rel)
           {
                | Some(chunk) => *chunk.get(local),
-               | None =>
-               {
-                    if rel.y == 0
-                    {
-                         log::error!(
-                              "Indexing out of ChunkView domain: {} {} {}",
-                              rel,
-                              local,
-                              relative_coord
-                         );
-                    }
-                    block::Block::empty()
-               }
+               | None => block::Block::empty(),
           }
      }
 
@@ -72,19 +60,7 @@ impl ChunkView
           match self.neighbors.get(&rel)
           {
                | Some(chunk) => *chunk.get_light(local),
-               | None =>
-               {
-                    if rel.y == 0
-                    {
-                         log::error!(
-                              "Indexing out of ChunkView domain: {} {} {}",
-                              rel,
-                              local,
-                              relative_coord
-                         );
-                    }
-                    light::Light::min_light()
-               }
+               | None => light::Light::min_light(),
           }
      }
 }

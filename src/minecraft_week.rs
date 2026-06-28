@@ -98,7 +98,7 @@ impl application::Application for MinecraftWeek
 
           let camera = camera::Camera::builder()
                .inner(transform::Transform::from_position(glam::vec3(0.0, 116.0, 0.0)))
-               .fov(85.0)
+               .fov(93.0)
                .znear(0.1)
                .zfear(1000.0)
                .build();
@@ -112,7 +112,7 @@ impl application::Application for MinecraftWeek
 
           let mut world = manager::ChunkManager::builder()
                .atlas(sync::Arc::clone(&texture_atlas))
-               .view_distance(8)
+               .view_distance(16)
                .terrain(sync::Arc::clone(&terrain_gen))
                .chunk_width(32)
                .chunk_height(256)
@@ -193,11 +193,11 @@ impl application::Application for MinecraftWeek
 
           if &self.gfx_config.pipeline == "terrain_pipe"
           {
-               // render.queue(render::GfxDrawCall {
-               //      mesh: "skybox_mesh".into(),
-               //      pipe: "skybox_pipe".into(),
-               //      bind_groups: vec!["global_bg".into(), "skybox_bg".into()],
-               // });
+               render.queue(render::GfxDrawCall {
+                    mesh: "skybox_mesh".into(),
+                    pipe: "skybox_pipe".into(),
+                    bind_groups: vec!["global_bg".into(), "skybox_bg".into()],
+               });
                self.world.render_chunks.iter().for_each(|&coord| {
                     render.queue(render::GfxDrawCall {
                          mesh: manager::ChunkManager::chunk_key(coord),
